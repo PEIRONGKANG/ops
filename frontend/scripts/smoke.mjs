@@ -36,11 +36,19 @@ async function expectVisible(locator, message) {
 
 async function typeAndBlur(locator, value) {
   await locator.fill(value);
-  await locator.blur();
+  try {
+    await locator.evaluate((node) => node.blur());
+  } catch {
+    // React re-render can replace the input node immediately after fill.
+  }
 }
 
 async function ensureTextVisible(text) {
   await page.locator(`text=${text}`).first().waitFor({ state: "visible", timeout: 20000 });
+}
+
+function sectionByHeading(name) {
+  return page.getByRole("heading", { name, exact: true }).last().locator("xpath=ancestor::section[1]");
 }
 
 async function chooseFiles(scope, buttonName, filePath = uploadFixture) {
@@ -105,8 +113,8 @@ async function runAccountsAudit() {
   const finalPassword = `${createdPassword}B`;
 
   await openTab("账号管理");
-  await expectVisible(page.getByRole("heading", { name: "账号管理", exact: true }), "账号管理页面未打开");
-  const accountsSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "账号管理", exact: true }) }).first();
+  const accountsSection = sectionByHeading("账号管理");
+  await expectVisible(accountsSection, "账号管理页面未打开");
   await expectVisible(accountsSection.locator('text=P1 账号管理（最高权限）').first(), "P1管理卡片未显示");
   const cards = accountsSection.locator(".soft-card");
   const createCard = cards.nth(1);
@@ -121,12 +129,14 @@ async function runAccountsAudit() {
   await ensureTextVisible(`已新增账号：${tempUser}`);
 
   await openTab("账号管理");
-  await expectVisible(page.getByRole("heading", { name: "账号管理", exact: true }), "新增账号后账号管理页面未保持可见");
-  await editCard.locator("select").selectOption(tempUser);
-  const editInputs = editCard.locator("input");
+  const accountsSectionAfterCreate = sectionByHeading("账号管理");
+  await expectVisible(accountsSectionAfterCreate, "新增账号后账号管理页面未保持可见");
+  const editCardAfterCreate = accountsSectionAfterCreate.locator(".soft-card").nth(2);
+  await editCardAfterCreate.locator("select").selectOption(tempUser);
+  const editInputs = editCardAfterCreate.locator("input");
   await typeAndBlur(editInputs.nth(0), "巡检账号已编辑");
   await typeAndBlur(editInputs.nth(1), editedPassword);
-  await editCard.getByRole("button", { name: "保存账号修改" }).click();
+  await editCardAfterCreate.getByRole("button", { name: "保存账号修改" }).click();
   await ensureTextVisible(`已更新账号：${tempUser}`);
 
   await logout();
@@ -134,7 +144,8 @@ async function runAccountsAudit() {
   await expectVisible(page.getByRole("button", { name: "账号管理" }), "新增账号无法登录");
 
   await openTab("账号管理");
-  const passwordCard = page.locator('section:has-text("账号管理") .soft-card').first();
+  const accountsSectionForPassword = sectionByHeading("账号管理");
+  const passwordCard = accountsSectionForPassword.locator(".soft-card").first();
   await typeAndBlur(passwordCard.locator('input[type="password"]').first(), finalPassword);
   await passwordCard.getByRole("button", { name: "修改密码" }).click();
   await ensureTextVisible("密码已修改。");
@@ -149,8 +160,9 @@ async function runAccountsAudit() {
     password: "103085",
   });
   await openTab("账号管理");
-  await expectVisible(page.getByRole("heading", { name: "账号管理", exact: true }), "删除账号前未回到账号管理页");
-  const editCardAfterRelogin = page.locator('section:has-text("账号管理") .soft-card').nth(2);
+  const accountsSectionRelogin = sectionByHeading("账号管理");
+  await expectVisible(accountsSectionRelogin, "删除账号前未回到账号管理页");
+  const editCardAfterRelogin = accountsSectionRelogin.locator(".soft-card").nth(2);
   await editCardAfterRelogin.locator("select").selectOption("103085");
   await expectVisible(editCardAfterRelogin.getByText("不能删除当前登录账号").first(), "当前登录账号删除提示未显示");
   await assertButtonDisabled(editCardAfterRelogin.getByRole("button", { name: "删除账号" }), "当前登录账号的删除按钮应禁用");
