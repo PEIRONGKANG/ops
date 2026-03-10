@@ -36,8 +36,11 @@ export function AccountsTab({
   );
 
   return (
-    <section className="space-y-4">
-      <h2 className="section-title">账号管理</h2>
+    <section className="module-shell">
+      <div>
+        <p className="module-kicker">Access & Identity Management</p>
+        <h2 className="section-title mt-2">账号管理</h2>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="soft-card">

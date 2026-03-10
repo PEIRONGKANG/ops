@@ -106,7 +106,7 @@ async function runAccountsAudit() {
 
   await openTab("账号管理");
   await expectVisible(page.getByRole("heading", { name: "账号管理", exact: true }), "账号管理页面未打开");
-  const accountsSection = page.locator('section:has-text("账号管理")');
+  const accountsSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "账号管理", exact: true }) }).first();
   await expectVisible(accountsSection.locator('text=P1 账号管理（最高权限）').first(), "P1管理卡片未显示");
   const cards = accountsSection.locator(".soft-card");
   const createCard = cards.nth(1);
@@ -190,7 +190,7 @@ try {
   await ensureTextVisible("分组信息已按本周保存，本周无需重复填写。");
 
   await openTab("周三策划提交");
-  const creativeSection = page.locator('section:has-text("创意饮品策划提交（周三）")');
+  const creativeSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "创意饮品策划提交（周三）", exact: true }) }).first();
   await typeAndBlur(page.getByPlaceholder("目标人群、推广渠道、售价策略、试饮安排"), `主打校园晚课轻负担饮品 ${noteSuffix}`);
   await typeAndBlur(page.getByPlaceholder("2 款饮品配方、克数、制作步骤、标准化要点"), `茉莉轻乳茶与柠香冷萃两款新品，记录于 ${noteSuffix}`);
   await typeAndBlur(page.getByPlaceholder("品名、规格、数量、预算、采购时间、验收人"), `轻乳、茉莉茶底、冷萃液，预算120元，验收人周露，${noteSuffix}`);
@@ -201,7 +201,7 @@ try {
   await ensureTextVisible("已保存：周三策划提交模块。");
 
   await openTab("每日打卡与运营");
-  const dailySection = page.locator('section:has-text("每日打卡与运营执行")');
+  const dailySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "每日打卡与运营执行", exact: true }) }).first();
   const groomingCard = dailySection.locator('div:has(> h3:has-text("仪容仪表检查照片"))').first();
   const openingCard = dailySection.locator('div:has(> h3:has-text("上班前卫生（公区/吧台）"))').first();
   const closingCard = dailySection.locator('div:has(> h3:has-text("下班后卫生（公区/吧台）"))').first();
@@ -246,9 +246,9 @@ try {
   await ensureTextVisible("当日记录。");
 
   await openTab("交接班（次周三）");
-  const handoverSection = page.locator('section:has-text("次周周三交接班")');
-  await typeAndBlur(handoverSection.getByPlaceholder("本周运营情况、问题清单、下周提醒"), `本周销售稳定，注意补货和高峰分工，${noteSuffix}`);
-  await typeAndBlur(handoverSection.getByPlaceholder("姓名或账号"), "刘梓文");
+  const handoverSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "次周周三交接班", exact: true }) }).first();
+  await typeAndBlur(page.getByPlaceholder("本周运营情况、问题清单、下周提醒"), `本周销售稳定，注意补货和高峰分工，${noteSuffix}`);
+  await typeAndBlur(page.getByPlaceholder("交接对象姓名或账号"), "刘梓文");
   await chooseFiles(handoverSection, "添加交接照片");
   await ensureTextVisible("已保存：交接记录。");
   await expectUploadedPreview(handoverSection);
@@ -256,7 +256,7 @@ try {
   await ensureTextVisible("已保存：交接记录。");
 
   await openTab("总结与反思");
-  const reflectionSection = page.locator('section:has-text("总结与反思（周结束）")');
+  const reflectionSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "总结与反思（周结束）", exact: true }) }).first();
   const reflectionAreas = reflectionSection.locator("textarea");
   await typeAndBlur(reflectionAreas.nth(0), `学生A复盘：时间管理更稳定，${noteSuffix}`);
   await typeAndBlur(reflectionAreas.nth(1), `学生B复盘：卫生细节与销售表达有提升，${noteSuffix}`);
@@ -300,7 +300,7 @@ try {
   await expectVisible(creativeSection.locator("text=已确认：").first(), "创意策划确认状态未更新");
 
   await openTab("每日打卡与运营");
-  const managerDailySection = page.locator('section:has-text("每日打卡与运营执行")');
+  const managerDailySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "每日打卡与运营执行", exact: true }) }).first();
   await groomingCard.getByRole("button", { name: "经理确认" }).click();
   await expectVisible(groomingCard.locator("text=已确认：").first(), "仪容仪表确认状态未更新");
   await managerDailySection.getByRole("button", { name: "运营经理确认签到" }).click();

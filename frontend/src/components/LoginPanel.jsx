@@ -14,8 +14,11 @@ export function LoginPanel({
   };
 
   return (
-    <section className="panel-card" onKeyDown={handleKeyDown}>
-      <h2 className="section-title">登录</h2>
+    <section className="login-card no-print" onKeyDown={handleKeyDown}>
+      <p className="panel-eyebrow">Member Sign In</p>
+      <h2 className="section-title mt-3">登录</h2>
+      <p className="panel-lead">支持学生单人登录、同组双人协同登录，也支持运营经理与 P1 管理账号进入系统。</p>
+
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <label className="field-label">账号一</label>
@@ -64,6 +67,9 @@ export function LoginPanel({
         <button className="btn-primary" type="button" onClick={onSubmit} disabled={!canSubmit}>
           {loading ? "登录中..." : "登录系统"}
         </button>
+        <span className="inline-flex items-center rounded-full border border-[#d9cec2] bg-[#f5eee7] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#7a5a48]">
+          P3 / P2 / P1
+        </span>
       </div>
 
       <p className="status-line mt-4">

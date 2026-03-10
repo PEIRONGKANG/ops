@@ -30,53 +30,59 @@ export function Sidebar({
   editable,
 }) {
   return (
-    <aside className="panel-card no-print h-fit">
-      <h3 className="panel-title">当前会话</h3>
-      <div className="flex flex-wrap gap-2">
-        <span className="tag-pill">
-          {currentUser ? `${currentUser.displayName} (${currentUser.username})` : "未登录"}
-        </span>
-        <span className="tag-pill">{roleLabel || "角色"}</span>
-      </div>
-      <p className="status-line mt-3">{sessionInfo}</p>
-
-      {canViewAllScopes ? (
-        <div className="mt-4">
-          <label className="field-label">查看学员数据</label>
-          <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={!studentUsers.length}>
-            {studentUsers.map((user) => (
-              <option key={user.username} value={user.username}>
-                {user.displayName}（{user.username}）
-              </option>
-            ))}
-          </select>
+    <aside className="panel-card sidebar-shell no-print h-fit">
+      <div className="sidebar-hero">
+        <p className="panel-eyebrow !text-white/52">Current Session</p>
+        <h3 className="mt-2">当前会话</h3>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="tag-pill">
+            {currentUser ? `${currentUser.displayName} (${currentUser.username})` : "未登录"}
+          </span>
+          <span className="tag-pill">{roleLabel || "角色"}</span>
         </div>
-      ) : null}
+        <p className="status-line mt-4 border-white/10 bg-white/8 text-white/82">{sessionInfo}</p>
+      </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+      <div className="sidebar-section">
+        {canViewAllScopes ? (
+          <div>
+            <label className="field-label">查看学员数据</label>
+            <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={!studentUsers.length}>
+              {studentUsers.map((user) => (
+                <option key={user.username} value={user.username}>
+                  {user.displayName}（{user.username}）
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        <div className={`grid gap-3 ${canViewAllScopes ? "mt-4" : ""}`}>
+          <div>
+            <label className="field-label">轮值起始日（周三）</label>
+            <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} />
+          </div>
+          <div>
+            <label className="field-label">轮值结束日</label>
+            <input className="field-input" value={weekEnd} readOnly />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="btn-primary" type="button" onClick={onLoadWeek}>
+            加载/创建本周
+          </button>
+          <button className="btn-secondary" type="button" onClick={onLogout}>
+            退出登录
+          </button>
+        </div>
+      </div>
+
+      <div className="sidebar-section space-y-3">
         <div>
-          <label className="field-label">轮值起始日（周三）</label>
-          <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} />
+          <p className="panel-eyebrow">Weekly Group</p>
+          <h3 className="panel-title mt-2">分组信息</h3>
         </div>
-        <div>
-          <label className="field-label">轮值结束日</label>
-          <input className="field-input" value={weekEnd} readOnly />
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        <button className="btn-primary" type="button" onClick={onLoadWeek}>
-          加载/创建本周
-        </button>
-        <button className="btn-secondary" type="button" onClick={onLogout}>
-          退出登录
-        </button>
-      </div>
-
-      <div className="my-5 border-t border-stone-300/80" />
-
-      <h3 className="panel-title">分组信息</h3>
-      <div className="space-y-3">
         <div>
           <label className="field-label">教学周次（按提供的分组名单）</label>
           <select className="field-input" value={teachingWeek} onChange={(event) => onTeachingWeekChange(event.target.value)} disabled={!editable || !hasWeek}>
@@ -109,15 +115,17 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="my-5 border-t border-stone-300/80" />
-
-      <div className="flex flex-wrap gap-3">
+      <div className="sidebar-section">
+        <p className="panel-eyebrow">Reports</p>
+        <h3 className="panel-title mt-2">导出与预览</h3>
+        <div className="mt-4 flex flex-wrap gap-3">
         <button className="btn-primary" type="button" onClick={onExportWord} disabled={!canExportReport}>
           导出周报 Word
         </button>
         <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={!canExportReport}>
           预览/打印周报
         </button>
+        </div>
       </div>
 
       <p className={`status-line mt-4 ${statusError ? "border-rose-200 bg-rose-50 text-rose-700" : ""}`}>

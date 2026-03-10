@@ -11,10 +11,20 @@ export function HandoverTab({
   onApprove,
 }) {
   return (
-    <section className="space-y-4">
-      <h2 className="section-title">次周周三交接班</h2>
-
+    <section className="module-shell">
       <div>
+        <p className="module-kicker">Next Wednesday Transition</p>
+        <h2 className="section-title mt-2">次周周三交接班</h2>
+      </div>
+
+      <div className="module-banner-strip">
+        <div>
+          <p className="module-kicker !text-white/58">Handover Continuity</p>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/84">将本周运营情况、遗留问题、下一组提醒和现场交接凭证统一沉淀，保证轮值切换流畅且可追溯。</p>
+        </div>
+      </div>
+
+      <div className="soft-card">
         <label className="field-label">交接说明</label>
         <textarea
           className="field-textarea"
@@ -25,13 +35,13 @@ export function HandoverTab({
         />
       </div>
 
-      <div>
+      <div className="soft-card">
         <label className="field-label">交接对象（下一组同学）</label>
         <input
           className="field-input"
           value={data.nextGroup}
           onChange={(event) => onFieldChange("nextGroup", event.target.value)}
-          placeholder="姓名或账号"
+          placeholder="交接对象姓名或账号"
           readOnly={!editable}
         />
       </div>

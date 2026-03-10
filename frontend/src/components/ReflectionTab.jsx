@@ -10,26 +10,36 @@ export function ReflectionTab({
   onApprove,
 }) {
   return (
-    <section className="space-y-4">
-      <h2 className="section-title">总结与反思（周结束）</h2>
+    <section className="module-shell">
+      <div>
+        <p className="module-kicker">Reflection & Portfolio Closing</p>
+        <h2 className="section-title mt-2">总结与反思（周结束）</h2>
+      </div>
+
+      <div className="module-banner-strip" data-tone="reflection">
+        <div>
+          <p className="module-kicker !text-white/58">Weekly Reflection</p>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/84">围绕个人成长、小组优化方案与运营经理评语完成收尾，为导出实训报告提供更完整的课程成果表达。</p>
+        </div>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <div>
+        <div className="soft-card">
           <label className="field-label">学员 A 自评与收获</label>
           <textarea className="field-textarea" value={data.a} onChange={(event) => onFieldChange("a", event.target.value)} readOnly={!editable} />
         </div>
-        <div>
+        <div className="soft-card">
           <label className="field-label">学员 B 自评与收获</label>
           <textarea className="field-textarea" value={data.b} onChange={(event) => onFieldChange("b", event.target.value)} readOnly={!editable} />
         </div>
       </div>
 
-      <div>
+      <div className="soft-card">
         <label className="field-label">门店运营优化与建议方案（小组）</label>
         <textarea className="field-textarea" value={data.optPlan} onChange={(event) => onFieldChange("optPlan", event.target.value)} readOnly={!editable} />
       </div>
 
-      <div>
+      <div className="soft-card">
         <label className="field-label">运营经理结语</label>
         <textarea className="field-textarea" value={data.managerComment} onChange={(event) => onFieldChange("managerComment", event.target.value)} readOnly={!canApprove} />
       </div>

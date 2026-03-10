@@ -12,12 +12,15 @@ export function CreativeTab({
   onApprove,
 }) {
   return (
-    <section className="space-y-4">
-      <h2 className="section-title">创意饮品策划提交（周三）</h2>
-      <img src="/assets/poster-ai.svg" alt="AI海报模板" className="h-52 w-full rounded-[24px] border border-stone-300 object-cover" />
+    <section className="module-shell">
+      <div>
+        <p className="module-kicker">Wednesday Signature Planning</p>
+        <h2 className="section-title mt-2">创意饮品策划提交（周三）</h2>
+      </div>
+      <img src="/assets/poster-ai.svg" alt="AI海报模板" className="module-banner" />
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <div>
+        <div className="soft-card">
           <label className="field-label">营销计划</label>
           <textarea
             className="field-textarea"
@@ -27,7 +30,7 @@ export function CreativeTab({
             readOnly={!editable}
           />
         </div>
-        <div>
+        <div className="soft-card">
           <label className="field-label">饮品配方与制作方法</label>
           <textarea
             className="field-textarea"
@@ -39,7 +42,7 @@ export function CreativeTab({
         </div>
       </div>
 
-      <div>
+      <div className="soft-card">
         <label className="field-label">特殊物料采购计划</label>
         <textarea
           className="field-textarea"

@@ -25,12 +25,15 @@ export function DailyTab({
   onApprove,
 }) {
   return (
-    <section className="space-y-4">
-      <h2 className="section-title">每日打卡与运营执行</h2>
-      <img src="/assets/hygiene-ai.svg" alt="AI卫生检查图" className="h-48 w-full rounded-[24px] border border-stone-300 object-cover" />
+    <section className="module-shell">
+      <div>
+        <p className="module-kicker">Daily Operations & Execution</p>
+        <h2 className="section-title mt-2">每日打卡与运营执行</h2>
+      </div>
+      <img src="/assets/hygiene-ai.svg" alt="AI卫生检查图" className="module-banner" />
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <div>
+        <div className="soft-card">
           <label className="field-label">选择日期</label>
           <select className="field-input" value={currentDay} onChange={(event) => onDateChange(event.target.value)}>
             {dailyDateOptions.map((item) => (
@@ -40,11 +43,11 @@ export function DailyTab({
             ))}
           </select>
         </div>
-        <div>
+        <div className="soft-card">
           <label className="field-label">签到时间</label>
           <input className="field-input" type="time" value={data.checkIn} onChange={(event) => onFieldChange("checkIn", event.target.value)} readOnly={!editable} />
         </div>
-        <div>
+        <div className="soft-card">
           <label className="field-label">签退时间</label>
           <input className="field-input" type="time" value={data.checkOut} onChange={(event) => onFieldChange("checkOut", event.target.value)} readOnly={!editable} />
         </div>

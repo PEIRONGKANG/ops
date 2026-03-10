@@ -1002,47 +1002,194 @@ function App() {
 
   if (app.booting) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,#ffe8c2_0_14%,transparent_14%),radial-gradient(circle_at_90%_20%,#d9edff_0_14%,transparent_14%),linear-gradient(140deg,#fff7e6_0%,#f4f0e1_45%,#eef5f6_100%)] px-4 py-10">
-        <div className="mx-auto max-w-6xl rounded-[28px] border border-white/40 bg-white/70 p-10 shadow-xl backdrop-blur">
-          <p className="text-lg font-semibold text-stone-700">系统初始化中...</p>
+      <div className="site-shell flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="panel-card w-full max-w-3xl text-center">
+          <p className="panel-eyebrow">Operations Arrival</p>
+          <h1 className="section-title mt-3">系统初始化中...</h1>
+          <p className="panel-lead mx-auto max-w-xl">正在连接本地 SQLite 数据与工程版前端资源，请稍候片刻。</p>
         </div>
       </div>
     );
   }
 
   const showEmptyWeekState = app.activeTab !== "accounts" && !currentWeek;
+  const studentUsers = getStudentUsers(app.users);
+  const resolvedScopeUser = currentUser
+    ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
+    : "";
+  const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
+  const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
+  const publicNavItems = ["系统总览", "轮值实训", "运营执行", "经理审核", "报告导出"];
+  const heroStats = app.currentUser
+    ? [
+      { label: "当前身份", value: currentUser ? `${currentUser.displayName} · ${levelLabel(currentUser.level)}` : "未登录" },
+      { label: "当前查看", value: scopeUserRecord ? `${scopeUserRecord.displayName}（${scopeUserRecord.username}）` : "待选择学员" },
+      { label: "教学周次", value: currentWeekGroup?.teachingWeek || "尚未选择" },
+      { label: "轮值周期", value: currentWeek ? `${currentWeek.startDate} 至 ${currentWeek.endDate}` : "尚未加载本周" },
+    ]
+    : [
+      { label: "双人协同", value: "支持同组 2 名学生一次登录并同步周度记录" },
+      { label: "经理审核", value: "签到、签退、卫生、财务与交接均可逐项确认" },
+      { label: "报告导出", value: "周结束后可预览与导出美化版 Word 实训报告" },
+      { label: "数据留存", value: "工程版采用 SQLite 保存账号、周报与审核数据" },
+    ];
+  const featureCards = app.currentUser
+    ? [
+      {
+        title: "本周排期",
+        eyebrow: currentWeekGroup?.teachingWeek || "未设置教学周次",
+        copy: currentWeek
+          ? `当前轮值周期为 ${currentWeek.startDate} 至 ${currentWeek.endDate}，可直接进入 ${activeTabItem?.label || "当前模块"} 继续录入。`
+          : "先从左侧加载或创建本周，系统才会开启本轮运营记录与报告导出。",
+      },
+      {
+        title: "协同录入",
+        eyebrow: currentUser?.level === "P3" ? "同组学生协作" : "管理视角查看",
+        copy: sessionInfo,
+      },
+      {
+        title: "报告状态",
+        eyebrow: currentWeek ? "本周报告可生成" : "尚未生成报告",
+        copy: currentWeek
+          ? "当前周已经满足预览入口，可一键打开排版预览或导出 Word 报告。"
+          : "加载本周并完成业务录入后，系统会自动开放报告预览与导出。",
+      },
+    ]
+    : [
+      {
+        title: "双人周值录入",
+        eyebrow: "学生协同体验",
+        copy: "同组 2 个学生账号可以同时登录，本周的日常记录、海报与总结会自动同步到两位成员。",
+      },
+      {
+        title: "运营经理逐项确认",
+        eyebrow: "审核留痕",
+        copy: "签到、签退、仪容仪表、卫生、财务与交接都能单独确认，保证业务流程与纸面要求一致。",
+      },
+      {
+        title: "周报一键归档",
+        eyebrow: "成果导出",
+        copy: "系统会在周结束后生成美化版实训报告，支持预览、打印和导出 Word，适合课程留档与教学汇报。",
+      },
+    ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,#ffe8c2_0_14%,transparent_14%),radial-gradient(circle_at_90%_20%,#d9edff_0_14%,transparent_14%),linear-gradient(140deg,#fff7e6_0%,#f4f0e1_45%,#eef5f6_100%)] px-4 py-6 text-stone-800">
-      <div className="mx-auto max-w-7xl">
-        <header className="hero-card">
-          <div>
-            <p className="hero-kicker">Engineering Refactor Edition</p>
-            <h1 className="hero-title">饮品生产性实训基地周运营系统</h1>
-            <p className="hero-subtitle">React + Tailwind + SQLite 工程化版本，支持学生每周成果留痕、运营经理逐项确认、实训报告一键导出。</p>
+    <div className="site-shell">
+      <header className="site-header no-print">
+        <div className="site-header-inner">
+          <div className="brand-plate">
+            <span>Drink Atelier</span>
+            <strong>OPS<br />WEEKLY</strong>
+            <i className="brand-mark" />
           </div>
-          <img src="/assets/cover-ai.svg" alt="AI封面图" className="hero-image" />
-        </header>
 
-        {!app.currentUser ? (
-          <div className="mt-6">
-            <LoginPanel
-              loginForm={app.loginForm}
-              loginMessage={app.loginMessage}
-              loading={app.loading}
-              onChange={handleLoginFormChange}
-              onSubmit={handleLogin}
-            />
+          <div className="site-nav-wrap">
+            <div className="utility-nav">
+              <span><i className="utility-dot" />帮助</span>
+              <span><i className="utility-dot" />中文</span>
+              <span><i className="utility-dot" />实训报告</span>
+              <span><i className="utility-dot" />{app.currentUser ? `登录 ${currentUser.displayName}` : "登录加入"}</span>
+            </div>
+
+            {app.currentUser ? (
+              <TabNav items={TAB_ITEMS} activeTab={app.activeTab} onChange={handleTabChange} />
+            ) : (
+              <nav className="marketing-nav">
+                {publicNavItems.map((item, index) => (
+                  <span key={item} className={`marketing-link ${index === 0 ? "active" : ""}`}>{item}</span>
+                ))}
+              </nav>
+            )}
           </div>
-        ) : (
-          <div className="mt-6 grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        </div>
+      </header>
+
+      <section className="hero-stage">
+        <div className="hero-backdrop" style={{ backgroundImage: "url('/assets/luxury-hero.svg')" }} />
+        <div className="hero-scrim" />
+
+        <div className="hero-panel">
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <p className="hero-kicker">Luxury Hospitality Inspired Interface</p>
+              <h1 className="hero-title">饮品生产性实训基地周运营系统</h1>
+              <p className="hero-subtitle">
+                参考国际高端酒店官网的视觉语气，将学生轮值、每日运营执行、经理确认与周报导出整合为一套更统一、更有品牌感的实训工作台。
+              </p>
+
+              <div className="hero-stat-grid">
+                {heroStats.map((item) => (
+                  <div key={item.label} className="hero-stat">
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              {app.currentUser ? (
+                <div className="hero-action-row">
+                  <button className="btn-primary" type="button" onClick={handleLoadWeek}>
+                    快速加载本周
+                  </button>
+                  <button className="btn-secondary" type="button" onClick={handlePreviewReport} disabled={!currentWeek}>
+                    快速预览周报
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {app.currentUser ? (
+              <div className="hero-summary-card">
+                <p className="panel-eyebrow !text-white/52">Current Session</p>
+                <h3>运营工作台</h3>
+                <div className="hero-summary-list">
+                  <div className="hero-summary-item">
+                    <span>当前会话</span>
+                    <strong>{sessionInfo}</strong>
+                  </div>
+                  <div className="hero-summary-item">
+                    <span>当前模块</span>
+                    <strong>{activeTabItem?.label || "未选择模块"}</strong>
+                  </div>
+                  <div className="hero-summary-item">
+                    <span>周报状态</span>
+                    <strong>{currentWeek ? "已开放预览与 Word 导出" : "请先加载本周后启用报告功能"}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <LoginPanel
+                loginForm={app.loginForm}
+                loginMessage={app.loginMessage}
+                loading={app.loading}
+                onChange={handleLoginFormChange}
+                onSubmit={handleLogin}
+              />
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="feature-strip no-print">
+        {featureCards.map((item) => (
+          <article key={item.title} className="feature-card">
+            <p>{item.eyebrow}</p>
+            <h3>{item.title}</h3>
+            <p>{item.copy}</p>
+          </article>
+        ))}
+      </section>
+
+      {app.currentUser ? (
+        <section className="workspace-shell -mt-2 lg:-mt-4">
+          <div className="workspace-grid">
             <Sidebar
               currentUser={currentUser}
               roleLabel={currentUser ? levelLabel(currentUser.level) : ""}
               sessionInfo={sessionInfo}
               canViewAllScopes={canViewAllScopes()}
-              studentUsers={getStudentUsers(app.users)}
-              activeScopeUser={canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : (currentUser?.username || "")}
+              studentUsers={studentUsers}
+              activeScopeUser={resolvedScopeUser}
               weekStart={app.selectedWeekStart}
               weekEnd={currentWeek?.endDate || ""}
               teachingWeekOptions={buildTeachingWeekOptions()}
@@ -1068,14 +1215,19 @@ function App() {
               editable={canEditCurrentScopeData()}
             />
 
-            <main className="panel-card">
-              <TabNav items={TAB_ITEMS} activeTab={app.activeTab} onChange={handleTabChange} />
+            <main className="workspace-main">
+              <p className="workspace-kicker">Curated Operations Suite</p>
+              <h2 className="workspace-heading">{activeTabItem?.label || "运营工作台"}</h2>
+              <p className="panel-lead">
+                当前界面围绕周度实训动线组织，保留原有按钮与业务逻辑，但整体视觉改为更接近高端酒店官网的沉浸式展示方式。
+              </p>
 
-              <div className="mt-4">
+              <div className="mt-7">
                 {showEmptyWeekState ? (
                   <section className="soft-card">
-                    <h2 className="section-title">请先加载本周</h2>
-                    <p className="status-line mt-3">左侧选择轮值起始日后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
+                    <p className="module-kicker">Weekly Preparation</p>
+                    <h2 className="section-title mt-2">请先加载本周</h2>
+                    <p className="status-line mt-4">左侧选择轮值起始日后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
                   </section>
                 ) : null}
 
@@ -1168,8 +1320,42 @@ function App() {
               </div>
             </main>
           </div>
-        )}
-      </div>
+        </section>
+      ) : null}
+
+      <footer className="site-footer no-print">
+        <div className="site-footer-inner">
+          <div className="footer-grid">
+            <div>
+              <h3 className="footer-title">饮品实训周运营系统</h3>
+              <p className="footer-copy">围绕周三策划、每日运营、交接班与总结反思建立统一留痕流程，让课程执行、审核和导出都保持同一套视觉与业务语言。</p>
+            </div>
+            <div>
+              <h3 className="footer-title">核心模块</h3>
+              <div className="footer-links">
+                <div>周三策划提交</div>
+                <div>每日打卡与运营执行</div>
+                <div>交接班（次周三）</div>
+                <div>总结与反思 / 账号管理</div>
+              </div>
+            </div>
+            <div>
+              <h3 className="footer-title">数据与交付</h3>
+              <div className="footer-links">
+                <div>本地 SQLite 持久化保存</div>
+                <div>经理逐项确认与最终审核</div>
+                <div>美化版周报预览与 Word 导出</div>
+                <div>支持 Windows 一键启动与数据库迁移</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="footer-bottom">
+            <span>Drink Atelier Weekly Operations System</span>
+            <span>{app.currentUser ? `当前登录：${currentUser.displayName}（${currentUser.username}）` : "当前未登录，可使用学生或管理账号进入系统。"}</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
