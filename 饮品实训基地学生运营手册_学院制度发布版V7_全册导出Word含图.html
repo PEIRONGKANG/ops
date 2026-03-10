@@ -1,0 +1,2196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>旅享家基地实践周｜学院制度发布版V7（全册导出Word含图）</title>
+  <style>
+:root{
+  --bg:#0b0f14; --panel:#121826; --muted:#8aa0b5; --text:#e7eef6; --brand:#6ee7b7;
+  --accent:#60a5fa; --warn:#fbbf24; --danger:#fb7185; --line:#223046;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{
+  position:sticky; top:0; z-index:20;
+  background:rgba(11,15,20,.85); backdrop-filter: blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.header-inner{max-width:1200px;margin:0 auto;padding:14px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{margin:0;font-size:16px;letter-spacing:.3px}
+.brand .sub{margin:0;color:var(--muted);font-size:12px}
+.controls{display:flex;gap:10px;align-items:center}
+button, .pill{
+  border:1px solid var(--line); background:var(--panel); color:var(--text);
+  padding:8px 10px;border-radius:12px; cursor:pointer; font-size:12px;
+}
+button:hover{border-color:#2f4566}
+.pill{display:inline-flex;align-items:center;gap:8px}
+main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns: 320px 1fr;gap:16px}
+nav{
+  position:sticky; top:64px; align-self:start;
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:14px; max-height: calc(100vh - 90px); overflow:auto
+}
+nav h2{margin:0 0 10px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+nav a{display:block;padding:8px 10px;border-radius:12px;color:var(--text)}
+nav a:hover{background:#0f1523}
+.content{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:20px; min-width:0
+}
+section{padding:8px 0 20px;border-bottom:1px dashed #223046}
+section:last-child{border-bottom:none}
+h2{margin:8px 0 6px;font-size:20px}
+h3{margin:14px 0 6px;font-size:16px}
+p{margin:8px 0}
+.kpi{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:10px;margin:10px 0}
+.card{
+  border:1px solid var(--line); background:#0f1523;border-radius:14px;padding:12px;
+}
+.card .t{font-size:12px;color:var(--muted);margin:0 0 6px}
+.card .v{font-size:18px;margin:0}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+table{width:100%;border-collapse:collapse;margin:10px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#0f1523;text-align:left;color:var(--muted);font-weight:600;font-size:12px}
+tr:last-child td{border-bottom:none}
+ol,ul{margin:8px 0 8px 20px}
+.note{border-left:3px solid var(--accent);padding:10px 12px;background:#0e1a2b;border-radius:12px;color:#d6e6ff}
+.warn{border-left:3px solid var(--warn);background:#1b1608}
+.danger{border-left:3px solid var(--danger);background:#1a0b10}
+hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+.checklist{display:grid;gap:8px;margin:10px 0}
+.item{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:10px;border:1px solid var(--line);border-radius:14px;background:#0f1523
+}
+.item input{margin-top:3px;transform:scale(1.15)}
+.item label{cursor:pointer;flex:1}
+.small{font-size:12px;color:var(--muted)}
+.footer{margin-top:18px;color:var(--muted);font-size:12px}
+img{max-width:100%;border-radius:14px;border:1px solid var(--line)}
+@media (max-width: 980px){
+  main{grid-template-columns:1fr}
+  nav{position:relative;top:auto;max-height:none}
+}
+
+/* extra */
+fieldset{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+legend{color:var(--muted);padding:0 8px}
+input[type=text], input[type=number], textarea{
+  width:100%; padding:10px; border-radius:12px; border:1px solid var(--line);
+  background:#0b0f14; color:var(--text);
+}
+textarea{min-height:90px}
+.formrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.progressbar > div{transition:width .2s ease}
+.calcbox{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.calcbox .card .v{font-size:20px}
+
+@media print{
+  header, nav{display:none !important;}
+  main{display:block; padding:0; margin:0;}
+  .content{border:none; padding:0;}
+  section{break-inside:avoid; page-break-inside:avoid;}
+  #secW{page-break-before:always;}
+  input, textarea{border:1px solid #999 !important; color:#000 !important; background:#fff !important;}
+  body{background:#fff !important; color:#000 !important;}
+}
+
+
+.imgPreview img{
+    border:1px solid #ccc;
+    border-radius:6px;
+}
+
+
+.imgPreview{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.imgPreview img{max-width:120px;height:auto}
+
+
+#exportAllWordBtn{background:#1f6feb;color:white;border:1px solid #1f6feb;border-radius:12px;padding:10px 12px;cursor:pointer}
+#exportAllWordBtn:hover{filter:brightness(1.05)}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>饮品生产性实训基地学生运营手册（学院制度发布版 V3）</h1>
+      <p class="sub">2025–2026 学年度｜营业时间：周一至周五 09:00–18:00｜2人/组｜1周轮值｜常驻运营经理1人｜版本：V3｜发布日期：2026-03-02</p>
+    </div>
+    <div class="controls">
+      <span class="pill">✅ 清单进度本地保存</span>
+      <button id="resetProgress">重置进度</button>
+      
+<button id="exportAllWordBtn" onclick="exportAllWord()">导出全册Word（含图片）</button>
+
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav>
+    <h2>目录</h2>
+
+    <a href="#sec00">封面与发布信息</a>
+    <a href="#secW">周运营总结封面页（打印/签核）</a>
+    <a href="#secA">实训运行规则</a>
+    <a href="#secB">岗位体系与认证路径</a>
+    <a href="#secC">每日时间线SOP（09:00–18:00）</a>
+
+    <a href="#secPlan">实践周总体方案（1-18周）</a>
+    <a href="#secShift">班次与考勤（早班/中班｜扣分规则）</a>
+    <a href="#secHandoff">周三交接班（交接清单+签核）</a>
+    <a href="#secCreative">创意饮品策划模块（问卷/配方/采购/海报）</a>
+    <a href="#secDailyPack">每日工作报表（文字+照片）</a>
+    <a href="#secDataIO">数据导出/导入（本地归档）</a>
+
+    <a href="#secD">日报与数据口径（营业额/成本/损耗）</a>
+    <a href="#secE">日常检查表（岗位管理）</a>
+    <a href="#secF">食品安全自查（教学化）</a>
+    <a href="#secG">采购与验收（教学化）</a>
+    <a href="#secH">服务质量检查（三时段）</a>
+    <a href="#secI">卫生与个人仪容底线</a>
+  </nav>
+
+  <div class="content">
+    <section id="sec00">
+      <h2>封面与发布信息</h2>
+      <div class="card" style="text-align:center;padding:22px;">
+        <p class="badge">学院制度发布版</p>
+        <h2 style="margin:10px 0 6px;font-size:28px;">酒店管理学院饮品生产性实训基地<br/>学生运营手册</h2>
+        <p style="margin:0;color:var(--muted);">2025–2026学年度｜周一至周五 09:00–18:00｜2人/组｜每组连续运营1周｜常驻运营经理1人</p>
+        <hr/>
+        <div class="grid2" style="margin-top:12px;">
+          <div class="card">
+            <p class="t">文件编号</p>
+            <p class="v" style="font-size:16px;">HM-BEVERAGE-OPS-2025</p>
+            <p class="small">建议学院统一编号（可修改）</p>
+          </div>
+          <div class="card">
+            <p class="t">版本信息</p>
+            <p class="v" style="font-size:16px;">V3（学院制度发布版）</p>
+            <p class="small">发布日期：2026-03-02</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>1. 适用范围</h3>
+      <ul>
+        <li>适用于酒店管理学院饮品生产性实训基地的学生值岗运营与教师/运营经理管理。</li>
+        <li>适用对象：参与实训运营的全体学生（零基础可上岗），以及带教教师、常驻运营经理。</li>
+      </ul>
+
+      <h3>2. 管理原则（教学场景化）</h3>
+      <ul>
+        <li><strong>真实门店标准</strong>：对齐门店SOP、食品安全、清洁与服务质量要求。</li>
+        <li><strong>教学转译机制</strong>：企业“罚款/惩戒”条款在教学中统一转译为<strong>实训绩效扣分 + 补训复测</strong>，不采用现金处罚。</li>
+        <li><strong>记录可追溯</strong>：日报（营业额/成本/损耗）、例检、异常与整改必须可追溯。</li>
+      </ul>
+
+      <h3>3. 发布、培训与执行</h3>
+      <table>
+        <thead><tr><th>事项</th><th>要求</th><th>责任人</th></tr></thead>
+        <tbody>
+          <tr><td>发布</td><td>学院盖章/发布通知后执行；旧版本同步废止（如适用）</td><td>学院/实训中心</td></tr>
+          <tr><td>培训</td><td>每组上岗前完成“首日导入培训”（30–45分钟）：安全、卫生、收银、日检与日报</td><td>带教教师+运营经理</td></tr>
+          <tr><td>执行</td><td>按本手册SOP运行；运营经理拥有现场安全与合规的最终处置权</td><td>学生组+运营经理</td></tr>
+          <tr><td>检查</td><td>每日例检（11:30、15:30）+ 闭店签核；周末周评审（评分+复测）</td><td>带教教师+运营经理</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4. 审批与签发</h3>
+      <div class="grid2">
+        <fieldset>
+          <legend>签发</legend>
+          <div class="formrow">
+            <div><label class="small">制定部门</label><input type="text" placeholder="酒店管理学院/实训中心"/></div>
+            <div><label class="small">签发日期</label><input type="text" placeholder="2026-03-02"/></div>
+          </div>
+          <div class="formrow" style="margin-top:10px;">
+            <div><label class="small">负责人（签字）</label><input type="text" placeholder=""/></div>
+            <div><label class="small">盖章</label><input type="text" placeholder="（打印后盖章）"/></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>修订记录</legend>
+          <table>
+            <thead><tr><th>版本</th><th>日期</th><th>修订内容摘要</th><th>修订人</th></tr></thead>
+            <tbody>
+              <tr><td>V3</td><td>2026-03-02</td><td>学院制度发布版：新增发布信息与周运营总结封面页；完善签核机制。</td><td></td></tr>
+            </tbody>
+          </table>
+        </fieldset>
+      </div>
+    </section>
+
+    <section id="secW">
+      <h2>周运营总结封面页（打印/签核）</h2>
+      <p class="small">用途：每组运营结束（周五闭店后）填写并打印，作为“周评审”封面页；运营经理与带教教师签核后归档。</p>
+
+      <div class="card" style="padding:20px;">
+        <div style="text-align:center;">
+          <p class="badge">周运营总结（封面页）</p>
+          <h3 style="margin:8px 0 0;">酒店管理学院饮品生产性实训基地</h3>
+          <h2 style="margin:6px 0 0;font-size:24px;">学生运营周总结</h2>
+          <p class="small" style="margin:8px 0 0;">（无需配方卡版本｜仅校园码收银｜外宾支付由运营经理处理）</p>
+        </div>
+
+        <hr/>
+
+        <fieldset>
+          <legend>一、基本信息</legend>
+          <div class="formrow">
+            <div><label class="small">运营周次</label><input type="text" placeholder="例如：第3周"/></div>
+            <div><label class="small">日期范围</label><input type="text" placeholder="YYYY-MM-DD 至 YYYY-MM-DD"/></div>
+          </div>
+          <div class="formrow" style="margin-top:10px;">
+            <div><label class="small">学生1（姓名/学号/班级）</label><input type="text"/></div>
+            <div><label class="small">学生2（姓名/学号/班级）</label><input type="text"/></div>
+          </div>
+          <div class="formrow" style="margin-top:10px;">
+            <div><label class="small">带教教师</label><input type="text"/></div>
+            <div><label class="small">运营经理</label><input type="text"/></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>二、经营数据汇总（口径：营业额/成本/损耗）</legend>
+          <table>
+            <thead>
+              <tr><th>日期</th><th>营业额（元）</th><th>成本（元）</th><th>损耗（元）</th><th>异常备注（可选）</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>周一</td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+              <tr><td>周二</td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+              <tr><td>周三</td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+              <tr><td>周四</td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+              <tr><td>周五</td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+              <tr>
+                <td><strong>合计</strong></td>
+                <td><input type="text" placeholder="周营业额合计"/></td>
+                <td><input type="text" placeholder="周成本合计"/></td>
+                <td><input type="text" placeholder="周损耗合计"/></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="formrow">
+            <div>
+              <label class="small">本周三项重点问题（最多3条）</label>
+              <textarea placeholder="1) ... 2) ... 3) ..."></textarea>
+            </div>
+            <div>
+              <label class="small">本周三项改进动作（必须可执行）</label>
+              <textarea placeholder="1) ... 2) ... 3) ..."></textarea>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>三、认证与考核结论</legend>
+          <div class="formrow">
+            <div>
+              <label class="small">本周完成的岗位认证（勾选/填写）</label>
+              <textarea placeholder="例如：外场清洁PASS；POS收银PASS；食品安全自查PASS；采购验收Retake..."></textarea>
+            </div>
+            <div>
+              <label class="small">运营经理评语（含复测建议）</label>
+              <textarea placeholder=""/></textarea>
+            </div>
+          </div>
+          <div class="formrow" style="margin-top:10px;">
+            <div><label class="small">带教教师签字</label><input type="text"/></div>
+            <div><label class="small">运营经理签字</label><input type="text"/></div>
+          </div>
+          <div class="formrow" style="margin-top:10px;">
+            <div><label class="small">周评审结果</label><input type="text" placeholder="PASS / Retake"/></div>
+            <div><label class="small">复测安排（如需）</label><input type="text" placeholder="日期/内容/责任人"/></div>
+          </div>
+        </fieldset>
+
+        <div class="note">
+          <strong>打印建议：</strong>浏览器打印（A4）时可勾选“背景图形”；如只打印本页，请在打印对话框中选择“仅当前页/仅所选内容”（视浏览器支持）。
+        </div>
+      </div>
+    </section>
+
+
+    <section id="secA">
+      <h2>实训运行规则</h2>
+      <div class="grid2">
+        <div class="card">
+          <p class="t">营业时间</p>
+          <p class="v">周一至周五｜09:00–18:00</p>
+          <p class="small">每日流程按“开店→营业→闭店→复盘”闭环执行。</p>
+        </div>
+        <div class="card">
+          <p class="t">组织方式</p>
+          <p class="v">2人/组｜连续运营1周</p>
+          <p class="small">每组在一周内完成至少4类岗位认证（见下一章）。</p>
+        </div>
+        <div class="card">
+          <p class="t">管理支持</p>
+          <p class="v">常驻运营经理 1 人</p>
+<div class="card">
+<p class="t">带教教师安排</p>
+<p class="v" style="font-size:14px;">
+周一、周二、周三：周欣<br/>
+周三、周四、周五：裴荣康
+</p>
+<p class="small">每周三为交接日，新旧两组完成交接与复盘。</p>
+</div>
+
+          <p class="small">负责安全、财务口径、异常处置与最终签核。</p>
+        </div>
+        <div class="card">
+          <p class="t">支付方式</p>
+          <p class="v">仅校园码</p>
+          <p class="small">遇外宾/特殊支付需求：立即联系运营经理处理。</p>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>教学使用原则：</strong>以真实门店标准训练，但处罚条款不直接套用“罚款”，改为“实训绩效扣分+补训复测”机制（见考核章节）。
+      </div>
+    </section>
+
+<section id="secPlan">
+  <h2>实践周总体方案（饮品门店运营实践周 + 创意饮品策划实践周）</h2>
+  <div class="note">
+    <strong>课程结构：</strong>前2周为动员与筹备（理论+自学+调研与设计），第3–16周为滚动实施（每组6天周三→周三），第17周总结产出，第18周集中汇报与评审。
+  </div>
+
+  <h3>第1周：实践动员周（统一标准、上岗准备）</h3>
+  <ul>
+    <li>发布奖励政策与实践周规则，统一思想，强调创造力与创新性。</li>
+    <li>完成理论导入：萃取原理、奶泡、问卷工具、海报工具等；发放参考资料与视频链接。</li>
+    <li><strong>固定菜单自学</strong>：上岗前熟练掌握常规固定菜单 12–15 种饮品制作流程（配方卡本阶段不在电子书中展示，但需背诵，导师抽查）。</li>
+    <li>严格考勤与手机管理；仪容礼仪纳入考核。</li>
+    <li>完成分组与周期说明：每周三交接；落单可与助教合并成组。</li>
+  </ul>
+
+  <h3>第2周：实践筹备周（问卷→创意饮品→采购→海报）</h3>
+  <ul>
+    <li>小组完成市场调研问卷：≥15题，样本≥20（校内师生），推荐问卷星。</li>
+    <li>基于调研设计 2–3 款主题创意饮品（季节/IP/热点/养生/健身等）。</li>
+    <li>形成定稿：创意来源、配方、制作方法（写入实训手册页面）。</li>
+    <li>完成特殊物料采购清单（仅列额外物料：特殊糖浆/装饰/水果/贴纸等）。</li>
+    <li>完成电子海报设计：名称、卖点口味、示意图、价格、售卖日期范围。</li>
+    <li>海报统一提交班委打包，导师统一打印（每周6–7份张贴）。</li>
+  </ul>
+
+  <h3>第3–16周：实践实施周（滚动运营｜周三→周三 6天周期）</h3>
+  <ul>
+    <li><strong>周期与班次：</strong>每组 6 个工作日，2人/组；每人 3 个早班 + 3 个中班；前三天一人连上早班，另一人连上中班；后三天对调。</li>
+    <li><strong>过程性管理：</strong>每日工作报表（文字+照片）+ 两次例检（11:30、15:30）+ 闭店签核。</li>
+    <li><strong>在线协同：</strong>建议每组将手册转为在线文档，导师/助教具备查看权限，实时跟踪进度。</li>
+    <li>若遇校内重大活动，本周当班组需协助接待与运营维护。</li>
+  </ul>
+
+  <h3>第17周：实践总结周</h3>
+  <ul>
+    <li>小组完成实训手册（电子版）并提交；导师统一打印装订归档。</li>
+    <li>完成第18周汇报PPT与物资清单；分工：汇报人/制作者并行推进。</li>
+  </ul>
+
+  <h3>第18周：实践汇报周</h3>
+  <ul>
+    <li>PPT汇报 + 现场饮品制作展示：个人自评、收获反思、小组创意方案、制作方法、运营优化建议。</li>
+    <li>院系领导/企业导师/导师/助教共同评分，评选优胜小组与优秀个人，并颁发证书与奖品。</li>
+  </ul>
+</section>
+
+<section id="secShift">
+  <h2>班次与考勤（早班/中班｜扣分规则）</h2>
+  <div class="grid2">
+    <div class="card">
+      <p class="t">早班（重点：开档与物料准备）</p>
+      <p class="v" style="font-size:14px;">08:30–10:30 工作（2h）<br/>10:30–11:30 休息+午餐（1h）<br/>11:30–16:00 工作（4.5h）</p>
+      <p class="small">每人每天 6.5 小时；6天周期合计约 39 小时/人。</p>
+    </div>
+    <div class="card">
+      <p class="t">中班（重点：收档清洁/盘库/报表）</p>
+      <p class="v" style="font-size:14px;">10:00–13:00 工作（3h）<br/>13:00–14:00 休息+午餐（1h）<br/>14:00–17:30 工作（3.5h）</p>
+      <p class="small">中班闭店需完成清洁、盘点、日报与照片留痕。</p>
+    </div>
+  </div>
+
+  <div class="danger note">
+    <strong>考勤红线（教学规则）：</strong>
+    <ul>
+      <li>迟到/早退累计 ≥4 次，或无故缺勤 ≥2 天：期末考核不合格、无法获得相应学分。</li>
+      <li>当班手机长时间打游戏/刷视频，多次提醒无改观：视同当日实践无效，按无故缺勤 1 天处理。</li>
+    </ul>
+  </div>
+
+  <fieldset>
+    <legend>签到签退（记录+签核）</legend>
+    <div class="formrow">
+      <div><label class="small">日期</label><input type="text" placeholder="YYYY-MM-DD"></div>
+      <div><label class="small">班次（早/中）</label><input type="text" placeholder="早班 / 中班"></div>
+    </div>
+    <div class="formrow" style="margin-top:10px;">
+      <div><label class="small">签到时间</label><input type="text" placeholder="08:30"></div>
+      <div><label class="small">签退时间</label><input type="text" placeholder="17:30"></div>
+    </div>
+    <div class="formrow" style="margin-top:10px;">
+      <div><label class="small">签字确认（导师/助教）</label><input type="text" placeholder=""></div>
+      <div><label class="small">备注（迟到/早退/请假说明）</label><input type="text" placeholder=""></div>
+    </div>
+  </fieldset>
+</section>
+
+<section id="secHandoff">
+  <h2>周三交接班（交接清单 + 双方签核）</h2>
+  <p class="small">每周三为交接日（新旧两组同时在岗，便于交接与复盘）。交接必须包含：库存、卫生、设备状态、在售创意饮品、海报张贴、未完成事项。</p>
+
+  <div class="card">
+    <p class="t">交接核心原则</p>
+    <ul>
+      <li>以“事实 + 证据（照片）+ 数据（日报/盘点）”交接，避免口头遗漏。</li>
+      <li>未交接清楚导致的错单/损耗，按责任追溯处理。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <p class="t">交接清单（必拍照留痕）</p>
+    <div class="checklist" data-checklist="handoff">
+      <div class="item"><input id="handoff_1" data-cid="handoff_1" type="checkbox"/><label for="handoff_1">库存盘点表：关键原料/包材/特殊物料清点，异常说明。</label></div>
+      <div class="item"><input id="handoff_2" data-cid="handoff_2" type="checkbox"/><label for="handoff_2">卫生状态：吧台/水槽/地面/垃圾/洗碗区，完成交接前复检。</label></div>
+      <div class="item"><input id="handoff_3" data-cid="handoff_3" type="checkbox"/><label for="handoff_3">设备状态：咖啡机/磨豆机/封口机/热水机等是否正常，有无故障与报修记录。</label></div>
+      <div class="item"><input id="handoff_4" data-cid="handoff_4" type="checkbox"/><label for="handoff_4">创意饮品：本周在售饮品清单、关键注意事项（过敏源/装饰/出品顺序）。</label></div>
+      <div class="item"><input id="handoff_5" data-cid="handoff_5" type="checkbox"/><label for="handoff_5">海报与推广：张贴位置是否完整；售卖日期范围是否更新。</label></div>
+      <div class="item"><input id="handoff_6" data-cid="handoff_6" type="checkbox"/><label for="handoff_6">未完成事项：待采购/待补货/待整改问题清单与责任人。</label></div>
+    </div>
+
+    <p class="small">交接照片上传：</p>
+    <input type="file" accept="image/*" multiple onchange="previewImages(this,'handoffPreview')">
+    <div id="handoffPreview" class="imgPreview"></div>
+  </div>
+
+  <fieldset>
+    <legend>交接签核</legend>
+    <div class="formrow">
+      <div><label class="small">交接日期</label><input type="text" placeholder="YYYY-MM-DD（周三）"></div>
+      <div><label class="small">交接时间</label><input type="text" placeholder="例如：13:30-14:00"></div>
+    </div>
+    <div class="formrow" style="margin-top:10px;">
+      <div><label class="small">交出组（学生1/学生2）签字</label><input type="text"></div>
+      <div><label class="small">接入组（学生1/学生2）签字</label><input type="text"></div>
+    </div>
+    <div class="formrow" style="margin-top:10px;">
+      <div><label class="small">带教教师/助教签字</label><input type="text"></div>
+      <div><label class="small">运营经理签字</label><input type="text"></div>
+    </div>
+  </fieldset>
+</section>
+
+<section id="secCreative">
+  <h2>创意饮品策划模块（问卷 / 方案 / 采购 / 海报）</h2>
+  <div class="note">
+    <strong>要求：</strong>每组 2–3 款创意饮品；以调研数据驱动设计；形成可交接、可复制的制作说明（下一组可接续售卖）。
+  </div>
+
+  <fieldset>
+    <legend>1）市场调研问卷（≥15题｜样本≥20）</legend>
+    <div class="formrow">
+      <div><label class="small">问卷链接（问卷星）</label><input type="text" placeholder="粘贴链接"></div>
+      <div><label class="small">样本量</label><input type="text" placeholder="≥20"></div>
+    </div>
+    <label class="small">题目概览（可粘贴）</label>
+    <textarea placeholder="至少15题：偏好、价格接受度、口味、健康诉求、购买频次等"></textarea>
+    <label class="small">统计结论（3–5条）</label>
+    <textarea placeholder="例如：偏好低糖；价格区间xx；最受欢迎口味xx…"></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>2）创意饮品方案（2–3款）</legend>
+    <table>
+      <thead><tr><th>饮品名称</th><th>主题/灵感来源</th><th>核心卖点（口味/健康/颜值）</th><th>过敏源提示</th><th>售卖日期范围</th></tr></thead>
+      <tbody>
+        <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+        <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+        <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+      </tbody>
+    </table>
+    <p class="small">注：配方卡暂不放入电子书，但“制作要点/注意事项”需写清楚以便交接。</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>3）特殊物料采购清单（仅列额外物料）</legend>
+    <table>
+      <thead><tr><th>物料名称</th><th>规格/品牌</th><th>数量</th><th>用途（对应饮品）</th><th>采购方式</th><th>到货日期</th></tr></thead>
+      <tbody>
+        <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text" placeholder="线上/线下/运营经理协助"></td><td><input type="text"></td></tr>
+        <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+      </tbody>
+    </table>
+  </fieldset>
+
+  <fieldset>
+    <legend>4）海报提交（上传 + 记录打印份数）</legend>
+    <div class="formrow">
+      <div><label class="small">海报文件上传（PNG/JPG/PDF）</label><input type="file" accept="image/*,application/pdf" multiple></div>
+      <div><label class="small">打印份数</label><input type="text" placeholder="6–7"></div>
+    </div>
+    <label class="small">张贴点位说明</label>
+    <textarea placeholder="例如：食堂入口、教学楼A门口、图书馆…"></textarea>
+  </fieldset>
+</section>
+
+<section id="secDailyPack">
+  <h2>每日工作报表（文字 + 照片｜过程性管理）</h2>
+  <p class="small">要求：每个工作日必须完成文字记录，并在关键检查环节上传照片（仪容/卫生/库存/日报）。</p>
+
+  <div class="controls" style="justify-content:flex-start;margin:10px 0;">
+    <button onclick="exportDailyWord()">导出当日Word（.doc）</button>
+    <span class="pill">会导出：文字内容 + 已上传预览照片</span>
+  </div>
+
+
+  <fieldset>
+    <legend>当日基本信息</legend>
+    <div class="formrow">
+      <div><label class="small">日期</label><input type="text" placeholder="YYYY-MM-DD"></div>
+      <div><label class="small">班次</label><input type="text" placeholder="早班 / 中班"></div>
+    </div>
+    <div class="formrow" style="margin-top:10px;">
+      <div><label class="small">当班人员</label><input type="text" placeholder="学生1/学生2"></div>
+      <div><label class="small">带教教师</label><input type="text" placeholder="周欣 / 裴荣康"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>当日工作要点（文字）</legend>
+    <label class="small">完成了哪些关键工作（3–6条）</label>
+    <textarea placeholder="例：完成开档物料准备；完成两次例检；完成闭店盘点与日报…"></textarea>
+    <label class="small">遇到的问题与解决方式</label>
+    <textarea placeholder="例：封口机温度不稳→联系运营经理；库存不足→填写采购清单…"></textarea>
+    <label class="small">当日学习收获（对标OBE能力）</label>
+    <textarea placeholder="例：C2沟通；C5数据意识；C1食品安全…"></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>照片上传（至少各1张）</legend>
+    <div class="grid2">
+      <div class="card">
+        <p class="t">仪容仪表检查</p>
+        <input type="file" accept="image/*" multiple onchange="previewImages(this,'dPrev1')">
+        <div id="dPrev1" class="imgPreview"></div>
+      </div>
+      <div class="card">
+        <p class="t">卫生检查（吧台/设备/地面）</p>
+        <input type="file" accept="image/*" multiple onchange="previewImages(this,'dPrev2')">
+        <div id="dPrev2" class="imgPreview"></div>
+      </div>
+      <div class="card">
+        <p class="t">库存/验收检查</p>
+        <input type="file" accept="image/*" multiple onchange="previewImages(this,'dPrev3')">
+        <div id="dPrev3" class="imgPreview"></div>
+      </div>
+      <div class="card">
+        <p class="t">日报/数据记录</p>
+        <input type="file" accept="image/*" multiple onchange="previewImages(this,'dPrev4')">
+        <div id="dPrev4" class="imgPreview"></div>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="note">
+    <strong>教学提示：</strong>照片用于“过程留痕”。当前网页为本地版本：照片不会自动上传到云端，建议每组在完成后使用“数据导出/导入”功能保存到本地。
+  </div>
+</section>
+
+<section id="secDataIO">
+  <h2>数据导出 / 导入（本地归档）</h2>
+  <div class="note"><strong>Word归档：</strong>你也可以使用页面顶部按钮“导出全册Word（含图片）”，将本册全部内容（含已上传照片）一次性导出为Word归档。</div>
+  <p class="small">用于将本页填写内容保存为JSON文件（含文字与已预览的图片数据URL）。同一台电脑可随时导入继续填写。</p>
+  <div class="controls" style="justify-content:flex-start;">
+    <button onclick="exportData()">导出本地归档（JSON）</button>
+    <label class="pill" style="cursor:pointer;">
+      导入归档（JSON）
+      <input type="file" accept="application/json" style="display:none" onchange="importData(this)">
+    </label>
+  </div>
+  <div class="small">注意：不同浏览器对大图片JSON文件大小限制不同，建议单张照片控制在2–3MB以内。</div>
+</section>
+
+
+
+    <section id="secB">
+      <h2>岗位体系与认证路径（教学版）</h2>
+      <p>认证模块参考岗位认证汇总表的模块结构：健康与安全、基础工作站（外场清洁/开铺打烊）、收银工作站、咖啡师技能（冰吧/意式/手冲）等。</p>
+      <div class="note">
+        <strong>本基地建议的周认证目标（2人/组）：</strong>
+        <ul>
+          <li>每人每周至少通过 4 项认证：①外场/清洁 ②开铺打烊 ③收银（校园码） ④食品安全自查 ⑤库存/验收（可选）</li>
+          <li>任一模块触发“食品安全红线”→ 本周直接 Retake（补训+复测）。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="secC">
+      <h2>每日时间线SOP（09:00–18:00）</h2>
+
+      <h3>09:00–09:20 开店（开档前检查）</h3>
+      <ol>
+        <li><strong>晨会（5–8分钟）</strong>：目标设定（营业额/杯数/损耗）、岗位分工、风险提示。</li>
+        <li><strong>卫生与个人仪容检查</strong>：按“仪容底线”快速互检（见第I章）。</li>
+        <li><strong>服务质量开档前检查</strong>：卫生、物品准备、灯光空调音乐、备餐间、出勤与仪容等（见第H章）。</li>
+      </ol>
+
+      <h3>09:20–17:30 营业（含两次例行检查）</h3>
+      <ol>
+        <li><strong>收银</strong>：仅校园码；点单清晰复述；遇外宾及时联系运营经理。</li>
+        <li><strong>联动</strong>：吧台/外场信息复述，避免错单。</li>
+        <li><strong>11:30 与 15:30 两次例行检查</strong>：按“日常检查表（岗位管理）”抽查关键项（见第E章）。</li>
+        <li><strong>食品安全自查</strong>：重点盯“储存温度、交叉污染、清洁化学品隔离、个人卫生”（见第F章）。</li>
+      </ol>
+
+      <h3>17:30–18:00 闭店（收档前30分钟）</h3>
+      <ol>
+        <li><strong>收档前30分钟检查</strong>：台面/工作柜整理、垃圾、电源、门窗、订货单、工作纪要（见第H章）。</li>
+        <li><strong>日报</strong>：按口径填写营业额/成本/损耗与异常原因（见第D章）。</li>
+        <li><strong>运营经理签核</strong>：关键异常（错单/客诉/损耗异常/安全隐患）必须在当日闭环。</li>
+      </ol>
+    </section>
+
+    <section id="secD">
+      <h2>日报与数据口径（营业额/成本/损耗）</h2>
+      <p>本基地日报采用三项口径：<strong>营业额、成本、损耗</strong>。配方卡暂不纳入，本阶段以“基础经营意识与可追溯记录”为主。</p>
+
+      <fieldset>
+        <legend>日报快速计算（教学版）</legend>
+        <div class="formrow">
+          <div>
+            <label class="small">营业额（元）</label>
+            <input id="sales" type="number" step="0.01" placeholder="例如：356.00"/>
+          </div>
+          <div>
+            <label class="small">原料成本（元）</label>
+            <input id="cost" type="number" step="0.01" placeholder="例如：128.50"/>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="small">损耗金额（元）</label>
+          <input id="waste" type="number" step="0.01" placeholder="例如：6.00（报损、误做、过期等合计）"/>
+        </div>
+
+        <div class="calcbox">
+          <div class="card"><p class="t">毛利（元）</p><p class="v" id="gross">0.00</p></div>
+          <div class="card"><p class="t">毛利率</p><p class="v" id="gpm">0.00%</p></div>
+          <div class="card"><p class="t">损耗率（教学口径）</p><p class="v" id="wr">0.00%</p><p class="small">= 损耗 ÷（成本+损耗）</p></div>
+        </div>
+
+        <div class="formrow">
+          <div>
+            <label class="small">当日异常（错单/客诉/缺货/设备）</label>
+            <textarea placeholder="一句话写清楚：发生了什么 → 影响 → 原因"></textarea>
+          </div>
+          <div>
+            <label class="small">明日改进点（最多3条）</label>
+            <textarea placeholder="1) ... 2) ... 3) ..."></textarea>
+          </div>
+        </div>
+        <p class="small">提示：若出现损耗异常，需同步填写《物品损耗报告表》（见第G章）。</p>
+      </fieldset>
+    </section>
+
+
+<section id="photoUpload">
+<h2>工作照片上传记录（每个关键环节必须上传）</h2>
+<p class="small">用途：过程留痕与OBE能力达成支撑材料。每个检查环节需上传至少1张照片。</p>
+
+<div class="card">
+<p class="t">① 仪容仪表检查照片</p>
+<input type="file" accept="image/*" multiple onchange="previewImages(this,'preview1')">
+<div id="preview1" class="imgPreview"></div>
+</div>
+
+<div class="card">
+<p class="t">② 卫生检查照片（吧台/地面/设备）</p>
+<input type="file" accept="image/*" multiple onchange="previewImages(this,'preview2')">
+<div id="preview2" class="imgPreview"></div>
+</div>
+
+<div class="card">
+<p class="t">③ 库存与验收检查照片</p>
+<input type="file" accept="image/*" multiple onchange="previewImages(this,'preview3')">
+<div id="preview3" class="imgPreview"></div>
+</div>
+
+<div class="card">
+<p class="t">④ 日报与数据记录照片</p>
+<input type="file" accept="image/*" multiple onchange="previewImages(this,'preview4')">
+<div id="preview4" class="imgPreview"></div>
+</div>
+
+</section>
+
+
+    <section id="secE">
+      <h2>日常检查表（岗位管理｜来自检查表Excel）</h2>
+      <p class="small">用途：把“检查表”变成你每天可执行的动作清单，用于11:30/15:30例检与运营经理抽查。</p>
+      
+    <div class="card" style="margin:10px 0;">
+      <p class="t">日常检查表｜加料</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="daily__">
+
+        <div class="item">
+          <input id="daily___1" data-cid="daily___1" type="checkbox"/>
+          <label for="daily___1">
+            芝士奶霜状态
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___2" data-cid="daily___2" type="checkbox"/>
+          <label for="daily___2">
+            低脂奶霜状态
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___3" data-cid="daily___3" type="checkbox"/>
+          <label for="daily___3">
+            蛋糕状态
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___4" data-cid="daily___4" type="checkbox"/>
+          <label for="daily___4">
+            珍珠状态
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___5" data-cid="daily___5" type="checkbox"/>
+          <label for="daily___5">
+            红豆·寒天·奥利奥有无变质
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___6" data-cid="daily___6" type="checkbox"/>
+          <label for="daily___6">
+            柠檬是否变味
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___7" data-cid="daily___7" type="checkbox"/>
+          <label for="daily___7">
+            芝士奶霜有无冰镇和及时换冰
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___8" data-cid="daily___8" type="checkbox"/>
+          <label for="daily___8">
+            低脂奶霜有无冰镇和及时换冰
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___9" data-cid="daily___9" type="checkbox"/>
+          <label for="daily___9">
+            蛋糕有无冰镇和及时换冰
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___10" data-cid="daily___10" type="checkbox"/>
+          <label for="daily___10">
+            红豆·寒天开了没使用的是否放冰箱
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___11" data-cid="daily___11" type="checkbox"/>
+          <label for="daily___11">
+            物资有无贴时间·是否到期
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___12" data-cid="daily___12" type="checkbox"/>
+          <label for="daily___12">
+            容器和盖子有无清洁干净
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___13" data-cid="daily___13" type="checkbox"/>
+          <label for="daily___13">
+            加料用具是否干净清洁
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___14" data-cid="daily___14" type="checkbox"/>
+          <label for="daily___14">
+            加料区域卫生
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___15" data-cid="daily___15" type="checkbox"/>
+          <label for="daily___15">
+            加芝士前有无搅拌
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___16" data-cid="daily___16" type="checkbox"/>
+          <label for="daily___16">
+            加料动作是否标准
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___17" data-cid="daily___17" type="checkbox"/>
+          <label for="daily___17">
+            加料分量是否正确
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___18" data-cid="daily___18" type="checkbox"/>
+          <label for="daily___18">
+            是否按单号排杯（外卖另计）
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">日常检查表｜前台</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="daily__">
+
+        <div class="item">
+          <input id="daily___1" data-cid="daily___1" type="checkbox"/>
+          <label for="daily___1">
+            前台对产品是否熟悉
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___2" data-cid="daily___2" type="checkbox"/>
+          <label for="daily___2">
+            前台是否有按规定解释清楚产品特点
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___3" data-cid="daily___3" type="checkbox"/>
+          <label for="daily___3">
+            有无正确推荐或者帮客人选择适合的产品
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___4" data-cid="daily___4" type="checkbox"/>
+          <label for="daily___4">
+            有无问清冷热和复单
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___5" data-cid="daily___5" type="checkbox"/>
+          <label for="daily___5">
+            前台是否整洁干净
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___6" data-cid="daily___6" type="checkbox"/>
+          <label for="daily___6">
+            下单后有无正确疏导客人排队·稍等
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___7" data-cid="daily___7" type="checkbox"/>
+          <label for="daily___7">
+            前台有没说欢迎光临Karefree皇茶
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___8" data-cid="daily___8" type="checkbox"/>
+          <label for="daily___8">
+            出杯有无单对单
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___9" data-cid="daily___9" type="checkbox"/>
+          <label for="daily___9">
+            出杯有无擦杯
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___10" data-cid="daily___10" type="checkbox"/>
+          <label for="daily___10">
+            出杯有无详细介绍芝士的正确喝法
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___11" data-cid="daily___11" type="checkbox"/>
+          <label for="daily___11">
+            出杯有无说欢迎下次光临
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___12" data-cid="daily___12" type="checkbox"/>
+          <label for="daily___12">
+            芝士饮品盖有无贴小贴士
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___13" data-cid="daily___13" type="checkbox"/>
+          <label for="daily___13">
+            热饮的有无贴热饮小贴士
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___14" data-cid="daily___14" type="checkbox"/>
+          <label for="daily___14">
+            是否用专用外卖箱
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">日常检查表｜调杯</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="daily__">
+
+        <div class="item">
+          <input id="daily___1" data-cid="daily___1" type="checkbox"/>
+          <label for="daily___1">
+            茶线·水线·原料是否标准
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___2" data-cid="daily___2" type="checkbox"/>
+          <label for="daily___2">
+            打杯冰线是否标准
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___3" data-cid="daily___3" type="checkbox"/>
+          <label for="daily___3">
+            喷热时间是否标准
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___4" data-cid="daily___4" type="checkbox"/>
+          <label for="daily___4">
+            芝士类是否刮泡对茶线
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___5" data-cid="daily___5" type="checkbox"/>
+          <label for="daily___5">
+            成品份量是否标准
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___6" data-cid="daily___6" type="checkbox"/>
+          <label for="daily___6">
+            加完直饮水或热水后有无搅拌
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___7" data-cid="daily___7" type="checkbox"/>
+          <label for="daily___7">
+            用具是否清洗干净再用
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___8" data-cid="daily___8" type="checkbox"/>
+          <label for="daily___8">
+            热水是否足够温度
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___9" data-cid="daily___9" type="checkbox"/>
+          <label for="daily___9">
+            奶是否搅拌均匀
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___10" data-cid="daily___10" type="checkbox"/>
+          <label for="daily___10">
+            吧台·吧台低·洗手盘是否干净
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___11" data-cid="daily___11" type="checkbox"/>
+          <label for="daily___11">
+            粉末是否搅拌均匀
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___12" data-cid="daily___12" type="checkbox"/>
+          <label for="daily___12">
+            调杯工具是否干净
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">日常检查表｜备料</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="daily__">
+
+        <div class="item">
+          <input id="daily___1" data-cid="daily___1" type="checkbox"/>
+          <label for="daily___1">
+            备料步骤是否正确
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___2" data-cid="daily___2" type="checkbox"/>
+          <label for="daily___2">
+            备料细节·原料份量（热水·奶油·牛奶·盐·白糖·茶叶等）是否准确
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___3" data-cid="daily___3" type="checkbox"/>
+          <label for="daily___3">
+            备料时间到了有无及时滤出来
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___4" data-cid="daily___4" type="checkbox"/>
+          <label for="daily___4">
+            备制好的有无贴时间
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___5" data-cid="daily___5" type="checkbox"/>
+          <label for="daily___5">
+            有无断料(登记原因和时间）
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___6" data-cid="daily___6" type="checkbox"/>
+          <label for="daily___6">
+            备料间洗手盘卫生
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___7" data-cid="daily___7" type="checkbox"/>
+          <label for="daily___7">
+            备料间地面卫生
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___8" data-cid="daily___8" type="checkbox"/>
+          <label for="daily___8">
+            厨房吧台卫生
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___9" data-cid="daily___9" type="checkbox"/>
+          <label for="daily___9">
+            物料存放处环境如何
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___10" data-cid="daily___10" type="checkbox"/>
+          <label for="daily___10">
+            备料处工具是否及时清洗，尤其茶桶·打蛋器·煲及打芝士搅拌机
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___11" data-cid="daily___11" type="checkbox"/>
+          <label for="daily___11">
+            冰箱卫生·原料状态
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___12" data-cid="daily___12" type="checkbox"/>
+          <label for="daily___12">
+            冰箱是否疑霜·冷度正常吗
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">日常检查表｜环境气氛</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="daily__">
+
+        <div class="item">
+          <input id="daily___1" data-cid="daily___1" type="checkbox"/>
+          <label for="daily___1">
+            流程是否流畅·速度如何
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___2" data-cid="daily___2" type="checkbox"/>
+          <label for="daily___2">
+            工作气氛如何
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___3" data-cid="daily___3" type="checkbox"/>
+          <label for="daily___3">
+            有无穿围裙
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___4" data-cid="daily___4" type="checkbox"/>
+          <label for="daily___4">
+            有无戴口罩
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___5" data-cid="daily___5" type="checkbox"/>
+          <label for="daily___5">
+            有无穿制服
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___6" data-cid="daily___6" type="checkbox"/>
+          <label for="daily___6">
+            有无戴帽子
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___7" data-cid="daily___7" type="checkbox"/>
+          <label for="daily___7">
+            有无佩戴工牌
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___8" data-cid="daily___8" type="checkbox"/>
+          <label for="daily___8">
+            员工有无穿拖鞋
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___9" data-cid="daily___9" type="checkbox"/>
+          <label for="daily___9">
+            座客区卫生
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___10" data-cid="daily___10" type="checkbox"/>
+          <label for="daily___10">
+            有无清倒垃圾
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___11" data-cid="daily___11" type="checkbox"/>
+          <label for="daily___11">
+            有无1天换一次雪克杯
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___12" data-cid="daily___12" type="checkbox"/>
+          <label for="daily___12">
+            有无备消毒柜臭氧机
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="daily___13" data-cid="daily___13" type="checkbox"/>
+          <label for="daily___13">
+            有无店长或负责人在场
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    </section>
+
+    <section id="secF">
+      <h2>食品安全自查（教学化）</h2>
+      <p>以下清单依据食品安全检查表的检查维度改写为学生可执行动作（原表在附录）。</p>
+      
+    <div class="card" style="margin:10px 0;">
+      <p class="t">食品安全自查｜收料与检疫</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="fs__">
+
+        <div class="item">
+          <input id="fs___1" data-cid="fs___1" type="checkbox"/>
+          <label for="fs___1">
+            检查食品是否被害虫或化学品污染；包装是否干净完整；是否在保质期内。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___2" data-cid="fs___2" type="checkbox"/>
+          <label for="fs___2">
+            收料后是否立刻送到储藏处；运输工具是否干净；到货温度是否正常。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___3" data-cid="fs___3" type="checkbox"/>
+          <label for="fs___3">
+            肉/禽类是否进行动物检疫复核（如适用）。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">食品安全自查｜储存控制</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="fs__">
+
+        <div class="item">
+          <input id="fs___1" data-cid="fs___1" type="checkbox"/>
+          <label for="fs___1">
+            是否标注保质期；是否有库存管理程序（FIFO/批次）。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___2" data-cid="fs___2" type="checkbox"/>
+          <label for="fs___2">
+            储存温度是否正确；是否有防虫措施；是否避免化学/物理污染。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___3" data-cid="fs___3" type="checkbox"/>
+          <label for="fs___3">
+            是否有足够设施分类存放不同食品。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">食品安全自查｜烹饪/制备管理</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="fs__">
+
+        <div class="item">
+          <input id="fs___1" data-cid="fs___1" type="checkbox"/>
+          <label for="fs___1">
+            制备时间与温度是否符合流程；是否避免交叉污染（生熟分离、工具分区）。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___2" data-cid="fs___2" type="checkbox"/>
+          <label for="fs___2">
+            制备后是否避免久置再售；再加热温度是否足够（如适用）。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">食品安全自查｜保温与服务</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="fs__">
+
+        <div class="item">
+          <input id="fs___1" data-cid="fs___1" type="checkbox"/>
+          <label for="fs___1">
+            保温时间与温度是否正确；出品台/器皿/设备是否干净卫生。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___2" data-cid="fs___2" type="checkbox"/>
+          <label for="fs___2">
+            是否提供一次性消费用品（如适用）；是否防止消费者污染食品。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">食品安全自查｜清洁与个人卫生</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="fs__">
+
+        <div class="item">
+          <input id="fs___1" data-cid="fs___1" type="checkbox"/>
+          <label for="fs___1">
+            清洁程序是否防止交叉感染；化学品是否安全正确使用并与食品分开存放。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="fs___2" data-cid="fs___2" type="checkbox"/>
+          <label for="fs___2">
+            员工是否遵守洗手流程；是否有不卫生举止（如吸烟）并及时纠正。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    </section>
+
+    <section id="secG">
+      <h2>采购与验收（教学化）</h2>
+      <div class="note">
+        <strong>适用场景：</strong>实训基地到货验收、退货、坏品处理、损耗登记。核心目标是：<em>账实一致、质量把关、损耗可追溯</em>。
+      </div>
+      
+    <div class="card" style="margin:10px 0;">
+      <p class="t">到货验收SOP（八项标准 + 异常处理）</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="purchase">
+
+        <div class="item">
+          <input id="purchase_1" data-cid="purchase_1" type="checkbox"/>
+          <label for="purchase_1">
+            到货先核对：订货单 vs 实收数量；按“实收实签”原则记录。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="purchase_2" data-cid="purchase_2" type="checkbox"/>
+          <label for="purchase_2">
+            验收八项：包装、气味、色泽、温度、外观、口感（必要时试吃）、制造标示（品牌）、有效期。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="purchase_3" data-cid="purchase_3" type="checkbox"/>
+          <label for="purchase_3">
+            数量不符：多退少补；需要补货则作为新订单处理，确保账实一致。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="purchase_4" data-cid="purchase_4" type="checkbox"/>
+          <label for="purchase_4">
+            品质不符：一律拒收并第一时间补订；若确实缺货，在显眼位置公告并提前告知顾客。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="purchase_5" data-cid="purchase_5" type="checkbox"/>
+          <label for="purchase_5">
+            坏品/过期/制备错误导致损耗：随时填《物品损耗报告表》，店长/运营经理查证签字。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+      <fieldset>
+        <legend>验收记录（简化版，可打印）</legend>
+        <div class="formrow">
+          <div><label class="small">订货日期</label><input type="text" placeholder="YYYY-MM-DD"/></div>
+          <div><label class="small">收货日期</label><input type="text" placeholder="YYYY-MM-DD"/></div>
+        </div>
+        <table>
+          <thead><tr><th>物品名称</th><th>订货数量</th><th>实收数量</th><th>规格/品牌</th><th>单价</th><th>质量备注</th><th>验收员</th></tr></thead>
+          <tbody>
+            <tr><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+            <tr><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td><td><input type="text"/></td></tr>
+          </tbody>
+        </table>
+      </fieldset>
+
+      <fieldset>
+        <legend>物品损耗报告（教学版）</legend>
+        <p class="small">用于：品质不良、储存不当、制备错误、过期、毁损等导致的坏品；需运营经理查证签核。</p>
+        <div class="formrow">
+          <div><label class="small">报损日期</label><input type="text" placeholder="YYYY-MM-DD"/></div>
+          <div><label class="small">报损岗位/责任人</label><input type="text" placeholder="例如：吧台/张三"/></div>
+        </div>
+        <div class="formrow">
+          <div><label class="small">物品名称/规格</label><input type="text"/></div>
+          <div><label class="small">数量</label><input type="text"/></div>
+        </div>
+        <label class="small">损耗原因（必须写“可复盘”的原因）</label>
+        <textarea placeholder="例如：误做（沟通断点：冰量未确认）/ 过期（未按FIFO）/ 设备异常（封口机温度不稳）"></textarea>
+        <label class="small">审核意见（运营经理填写）</label>
+        <textarea placeholder="是否同意报损？是否需要补训？改进措施？"></textarea>
+      </fieldset>
+    </section>
+
+    <section id="secH">
+      <h2>服务质量检查（三时段）</h2>
+      <p>将服务质量检查表拆分为三个时间点，用于店长/运营经理现场抽查与学生自检（原表在附录）。</p>
+      
+    <div class="card" style="margin:10px 0;">
+      <p class="t">服务质量检查｜开档前</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="sq__">
+
+        <div class="item">
+          <input id="sq___1" data-cid="sq___1" type="checkbox"/>
+          <label for="sq___1">
+            卫生达标；工作桌整洁；物品备齐且摆放整齐。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="sq___2" data-cid="sq___2" type="checkbox"/>
+          <label for="sq___2">
+            灯光/空调/音乐正常；备餐间准备完成；员工出勤与仪容检查。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="sq___3" data-cid="sq___3" type="checkbox"/>
+          <label for="sq___3">
+            检查预订客情（如有）并落实。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">服务质量检查｜开档中</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="sq__">
+
+        <div class="item">
+          <input id="sq___1" data-cid="sq___1" type="checkbox"/>
+          <label for="sq___1">
+            观察服务程序执行；检查产品推销/推荐执行情况。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="sq___2" data-cid="sq___2" type="checkbox"/>
+          <label for="sq___2">
+            征求顾客对产品/环境/服务意见；检查备餐间脏餐具处理；检查卫生与安全。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    <div class="card" style="margin:10px 0;">
+      <p class="t">服务质量检查｜收档前30分钟</p>
+      <div class="progressbar" style="height:8px;background:#0b0f14;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;width:0;background:var(--brand)"></div></div><div class="progresstext small">完成度：0/0</div>
+<div class="checklist" data-checklist="sq__30_">
+
+        <div class="item">
+          <input id="sq__30__1" data-cid="sq__30__1" type="checkbox"/>
+          <label for="sq__30__1">
+            检查台面与工作柜整理；回收物品归位；垃圾桶卫生。
+          </label>
+        </div>
+        
+
+        <div class="item">
+          <input id="sq__30__2" data-cid="sq__30__2" type="checkbox"/>
+          <label for="sq__30__2">
+            切断电器电源；门窗关闭上锁；整理订货单；形成当日工作纪要并上报重大问题。
+          </label>
+        </div>
+        
+</div>
+    </div>
+    
+    </section>
+
+    <section id="secI">
+      <h2>卫生与个人仪容底线（教学版）</h2>
+      <div class="warn note">
+        <strong>红线：</strong>个人卫生不达标、交叉污染、化学品与食品混放、明显带病上岗不报告——均可直接判定本周 Retake。
+      </div>
+      <ul>
+        <li><strong>仪容</strong>：头发干净整洁；指甲修剪干净不可涂色；手腕以下不佩戴任何物品（手表/戒指/手链等）。</li>
+        <li><strong>着装</strong>：上衣整洁；鞋子防滑；佩戴帽子与围裙（如有）；保持干净。</li>
+        <li><strong>行为</strong>：营业区域禁止长时间使用手机；如有急事需离开工作区处理，并向组员与运营经理报备。</li>
+      </ul>
+      <p class="small">注：原员工手册含“罚款”条款，本基地教学使用时转换为“绩效扣分+补训复测”机制执行。</p>
+    </section>
+
+    
+
+  </div>
+</main>
+
+<script>
+(function(){
+  const key='beverage_base_ops_progress_v1';
+  const saved = JSON.parse(localStorage.getItem(key)||'{}');
+  document.querySelectorAll('[data-checklist]').forEach(list=>{
+    const id=list.getAttribute('data-checklist');
+    const state=saved[id]||{};
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      const cid=cb.getAttribute('data-cid');
+      cb.checked=!!state[cid];
+      cb.addEventListener('change',()=>{
+        const now=JSON.parse(localStorage.getItem(key)||'{}');
+        now[id]=now[id]||{};
+        now[id][cid]=cb.checked;
+        localStorage.setItem(key, JSON.stringify(now));
+        updateBars();
+      });
+    });
+  });
+  function updateBars(){
+    document.querySelectorAll('[data-checklist]').forEach(list=>{
+      const cbs=[...list.querySelectorAll('input[type=checkbox]')];
+      const done=cbs.filter(x=>x.checked).length;
+      const total=cbs.length;
+      const bar=list.parentElement.querySelector('.progressbar > div');
+      const txt=list.parentElement.querySelector('.progresstext');
+      const pct= total? Math.round(done/total*100):0;
+      if(bar) bar.style.width=pct+'%';
+      if(txt) txt.textContent=`完成度：${done}/${total}（${pct}%）`;
+    });
+  }
+  updateBars();
+
+  document.getElementById('resetProgress').addEventListener('click',()=>{
+    localStorage.removeItem(key);
+    location.reload();
+  });
+
+  // Smooth scroll for nav links
+  document.querySelectorAll('nav a').forEach(a=>{
+    a.addEventListener('click', (e)=>{
+      const href=a.getAttribute('href');
+      if(href && href.startsWith('#')){
+        e.preventDefault();
+        document.querySelector(href).scrollIntoView({behavior:'smooth', block:'start'});
+        history.replaceState(null,'',href);
+      }
+    });
+  });
+})();
+
+(function(){
+  function num(v){ const n=parseFloat(v); return isFinite(n)? n:0; }
+  function fmt(n){ return (Math.round(n*100)/100).toFixed(2); }
+
+  function recalc(){
+    const sales=num(document.getElementById('sales').value);
+    const cost=num(document.getElementById('cost').value);
+    const waste=num(document.getElementById('waste').value);
+    const gross = sales - cost;
+    const gpm = sales>0 ? gross/sales*100 : 0;
+    const wr = (cost+waste)>0 ? waste/(cost+waste)*100 : 0; // teaching-friendly: waste proportion in total material consumption
+    document.getElementById('gross').textContent = fmt(gross);
+    document.getElementById('gpm').textContent = fmt(gpm) + '%';
+    document.getElementById('wr').textContent = fmt(wr) + '%';
+  }
+  ['sales','cost','waste'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('input', recalc);
+  });
+  recalc();
+})();
+</script>
+
+<script>
+function previewImages(input, targetId){
+    const preview = document.getElementById(targetId);
+    preview.innerHTML = "";
+    Array.from(input.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e){
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            img.style.maxWidth = "120px";
+            img.style.margin = "5px";
+            preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+</script>
+
+
+<script>
+(function(){
+  const STORE_KEY='lxj_practice_week_v1';
+
+  function makePid(el){
+    const id = el.id || el.getAttribute('name') || (el.closest('fieldset,section')?.id || 'x') + '::' + (el.placeholder||'') + '::' + (el.type||el.tagName);
+    return btoa(unescape(encodeURIComponent(id))).slice(0,24);
+  }
+
+  function collect(){
+    const data={};
+    document.querySelectorAll('input[type=text], input[type=number], textarea').forEach(el=>{
+      const pid = el.dataset.persistId || (el.dataset.persistId = makePid(el));
+      data['f_'+pid]=el.value;
+    });
+    document.querySelectorAll('.imgPreview').forEach(div=>{
+      const key = div.id;
+      if(!key) return;
+      data['img_'+key]=[...div.querySelectorAll('img')].map(img=>img.src);
+    });
+    return data;
+  }
+
+  function apply(data){
+    if(!data) return;
+    document.querySelectorAll('input[type=text], input[type=number], textarea').forEach(el=>{
+      const pid = el.dataset.persistId || (el.dataset.persistId = makePid(el));
+      const k='f_'+pid;
+      if(data[k]!==undefined) el.value=data[k];
+    });
+    document.querySelectorAll('.imgPreview').forEach(div=>{
+      const key = div.id;
+      if(!key) return;
+      const arr = data['img_'+key];
+      if(Array.isArray(arr)){
+        div.innerHTML='';
+        arr.forEach(src=>{
+          const img=document.createElement('img');
+          img.src=src;
+          div.appendChild(img);
+        });
+      }
+    });
+  }
+
+  function save(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(collect())); }catch(e){}
+  }
+  function load(){
+    try{
+      const raw=localStorage.getItem(STORE_KEY);
+      if(raw) apply(JSON.parse(raw));
+    }catch(e){}
+  }
+
+  document.addEventListener('input', (e)=>{
+    if(e.target.matches('input,textarea')) save();
+  });
+
+  const obs=new MutationObserver(()=>save());
+  document.querySelectorAll('.imgPreview').forEach(div=>obs.observe(div,{childList:true,subtree:true}));
+
+  window.exportData=function(){
+    const data=collect();
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='旅享家实践周_归档_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+
+  window.importData=function(input){
+    const file=input.files && input.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(){
+      try{
+        const data=JSON.parse(reader.result);
+        apply(data);
+        localStorage.setItem(STORE_KEY, JSON.stringify(data));
+        alert('导入成功：已恢复填写内容与图片预览。');
+      }catch(e){
+        alert('导入失败：文件不是有效的JSON归档。');
+      }
+    };
+    reader.readAsText(file,'utf-8');
+  }
+
+  load();
+})();
+</script>
+
+
+<script>
+function exportDailyWord(){
+  // Collect fields from Daily Pack section
+  const sec = document.getElementById('secDailyPack');
+  if(!sec){ alert('未找到“每日工作报表”章节。'); return; }
+
+  const getVal = (selector) => {
+    const el = sec.querySelector(selector);
+    return el ? (el.value || '').trim() : '';
+  };
+
+  const date = getVal('fieldset:nth-of-type(1) input[placeholder="YYYY-MM-DD"]') || new Date().toISOString().slice(0,10);
+  const shift = (sec.querySelector('fieldset:nth-of-type(1) input[placeholder="早班 / 中班"]')?.value || '').trim();
+  const staff = (sec.querySelector('fieldset:nth-of-type(1) input[placeholder="学生1/学生2"]')?.value || '').trim();
+  const teacher = (sec.querySelector('fieldset:nth-of-type(1) input[placeholder="周欣 / 裴荣康"]')?.value || '').trim();
+
+  const keyWork = (sec.querySelector('fieldset:nth-of-type(2) textarea:nth-of-type(1)')?.value || '').trim();
+  const issues  = (sec.querySelector('fieldset:nth-of-type(2) textarea:nth-of-type(2)')?.value || '').trim();
+  const learn   = (sec.querySelector('fieldset:nth-of-type(2) textarea:nth-of-type(3)')?.value || '').trim();
+
+  function imgsFrom(id){
+    const div=document.getElementById(id);
+    if(!div) return [];
+    return Array.from(div.querySelectorAll('img')).map(img=>img.src);
+  }
+
+  const imgBlocks = [
+    {title:'仪容仪表检查', imgs: imgsFrom('dPrev1')},
+    {title:'卫生检查（吧台/设备/地面）', imgs: imgsFrom('dPrev2')},
+    {title:'库存/验收检查', imgs: imgsFrom('dPrev3')},
+    {title:'日报/数据记录', imgs: imgsFrom('dPrev4')},
+  ];
+
+  // Build Word-compatible HTML (saved as .doc). Word will open it as a document.
+  const esc = (s)=> (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>');
+  const imgHtml = imgBlocks.map(b=>{
+    const imgs = (b.imgs||[]).map(src=>{
+      // If user selected images, src is data:image/...; base64..., which Word can usually embed in HTML.
+      return `<div style="display:inline-block;margin:6px 6px 0 0;border:1px solid #ddd;padding:4px;">
+        <img src="${src}" style="width:260px;height:auto;"/>
+      </div>`;
+    }).join('');
+    return `<h3 style="margin:12px 0 6px;">${esc(b.title)}</h3>` + (imgs || '<p style="color:#666;">（未上传）</p>');
+  }).join('');
+
+  const htmlDoc = `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:w="urn:schemas-microsoft-com:office:word"
+        xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <meta charset="utf-8">
+    <title>旅享家基地实践周｜学院制度发布版V7（全册导出Word含图）</title>
+    <style>
+      body{font-family:Microsoft YaHei,SimSun,Arial; font-size:12pt; line-height:1.55;}
+      h1{font-size:18pt;margin:0 0 8px;}
+      h2{font-size:14pt;margin:16px 0 6px;}
+      h3{font-size:12.5pt;margin:12px 0 6px;}
+      table{border-collapse:collapse;width:100%;}
+      td,th{border:1px solid #333;padding:8px;vertical-align:top;}
+      .meta td{width:25%;}
+      .muted{color:#666;}
+      .box{border:1px solid #333;padding:10px;margin:8px 0;}
+    
+#exportAllWordBtn{background:#1f6feb;color:white;border:1px solid #1f6feb;border-radius:12px;padding:10px 12px;cursor:pointer}
+#exportAllWordBtn:hover{filter:brightness(1.05)}
+
+</style>
+  </head>
+  <body>
+    <h1>旅享家基地｜每日工作报表（文字+照片）</h1>
+    <table class="meta">
+      <tr><td><strong>日期</strong></td><td>${esc(date)}</td><td><strong>班次</strong></td><td>${esc(shift)}</td></tr>
+      <tr><td><strong>当班人员</strong></td><td>${esc(staff)}</td><td><strong>带教教师</strong></td><td>${esc(teacher)}</td></tr>
+    </table>
+
+    <h2>当日工作要点</h2>
+    <div class="box">${esc(keyWork) || '<span class="muted">（未填写）</span>'}</div>
+
+    <h2>问题与解决方式</h2>
+    <div class="box">${esc(issues) || '<span class="muted">（未填写）</span>'}</div>
+
+    <h2>学习收获（对标OBE能力）</h2>
+    <div class="box">${esc(learn) || '<span class="muted">（未填写）</span>'}</div>
+
+    <h2>照片留痕</h2>
+    ${imgHtml}
+
+    <p class="muted" style="margin-top:18px;">导出来源：旅享家基地实践周电子手册（本地导出）。</p>
+  
+<script>
+function exportAllWord(){
+  // Clone main content
+  const main = document.querySelector('main');
+  if(!main){ alert('未找到主体内容。'); return; }
+
+  // Clone to avoid mutating page
+  const clone = main.cloneNode(true);
+
+  // Remove nav (optional) but keep as TOC? We'll keep a simple TOC built from sections.
+  const nav = clone.querySelector('nav');
+  if(nav) nav.remove();
+
+  // Remove controls/buttons that are not needed in Word
+  clone.querySelectorAll('button').forEach(b=>b.remove());
+  // Remove file inputs; replace with filenames and keep previews (img tags) already rendered
+  clone.querySelectorAll('input[type=file]').forEach(inp=>{
+    const wrap = document.createElement('div');
+    wrap.style.margin = '6px 0';
+    const files = inp.files ? Array.from(inp.files).map(f=>f.name) : [];
+    wrap.innerHTML = files.length
+      ? `<p style="color:#666;margin:0 0 6px;">已选择文件：${files.map(n=>`<span style="border:1px solid #ddd;padding:2px 6px;border-radius:10px;margin-right:6px;display:inline-block;">${n}</span>`).join('')}</p>`
+      : `<p style="color:#666;margin:0 0 6px;">（未选择文件）</p>`;
+    inp.replaceWith(wrap);
+  });
+
+  // Convert text/number inputs and textareas to static text blocks
+  function replaceField(el){
+    const val = (el.value || '').trim();
+    const div = document.createElement('div');
+    div.style.border = '1px solid #ddd';
+    div.style.padding = '8px';
+    div.style.borderRadius = '8px';
+    div.style.background = '#fff';
+    div.style.margin = '6px 0';
+    div.innerHTML = val ? val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>') : '<span style="color:#888;">（未填写）</span>';
+    el.replaceWith(div);
+  }
+  clone.querySelectorAll('input[type=text], input[type=number], textarea').forEach(replaceField);
+
+  // Convert checkboxes to symbols
+  clone.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    const span = document.createElement('span');
+    span.textContent = cb.checked ? '☑' : '☐';
+    span.style.fontSize = '12pt';
+    span.style.marginRight = '6px';
+    cb.replaceWith(span);
+  });
+
+  // Make images larger for Word
+  clone.querySelectorAll('img').forEach(img=>{
+    img.style.maxWidth = '520px';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '8px 0';
+    img.style.border = '1px solid #ddd';
+    img.style.borderRadius = '6px';
+    img.style.padding = '2px';
+  });
+
+  // Build a TOC from sections
+  const sections = clone.querySelectorAll('section[id]');
+  const tocItems = Array.from(sections).map(sec=>{
+    const h2 = sec.querySelector('h2');
+    const title = h2 ? h2.textContent.trim() : sec.id;
+    return `<li style="margin:4px 0;">${title}</li>`;
+  }).join('');
+  const tocHtml = `<h2 style="margin:18px 0 8px;">目录</h2><ol style="margin:0 0 14px 18px;padding:0;">${tocItems}</ol>`;
+
+  // Word-compatible full HTML
+  const docTitle = (document.querySelector('title')?.textContent || '运营手册').trim();
+  const date = new Date().toISOString().slice(0,10);
+
+  // Minimal print-friendly styles
+  const styles = `
+    body{font-family:Microsoft YaHei,SimSun,Arial; font-size:11pt; line-height:1.6; color:#000;}
+    h1{font-size:18pt;margin:0 0 10px;}
+    h2{font-size:14pt;margin:18px 0 8px;page-break-after:avoid;}
+    h3{font-size:12pt;margin:14px 0 6px;page-break-after:avoid;}
+    .note, .warn, .danger{border:1px solid #999;padding:10px;border-radius:8px;margin:10px 0;}
+    table{border-collapse:collapse;width:100%;}
+    th,td{border:1px solid #333;padding:6px;vertical-align:top;}
+    .card{border:1px solid #bbb;border-radius:10px;padding:10px;margin:10px 0;}
+    .grid2{display:block;} /* Word doesn't handle grid well; fall back to block */
+    .pill{display:inline-block;border:1px solid #999;border-radius:999px;padding:2px 8px;margin-left:6px;}
+    .small{color:#444;font-size:10pt;}
+    hr{border:none;border-top:1px solid #999;margin:14px 0;}
+  `;
+
+  const htmlDoc = `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:w="urn:schemas-microsoft-com:office:word"
+        xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <meta charset="utf-8">
+    <title>${docTitle}</title>
+    <style>${styles}
+#exportAllWordBtn{background:#1f6feb;color:white;border:1px solid #1f6feb;border-radius:12px;padding:10px 12px;cursor:pointer}
+#exportAllWordBtn:hover{filter:brightness(1.05)}
+
+</style>
+  </head>
+  <body>
+    <h1>${docTitle}</h1>
+    <p style="color:#666;margin:0 0 10px;">导出日期：${date}（含已上传照片与已填写内容）</p>
+    ${tocHtml}
+    ${clone.innerHTML}
+    <p style="color:#666;margin-top:18px;">导出来源：旅享家基地实践周电子手册（全册导出）。</p>
+  </body>
+  </html>`;
+
+  const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${docTitle.replace(/[\\\/:*?"<>|]/g,'_')}_${date}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+</script>
+
+</body>
+  </html>`;
+
+  const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const safeStaff = (staff||'学生组').replace(/[\\\/:*?"<>|]/g,'_');
+  a.download = `每日工作报表_${date}_${safeStaff}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+</script>
+
+
+<script>
+function exportAllWord(){
+  // Clone main content
+  const main = document.querySelector('main');
+  if(!main){ alert('未找到主体内容。'); return; }
+
+  // Clone to avoid mutating page
+  const clone = main.cloneNode(true);
+
+  // Remove nav (optional) but keep as TOC? We'll keep a simple TOC built from sections.
+  const nav = clone.querySelector('nav');
+  if(nav) nav.remove();
+
+  // Remove controls/buttons that are not needed in Word
+  clone.querySelectorAll('button').forEach(b=>b.remove());
+  // Remove file inputs; replace with filenames and keep previews (img tags) already rendered
+  clone.querySelectorAll('input[type=file]').forEach(inp=>{
+    const wrap = document.createElement('div');
+    wrap.style.margin = '6px 0';
+    const files = inp.files ? Array.from(inp.files).map(f=>f.name) : [];
+    wrap.innerHTML = files.length
+      ? `<p style="color:#666;margin:0 0 6px;">已选择文件：${files.map(n=>`<span style="border:1px solid #ddd;padding:2px 6px;border-radius:10px;margin-right:6px;display:inline-block;">${n}</span>`).join('')}</p>`
+      : `<p style="color:#666;margin:0 0 6px;">（未选择文件）</p>`;
+    inp.replaceWith(wrap);
+  });
+
+  // Convert text/number inputs and textareas to static text blocks
+  function replaceField(el){
+    const val = (el.value || '').trim();
+    const div = document.createElement('div');
+    div.style.border = '1px solid #ddd';
+    div.style.padding = '8px';
+    div.style.borderRadius = '8px';
+    div.style.background = '#fff';
+    div.style.margin = '6px 0';
+    div.innerHTML = val ? val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>') : '<span style="color:#888;">（未填写）</span>';
+    el.replaceWith(div);
+  }
+  clone.querySelectorAll('input[type=text], input[type=number], textarea').forEach(replaceField);
+
+  // Convert checkboxes to symbols
+  clone.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    const span = document.createElement('span');
+    span.textContent = cb.checked ? '☑' : '☐';
+    span.style.fontSize = '12pt';
+    span.style.marginRight = '6px';
+    cb.replaceWith(span);
+  });
+
+  // Make images larger for Word
+  clone.querySelectorAll('img').forEach(img=>{
+    img.style.maxWidth = '520px';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '8px 0';
+    img.style.border = '1px solid #ddd';
+    img.style.borderRadius = '6px';
+    img.style.padding = '2px';
+  });
+
+  // Build a TOC from sections
+  const sections = clone.querySelectorAll('section[id]');
+  const tocItems = Array.from(sections).map(sec=>{
+    const h2 = sec.querySelector('h2');
+    const title = h2 ? h2.textContent.trim() : sec.id;
+    return `<li style="margin:4px 0;">${title}</li>`;
+  }).join('');
+  const tocHtml = `<h2 style="margin:18px 0 8px;">目录</h2><ol style="margin:0 0 14px 18px;padding:0;">${tocItems}</ol>`;
+
+  // Word-compatible full HTML
+  const docTitle = (document.querySelector('title')?.textContent || '运营手册').trim();
+  const date = new Date().toISOString().slice(0,10);
+
+  // Minimal print-friendly styles
+  const styles = `
+    body{font-family:Microsoft YaHei,SimSun,Arial; font-size:11pt; line-height:1.6; color:#000;}
+    h1{font-size:18pt;margin:0 0 10px;}
+    h2{font-size:14pt;margin:18px 0 8px;page-break-after:avoid;}
+    h3{font-size:12pt;margin:14px 0 6px;page-break-after:avoid;}
+    .note, .warn, .danger{border:1px solid #999;padding:10px;border-radius:8px;margin:10px 0;}
+    table{border-collapse:collapse;width:100%;}
+    th,td{border:1px solid #333;padding:6px;vertical-align:top;}
+    .card{border:1px solid #bbb;border-radius:10px;padding:10px;margin:10px 0;}
+    .grid2{display:block;} /* Word doesn't handle grid well; fall back to block */
+    .pill{display:inline-block;border:1px solid #999;border-radius:999px;padding:2px 8px;margin-left:6px;}
+    .small{color:#444;font-size:10pt;}
+    hr{border:none;border-top:1px solid #999;margin:14px 0;}
+  `;
+
+  const htmlDoc = `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:w="urn:schemas-microsoft-com:office:word"
+        xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <meta charset="utf-8">
+    <title>${docTitle}</title>
+    <style>${styles}
+#exportAllWordBtn{background:#1f6feb;color:white;border:1px solid #1f6feb;border-radius:12px;padding:10px 12px;cursor:pointer}
+#exportAllWordBtn:hover{filter:brightness(1.05)}
+
+</style>
+  </head>
+  <body>
+    <h1>${docTitle}</h1>
+    <p style="color:#666;margin:0 0 10px;">导出日期：${date}（含已上传照片与已填写内容）</p>
+    ${tocHtml}
+    ${clone.innerHTML}
+    <p style="color:#666;margin-top:18px;">导出来源：旅享家基地实践周电子手册（全册导出）。</p>
+  </body>
+  </html>`;
+
+  const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${docTitle.replace(/[\\\/:*?"<>|]/g,'_')}_${date}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+</script>
+
+</body>
+</html>

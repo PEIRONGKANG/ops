@@ -1,0 +1,1872 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>饮品实训基地周运营系统（Windows离线版）</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --ink: #1e293b;
+      --panel: #fffdf8;
+      --line: #d6c7a9;
+      --brand: #2a6f97;
+      --accent: #d97706;
+      --ok: #2a9d8f;
+      --warn: #e76f51;
+      --muted: #6b7280;
+      --heading: "Microsoft YaHei", "微软雅黑", sans-serif;
+      --body: "Microsoft YaHei", "微软雅黑", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--body);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, #ffe8c2 0 14%, transparent 14%),
+        radial-gradient(circle at 90% 20%, #d9edff 0 14%, transparent 14%),
+        linear-gradient(140deg, #fff7e6 0%, #f4f0e1 45%, #eef5f6 100%);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .hero {
+      background: linear-gradient(130deg, rgba(42,111,151,0.94), rgba(56,102,65,0.92));
+      color: #fff;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.35);
+      padding: 20px;
+      display: grid;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.16);
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(24px, 3.4vw, 38px);
+      font-family: var(--heading);
+      letter-spacing: 1px;
+    }
+    .hero p { margin: 0; }
+    .hero img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.45);
+      max-height: 220px;
+      object-fit: cover;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    h2, h3 { margin: 0 0 10px; font-family: var(--heading); }
+    h2 { font-size: 24px; }
+    h3 { font-size: 20px; color: #7c3f00; }
+    .stack { display: grid; gap: 10px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 780px) {
+      .row2, .row3 { grid-template-columns: 1fr; }
+    }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+    input[type="text"], input[type="password"], input[type="date"], input[type="time"], textarea, select, input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      border: 1px solid #9a7d52;
+      background: #f6e9d2;
+      color: #553514;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary { background: #2a6f97; color: #fff; border-color: #245f82; }
+    button.good { background: #2a9d8f; color: #fff; border-color: #20786d; }
+    button.warn { background: #e76f51; color: #fff; border-color: #d35e42; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tabs button.active { background: #553514; color: #fff; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #ede9df;
+      border: 1px solid var(--line);
+      margin-right: 6px;
+    }
+    .ok { color: var(--ok); font-weight: 700; }
+    .todo { color: #9b2226; font-weight: 700; }
+    .card {
+      border: 1px dashed #bca57b;
+      border-radius: 12px;
+      padding: 10px;
+      background: #fffaf1;
+    }
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+    .photo-grid img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #cdbf9f;
+      background: #f8f8f8;
+    }
+    .status-line {
+      font-size: 13px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #f4f4f0;
+      border: 1px solid #ddd2bc;
+    }
+    .hidden { display: none !important; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff; }
+      .panel, .hero { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>饮品生产性实训基地周运营系统</h1>
+      <p>支持学生每周工作成果留痕、运营经理逐项确认、周报一键导出（Windows 浏览器离线可用）</p>
+      <img src="assets/cover-ai.svg" alt="AI封面图" />
+    </header>
+
+    <section id="loginPanel" class="panel" style="margin-top:14px;">
+      <h2>登录</h2>
+      <div class="row2">
+        <div>
+          <label>账号一</label>
+          <input id="loginUser" type="text" placeholder="请输入账号，如：2401270101" />
+        </div>
+        <div>
+          <label>密码一</label>
+          <input id="loginPass" type="password" placeholder="请输入密码" />
+        </div>
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div>
+          <label>账号二（可选）</label>
+          <input id="loginUser2" type="text" placeholder="同组双人登录时填写第二个账号" />
+        </div>
+        <div>
+          <label>密码二（可选）</label>
+          <input id="loginPass2" type="password" placeholder="与第二个账号配套填写" />
+        </div>
+      </div>
+      <div class="btns" style="margin-top:10px;">
+        <button class="primary" id="loginBtn">登录系统</button>
+      </div>
+      <p id="loginMsg" class="status-line" style="margin-top:10px;">学生可单人登录，也可同时登录同组2个账号；运营经理和P1账号仍使用单账号登录。</p>
+    </section>
+
+    <section id="appPanel" class="hidden">
+      <div class="grid">
+        <aside class="panel no-print">
+          <h3>当前会话</h3>
+          <p><span class="tag" id="whoTag">未登录</span> <span class="tag" id="roleTag">角色</span></p>
+          <p id="sessionInfo" class="status-line" style="margin-top:10px;">当前未登录。</p>
+          <div id="scopePickerWrap" class="hidden">
+            <label>查看学员数据</label>
+            <select id="scopeUser"></select>
+          </div>
+          <div class="row2">
+            <div>
+              <label>轮值起始日（周三）</label>
+              <input id="weekStart" type="date" />
+            </div>
+            <div>
+              <label>轮值结束日</label>
+              <input id="weekEnd" type="text" readonly />
+            </div>
+          </div>
+          <div class="btns" style="margin-top:8px;">
+            <button id="loadWeek" class="primary">加载/创建本周</button>
+            <button id="logoutBtn">退出登录</button>
+          </div>
+          <hr />
+          <h3>分组信息</h3>
+          <div class="stack">
+            <div>
+              <label>教学周次（按你提供的分组名单）</label>
+              <select id="teachingWeek"></select>
+            </div>
+            <p id="groupTemplateHint" class="status-line">未套用分组名单，可手动填写。</p>
+            <div>
+              <label>本周学员A</label>
+              <input id="memberA" type="text" placeholder="姓名或账号" />
+            </div>
+            <div>
+              <label>本周学员B</label>
+              <input id="memberB" type="text" placeholder="姓名或账号" />
+            </div>
+            <div>
+              <label>下一组交接人（周三）</label>
+              <input id="nextGroup" type="text" placeholder="下一位同学" />
+            </div>
+            <button id="saveGroup" class="good">保存分组</button>
+          </div>
+          <hr />
+          <div class="btns">
+            <button id="exportWord" class="primary">导出周报 Word（含图）</button>
+            <button id="printReport">打印/另存PDF</button>
+          </div>
+          <p class="status-line" id="sysStatus" style="margin-top:10px;">准备就绪。</p>
+        </aside>
+
+        <main class="panel">
+          <div class="tabs no-print">
+            <button data-tab="creative" class="active">周三策划提交</button>
+            <button data-tab="daily">每日打卡与运营</button>
+            <button data-tab="handover">交接班（次周三）</button>
+            <button data-tab="reflection">总结与反思</button>
+            <button data-tab="accounts">账号管理</button>
+          </div>
+
+          <section id="tab-creative" class="stack" style="margin-top:10px;">
+            <h2>创意饮品策划提交（周三）</h2>
+            <img src="assets/poster-ai.svg" alt="AI海报模板" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;border:1px solid var(--line);" />
+            <div class="row2">
+              <div>
+                <label>行销计划</label>
+                <textarea id="creativeMarketing" placeholder="目标人群、推广渠道、售价策略、试饮安排"></textarea>
+              </div>
+              <div>
+                <label>饮品配方与制作方法</label>
+                <textarea id="creativeRecipe" placeholder="2款饮品配方、克数、制作步骤、标准化要点"></textarea>
+              </div>
+            </div>
+            <div>
+              <label>特殊物料采购计划</label>
+              <textarea id="creativeProcurement" placeholder="品名、规格、数量、预算、采购时间、验收人"></textarea>
+            </div>
+            <div class="card">
+              <label>创意饮品海报上传（可多张）</label>
+              <input id="creativePosterInput" type="file" multiple accept="image/*" />
+              <div class="btns" style="margin-top:8px;">
+                <button id="addCreativePoster">添加海报图片</button>
+                <button id="clearCreativePoster" class="warn">清空海报图片</button>
+              </div>
+              <div id="creativePosterPreview" class="photo-grid"></div>
+            </div>
+            <div class="btns no-print">
+              <button id="saveCreative" class="good">保存本模块</button>
+              <button id="approveCreative" class="primary">运营经理确认本模块</button>
+            </div>
+            <p id="creativeApproval" class="status-line"></p>
+          </section>
+
+          <section id="tab-daily" class="stack hidden" style="margin-top:10px;">
+            <h2>每日打卡与运营执行</h2>
+            <img src="assets/hygiene-ai.svg" alt="AI卫生检查图" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1px solid var(--line);" />
+            <div class="row3">
+              <div>
+                <label>选择日期</label>
+                <select id="dailyDate"></select>
+              </div>
+              <div>
+                <label>签到时间</label>
+                <input id="checkIn" type="time" />
+              </div>
+              <div>
+                <label>签退时间</label>
+                <input id="checkOut" type="time" />
+              </div>
+            </div>
+
+            <div class="row2">
+              <div class="card">
+                <h3>仪容仪表检查照片</h3>
+                <input id="groomInput" type="file" multiple accept="image/*" />
+                <div class="btns" style="margin-top:8px;"><button id="addGroom">添加照片</button><button id="approveGroom" class="primary">经理确认</button></div>
+                <div id="groomPreview" class="photo-grid"></div>
+                <p id="groomStatus" class="status-line"></p>
+              </div>
+              <div class="card">
+                <h3>出勤打卡确认</h3>
+                <textarea id="attendanceNote" placeholder="迟到早退说明、请假情况、导师签字信息"></textarea>
+                <div class="btns" style="margin-top:8px;">
+                  <button id="approveCheckIn" class="primary">运营经理确认签到</button>
+                  <button id="approveCheckOut" class="primary">运营经理确认签退</button>
+                </div>
+                <p id="checkInStatus" class="status-line">待运营经理确认签到</p>
+                <p id="checkOutStatus" class="status-line" style="margin-top:8px;">待运营经理确认签退</p>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div class="card">
+                <h3>上班前卫生（公区/吧台）</h3>
+                <label>公区照片</label>
+                <input id="openPublicInput" type="file" multiple accept="image/*" />
+                <label>吧台照片</label>
+                <input id="openBarInput" type="file" multiple accept="image/*" />
+                <div class="btns" style="margin-top:8px;"><button id="addOpenClean">添加照片</button><button id="approveOpenClean" class="primary">经理确认</button></div>
+                <div id="openCleanPreview" class="photo-grid"></div>
+                <p id="openCleanStatus" class="status-line"></p>
+              </div>
+              <div class="card">
+                <h3>下班后卫生（公区/吧台）</h3>
+                <label>公区照片</label>
+                <input id="closePublicInput" type="file" multiple accept="image/*" />
+                <label>吧台照片</label>
+                <input id="closeBarInput" type="file" multiple accept="image/*" />
+                <div class="btns" style="margin-top:8px;"><button id="addCloseClean">添加照片</button><button id="approveCloseClean" class="primary">经理确认</button></div>
+                <div id="closeCleanPreview" class="photo-grid"></div>
+                <p id="closeCleanStatus" class="status-line"></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>财务与库存盘点（含损耗、库存照片）</h3>
+              <div class="row3">
+                <div><label>营业额（元）</label><input id="salesAmount" type="number" step="0.01" /></div>
+                <div><label>采购成本（元）</label><input id="costAmount" type="number" step="0.01" /></div>
+                <div><label>损耗金额（元）</label><input id="lossAmount" type="number" step="0.01" /></div>
+              </div>
+              <div class="row2" style="margin-top:8px;">
+                <div>
+                  <label>损耗说明</label>
+                  <textarea id="lossDesc" placeholder="原因、品项、处置"></textarea>
+                  <label>损耗拍照</label>
+                  <input id="lossInput" type="file" multiple accept="image/*" />
+                </div>
+                <div>
+                  <label>库存盘点说明</label>
+                  <textarea id="inventoryDesc" placeholder="关键库存余量、缺货预警"></textarea>
+                  <label>库存拍照</label>
+                  <input id="inventoryInput" type="file" multiple accept="image/*" />
+                </div>
+              </div>
+              <div class="btns" style="margin-top:8px;"><button id="addFinanceImages">添加财务/库存照片</button><button id="approveFinance" class="primary">经理确认</button></div>
+              <div id="financePreview" class="photo-grid"></div>
+              <p id="financeStatus" class="status-line"></p>
+            </div>
+
+            <div class="card">
+              <h3>学生购买创意饮品货品签收</h3>
+              <textarea id="receiptDesc" placeholder="签收品项、数量、签收人、时间"></textarea>
+              <input id="receiptInput" type="file" multiple accept="image/*" />
+              <div class="btns" style="margin-top:8px;"><button id="addReceipt">添加签收照片</button><button id="approveReceipt" class="primary">经理确认</button></div>
+              <div id="receiptPreview" class="photo-grid"></div>
+              <p id="receiptStatus" class="status-line"></p>
+            </div>
+
+            <div>
+              <label>当日补充说明</label>
+              <textarea id="dailyNote" placeholder="客诉、异常、改进事项"></textarea>
+            </div>
+            <div class="btns no-print">
+              <button id="saveDaily" class="good">保存当日记录</button>
+            </div>
+          </section>
+
+          <section id="tab-handover" class="stack hidden" style="margin-top:10px;">
+            <h2>次周周三交接班</h2>
+            <div>
+              <label>交接说明</label>
+              <textarea id="handoverSummary" placeholder="本周运营情况、问题清单、下周提醒"></textarea>
+            </div>
+            <div>
+              <label>交接对象（下一组同学）</label>
+              <input id="handoverTo" type="text" placeholder="姓名或账号" />
+            </div>
+            <div class="card">
+              <label>交接现场照片（可多张）</label>
+              <input id="handoverInput" type="file" multiple accept="image/*" />
+              <div class="btns" style="margin-top:8px;">
+                <button id="addHandover">添加交接照片</button>
+                <button id="approveHandover" class="primary">经理确认交接</button>
+              </div>
+              <div id="handoverPreview" class="photo-grid"></div>
+            </div>
+            <p id="handoverStatus" class="status-line"></p>
+            <div class="btns no-print">
+              <button id="saveHandover" class="good">保存交接记录</button>
+            </div>
+          </section>
+
+          <section id="tab-reflection" class="stack hidden" style="margin-top:10px;">
+            <h2>总结与反思（周结束）</h2>
+            <div class="row2">
+              <div>
+                <label>学员A自评与收获</label>
+                <textarea id="reflectionA"></textarea>
+              </div>
+              <div>
+                <label>学员B自评与收获</label>
+                <textarea id="reflectionB"></textarea>
+              </div>
+            </div>
+            <div>
+              <label>门店运营优化与建议方案（小组）</label>
+              <textarea id="optPlan"></textarea>
+            </div>
+            <div>
+              <label>运营经理结语</label>
+              <textarea id="managerComment"></textarea>
+            </div>
+            <div class="btns no-print">
+              <button id="saveReflection" class="good">保存总结</button>
+              <button id="approveFinal" class="primary">经理最终确认</button>
+            </div>
+            <p id="finalStatus" class="status-line"></p>
+          </section>
+
+          <section id="tab-accounts" class="stack hidden" style="margin-top:10px;">
+            <h2>账号管理</h2>
+            <div class="row2">
+              <div class="card">
+                <h3>修改当前账号密码</h3>
+                <label>新密码</label>
+                <input id="newPass" type="password" />
+                <div class="btns" style="margin-top:8px;"><button id="changePassBtn" class="good">修改密码</button></div>
+              </div>
+              <div class="card" id="managerAccountCard">
+                <h3>P1账号管理（最高权限）</h3>
+                <div class="row2">
+                  <div><label>新账号</label><input id="newUserName" type="text" /></div>
+                  <div><label>姓名</label><input id="newDisplayName" type="text" /></div>
+                </div>
+                <div class="row2">
+                  <div>
+                    <label>初始密码</label>
+                    <input id="newUserPass" type="password" value="123456" />
+                  </div>
+                  <div>
+                    <label>权限等级</label>
+                    <select id="newUserLevel">
+                      <option value="P3">P3 学生</option>
+                      <option value="P2">P2 运营经理</option>
+                      <option value="P1">P1 最高权限</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="btns" style="margin-top:8px;">
+                  <button id="addUserBtn" class="primary">新增账号</button>
+                </div>
+                <hr />
+                <h3>修改已有账号（姓名/密码）</h3>
+                <label>选择账号</label>
+                <select id="editUserSelect"></select>
+                <div class="row2" style="margin-top:8px;">
+                  <div><label>新姓名</label><input id="editDisplayName" type="text" /></div>
+                  <div><label>新密码</label><input id="editUserPass" type="password" /></div>
+                </div>
+                <div class="btns" style="margin-top:8px;">
+                  <button id="saveUserEditBtn" class="warn">保存账号修改</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>系统账号列表</h3>
+              <div id="accountList"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script>
+    const KEY = "drink_training_ops_v1";
+const DEFAULT_USERS = [
+  { username: "2401270101", password: "2401270101", role: "student", level: "P3", displayName: "周露", ownerType: "Student" },
+  { username: "2401270102", password: "2401270102", role: "student", level: "P3", displayName: "刘静", ownerType: "Student" },
+  { username: "2401270103", password: "2401270103", role: "student", level: "P3", displayName: "夏婧尔", ownerType: "Student" },
+  { username: "2401270104", password: "2401270104", role: "student", level: "P3", displayName: "周熳", ownerType: "Student" },
+  { username: "2401270105", password: "2401270105", role: "student", level: "P3", displayName: "吴睿", ownerType: "Student" },
+  { username: "2401270106", password: "2401270106", role: "student", level: "P3", displayName: "刘梓文", ownerType: "Student" },
+  { username: "2401270107", password: "2401270107", role: "student", level: "P3", displayName: "徐冰芯", ownerType: "Student" },
+  { username: "2401270108", password: "2401270108", role: "student", level: "P3", displayName: "姚莹", ownerType: "Student" },
+  { username: "2401270109", password: "2401270109", role: "student", level: "P3", displayName: "江丹丹", ownerType: "Student" },
+  { username: "2401270110", password: "2401270110", role: "student", level: "P3", displayName: "杨典睿", ownerType: "Student" },
+  { username: "2401270111", password: "2401270111", role: "student", level: "P3", displayName: "方飘一", ownerType: "Student" },
+  { username: "2401280101", password: "2401280101", role: "student", level: "P3", displayName: "周园", ownerType: "Student" },
+  { username: "2401280102", password: "2401280102", role: "student", level: "P3", displayName: "王奕婷", ownerType: "Student" },
+  { username: "2401280104", password: "2401280104", role: "student", level: "P3", displayName: "马一", ownerType: "Student" },
+  { username: "2401280106", password: "2401280106", role: "student", level: "P3", displayName: "李佳欣", ownerType: "Student" },
+  { username: "2401280107", password: "2401280107", role: "student", level: "P3", displayName: "宋文琪", ownerType: "Student" },
+  { username: "2401280108", password: "2401280108", role: "student", level: "P3", displayName: "陈仲宇", ownerType: "Student" },
+  { username: "2401280109", password: "2401280109", role: "student", level: "P3", displayName: "刘宇骢", ownerType: "Student" },
+  { username: "2401280110", password: "2401280110", role: "student", level: "P3", displayName: "邢梦婷", ownerType: "Student" },
+  { username: "2401280112", password: "2401280112", role: "student", level: "P3", displayName: "马子晗", ownerType: "Student" },
+  { username: "2401280113", password: "2401280113", role: "student", level: "P3", displayName: "付竹妍", ownerType: "Student" },
+  { username: "2401280114", password: "2401280114", role: "student", level: "P3", displayName: "罗奎", ownerType: "Student" },
+  { username: "2401280115", password: "2401280115", role: "student", level: "P3", displayName: "袁梦琪", ownerType: "Student" },
+  { username: "2401280117", password: "2401280117", role: "student", level: "P3", displayName: "胡曼青", ownerType: "Student" },
+  { username: "2401280118", password: "2401280118", role: "student", level: "P3", displayName: "张子洁", ownerType: "Student" },
+  { username: "2401280119", password: "2401280119", role: "student", level: "P3", displayName: "张慧琳", ownerType: "Student" },
+  { username: "2401280120", password: "2401280120", role: "student", level: "P3", displayName: "刘月", ownerType: "Student" },
+  { username: "103085", password: "103085", role: "admin", level: "P1", displayName: "周欣", ownerType: "Teacher" },
+  { username: "122019", password: "122019", role: "admin", level: "P1", displayName: "裴荣康", ownerType: "Teacher" },
+  { username: "2301180107", password: "2301180107", role: "manager", level: "P2", displayName: "史燕香", ownerType: "OM(Operations Manager)" },
+  { username: "425021", password: "425021", role: "admin", level: "P1", displayName: "王谦", ownerType: "Teacher" }
+];
+    const TEACHING_WEEK_PRESETS = [
+  { value: "", label: "未设置（手动填写）", a: "", b: "", note: "" },
+  { value: "第1周", label: "第1周", a: "", b: "", note: "开训仪式" },
+  { value: "第2周", label: "第2周", a: "", b: "", note: "小组调研和产品设计" },
+  { value: "第3周", label: "第3周", a: "王奕婷", b: "宋文琪", note: "" },
+  { value: "第4周", label: "第4周", a: "李佳欣", b: "周熳", note: "" },
+  { value: "第5周", label: "第5周", a: "姚莹", b: "周园", note: "" },
+  { value: "第6周", label: "第6周", a: "刘静", b: "刘月", note: "" },
+  { value: "第7周", label: "第7周", a: "江丹丹", b: "方飘一", note: "" },
+  { value: "第8周", label: "第8周", a: "袁梦琪", b: "胡曼青", note: "" },
+  { value: "第9周", label: "第9周", a: "付竹妍", b: "张慧琳", note: "" },
+  { value: "第10周", label: "第10周", a: "马子晗", b: "张子洁", note: "" },
+  { value: "第11周", label: "第11周", a: "吴睿", b: "", note: "" },
+  { value: "第12周", label: "第12周", a: "马一", b: "罗奎", note: "" },
+  { value: "第13周", label: "第13周", a: "杨典睿", b: "刘宇骢", note: "" },
+  { value: "第14周", label: "第14周", a: "夏婧尔", b: "徐冰芯", note: "" },
+  { value: "第15周", label: "第15周", a: "周露", b: "刘梓文", note: "" },
+  { value: "第16周", label: "第16周", a: "陈仲宇", b: "邢梦婷", note: "" },
+  { value: "第17周", label: "第17周", a: "", b: "", note: "项目课程汇报考核" }
+];
+    const TEACHING_WEEK_MAP = Object.fromEntries(TEACHING_WEEK_PRESETS.map((item) => [item.value, item]));
+
+    const APP = {
+      state: { users: DEFAULT_USERS.map(u => ({ ...u })), currentUser: null, currentSessionUsers: [], weeks: {}, weekGroups: {} },
+      currentWeekKey: "",
+      currentDay: "",
+      activeScopeUser: ""
+    };
+    const $ = (id) => document.getElementById(id);
+    const trim = (v) => String(v || "").trim();
+    function levelFromRole(role) {
+      if (role === "admin") return "P1";
+      if (role === "manager") return "P2";
+      return "P3";
+    }
+    function roleFromLevel(level) {
+      if (level === "P1") return "admin";
+      if (level === "P2") return "manager";
+      return "student";
+    }
+    function normalizeUser(userLike) {
+      const username = trim(userLike.username);
+      const password = trim(userLike.password);
+      const level = userLike.level || levelFromRole(userLike.role);
+      const role = roleFromLevel(level);
+      return {
+        username,
+        password,
+        role,
+        level,
+        displayName: trim(userLike.displayName) || username,
+        ownerType: trim(userLike.ownerType || ""),
+        passwordUpdatedAt: userLike.passwordUpdatedAt || "",
+        nameUpdatedAt: userLike.nameUpdatedAt || ""
+      };
+    }
+    function levelLabel(level) {
+  if (level === "P1") return "P1 最高权限";
+  if (level === "P2") return "P2 运营经理";
+  return "P3 学生";
+}
+
+    function getCurrentUserRecord() {
+      const cu = APP.state.currentUser;
+      if (!cu) return null;
+      return APP.state.users.find(u => u.username === cu.username) || null;
+    }
+    function getCurrentSessionUsers() {
+      if (!Array.isArray(APP.state.currentSessionUsers)) APP.state.currentSessionUsers = [];
+      const valid = APP.state.currentSessionUsers
+        .map(trim)
+        .filter((username, index, list) => username && list.indexOf(username) === index)
+        .filter((username) => APP.state.users.some((u) => u.username === username && u.level === "P3"));
+      APP.state.currentSessionUsers = valid;
+      return valid;
+    }
+    function isP1() {
+      const u = getCurrentUserRecord();
+      return !!u && u.level === "P1";
+    }
+    function isP2() {
+      const u = getCurrentUserRecord();
+      return !!u && u.level === "P2";
+    }
+    function isP3() {
+      const u = getCurrentUserRecord();
+      return !!u && u.level === "P3";
+    }
+    function canApprove() { return isP1() || isP2(); }
+    function canManageAccounts() { return isP1(); }
+    function canEditCurrentScopeData() { return isP1() || isP3(); }
+    function canViewAllScopes() { return isP1() || isP2(); }
+    function getStudentUsers() {
+      return APP.state.users.filter(u => u.level === "P3").sort((a, b) => a.username.localeCompare(b.username));
+    }
+    function resolveScopeUser() {
+      const me = getCurrentUserRecord();
+      if (!me) return "";
+      if (!canViewAllScopes()) return me.username;
+      if (APP.activeScopeUser && APP.state.users.some(u => u.username === APP.activeScopeUser && u.level === "P3")) {
+        return APP.activeScopeUser;
+      }
+      const firstStudent = getStudentUsers()[0];
+      APP.activeScopeUser = firstStudent ? firstStudent.username : me.username;
+      return APP.activeScopeUser;
+    }
+    function makeWeekKey(startDate, scopeUser) {
+      return `${trim(scopeUser)}::${trim(startDate)}`;
+    }
+    function findStudentByToken(token) {
+      const value = trim(token);
+      if (!value) return null;
+      return APP.state.users.find((u) => u.level === "P3" && (u.username === value || u.displayName === value)) || null;
+    }
+    function getTeachingWeekPreset(value) {
+      return TEACHING_WEEK_MAP[trim(value)] || null;
+    }
+    function describeTeachingWeek(shared) {
+      const preset = getTeachingWeekPreset(shared.teachingWeek);
+      const members = [trim(shared.a), trim(shared.b)].filter(Boolean);
+      if (preset && preset.note) return `${preset.label}安排：${preset.note}`;
+      if (preset && members.length) return `${preset.label}名单：${members.join("、")}`;
+      if (members.length) return `当前分组：${members.join("、")}`;
+      return "未套用分组名单，可手动填写。";
+    }
+    function applyTeachingWeekPreset(shared, teachingWeek, keepMembersWhenBlank = true) {
+      const value = trim(teachingWeek);
+      const preset = getTeachingWeekPreset(value);
+      shared.teachingWeek = value;
+      if (!preset) {
+        if (!keepMembersWhenBlank) {
+          shared.a = "";
+          shared.b = "";
+        }
+        return false;
+      }
+      if (preset.a || preset.b || preset.note) {
+        shared.a = preset.a || "";
+        shared.b = preset.b || "";
+      } else if (!keepMembersWhenBlank) {
+        shared.a = "";
+        shared.b = "";
+      }
+      return true;
+    }
+    function renderTeachingWeekOptions() {
+      $("teachingWeek").innerHTML = TEACHING_WEEK_PRESETS.map((item) => {
+        const extra = item.note ? ` ${item.note}` : "";
+        return `<option value="${item.value}">${item.label}${extra}</option>`;
+      }).join("");
+    }
+    function getWeekGroup(startDate) {
+      const key = trim(startDate);
+      if (!APP.state.weekGroups) APP.state.weekGroups = {};
+      if (!APP.state.weekGroups[key]) {
+        APP.state.weekGroups[key] = { a: "", b: "", nextGroup: "", teachingWeek: "" };
+      }
+      APP.state.weekGroups[key].teachingWeek = trim(APP.state.weekGroups[key].teachingWeek);
+      return APP.state.weekGroups[key];
+    }
+    function seedWeekGroupFromSession(startDate) {
+      const me = getCurrentUserRecord();
+      if (!me || me.level !== "P3") return;
+      const shared = getWeekGroup(startDate);
+      if (trim(shared.a) || trim(shared.b)) return;
+      const sessionUsers = getCurrentSessionUsers();
+      if (!sessionUsers.length) return;
+      const names = sessionUsers.map((username) => {
+        const user = APP.state.users.find((u) => u.username === username);
+        return user ? (user.displayName || user.username) : username;
+      });
+      shared.a = names[0] || "";
+      shared.b = names[1] || "";
+      applyWeekGroupToAllWeeks(startDate);
+    }
+    function syncWeekGroupForWeek(week) {
+      const shared = getWeekGroup(week.startDate);
+      const preset = getTeachingWeekPreset(shared.teachingWeek);
+      if (preset && !trim(shared.a) && !trim(shared.b) && (preset.a || preset.b || preset.note)) {
+        shared.a = preset.a || "";
+        shared.b = preset.b || "";
+      }
+      const sharedEmpty = !trim(shared.a) && !trim(shared.b) && !trim(shared.nextGroup);
+      if (sharedEmpty && !(preset && (preset.a || preset.b || preset.note))) {
+        shared.a = trim(week.members?.a);
+        shared.b = trim(week.members?.b);
+        shared.nextGroup = trim(week.nextGroup);
+        week.teachingWeek = trim(shared.teachingWeek);
+        return false;
+      }
+      week.members.a = trim(shared.a);
+      week.members.b = trim(shared.b);
+      week.nextGroup = trim(shared.nextGroup);
+      week.teachingWeek = trim(shared.teachingWeek);
+      return true;
+    }
+    function applyWeekGroupToAllWeeks(startDate) {
+      const shared = getWeekGroup(startDate);
+      Object.values(APP.state.weeks).forEach((week) => {
+        if (trim(week.startDate) !== trim(startDate)) return;
+        week.members.a = trim(shared.a);
+        week.members.b = trim(shared.b);
+        week.nextGroup = trim(shared.nextGroup);
+        week.teachingWeek = trim(shared.teachingWeek);
+      });
+    }
+    function getWeekScopeUsers(week) {
+      const me = getCurrentUserRecord();
+      if (!me || !week) return [];
+      if (me.level === "P3") {
+        const sessionUsers = getCurrentSessionUsers();
+        return sessionUsers.length ? sessionUsers : [me.username];
+      }
+      const groupedUsers = [week.members?.a, week.members?.b]
+        .map(findStudentByToken)
+        .filter(Boolean)
+        .map((u) => u.username);
+      if (groupedUsers.length) return Array.from(new Set(groupedUsers));
+      const scope = resolveScopeUser();
+      return scope ? [scope] : [];
+    }
+    function withScopedWeeks(mutator) {
+      const baseWeek = currentWeek();
+      if (!baseWeek) return;
+      const fallbackUser = trim(String(APP.currentWeekKey).split("::")[0]);
+      const usernames = getWeekScopeUsers(baseWeek);
+      const targets = Array.from(new Set((usernames.length ? usernames : [fallbackUser]).filter(Boolean)));
+      targets.forEach((username) => {
+        const weekKey = makeWeekKey(baseWeek.startDate, username);
+        ensureWeek(weekKey, baseWeek.startDate);
+        mutator(APP.state.weeks[weekKey], username);
+      });
+      saveApp();
+    }
+    function renderSessionInfo() {
+      const current = getCurrentUserRecord();
+      if (!current) {
+        $("whoTag").textContent = "未登录";
+        $("roleTag").textContent = "角色";
+        $("sessionInfo").textContent = "当前未登录。";
+        return;
+      }
+      $("whoTag").textContent = `${current.displayName} (${current.username})`;
+      $("roleTag").textContent = levelLabel(current.level || levelFromRole(current.role));
+      if (current.level !== "P3") {
+        $("sessionInfo").textContent = "当前为管理账号单独登录。";
+        return;
+      }
+      const sessionUsers = getCurrentSessionUsers();
+      const labels = sessionUsers.map((username) => {
+        const user = APP.state.users.find((u) => u.username === username);
+        return user ? `${user.displayName}（${user.username}）` : username;
+      });
+      if (labels.length > 1) {
+        $("sessionInfo").textContent = `双人协同登录：${labels.join("、")}。本次录入会同步到这两个学生账号。`;
+      } else {
+        $("sessionInfo").textContent = `单人登录：${labels[0] || `${current.displayName}（${current.username}）`}。本次录入同步到当前账号。`;
+      }
+    }
+    function saveApp() {
+      localStorage.setItem(KEY, JSON.stringify(APP.state));
+    }
+    function loadApp() {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.weeks) return;
+        const loadedUsers = Array.isArray(parsed.users) ? parsed.users.map(normalizeUser) : [];
+        const mergedByUsername = new Map(DEFAULT_USERS.map(u => [u.username, normalizeUser(u)]));
+        const legacyUsers = new Set(["manager", "student01", "student02"]);
+        loadedUsers.forEach((u) => {
+          if (!u.username) return;
+          if (legacyUsers.has(u.username) && !DEFAULT_USERS.some(x => x.username === u.username)) return;
+          const base = mergedByUsername.get(u.username) || {};
+          mergedByUsername.set(u.username, { ...base, ...u, username: u.username });
+        });
+        APP.state.users = Array.from(mergedByUsername.values());
+        APP.state.weeks = parsed.weeks || {};
+        APP.state.weekGroups = parsed.weekGroups || {};
+        APP.state.currentSessionUsers = Array.isArray(parsed.currentSessionUsers) ? parsed.currentSessionUsers : [];
+        Object.values(APP.state.weeks).forEach((week) => {
+          if (!week || !week.startDate) return;
+          syncWeekGroupForWeek(week);
+        });
+        APP.state.currentUser = parsed.currentUser || null;
+      } catch (_) {}
+    }
+    function todayISO() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function toDate(s) {
+      const [y, m, day] = String(s).split("-").map((v) => Number(v));
+      return new Date(y, (m || 1) - 1, day || 1);
+    }
+    function fmt(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function adjustToWednesday(isoDate) {
+      const d = toDate(isoDate);
+      const day = d.getDay();
+      const diff = (day - 3 + 7) % 7;
+      d.setDate(d.getDate() - diff);
+      return fmt(d);
+    }
+    function getWeekDates(startIso) {
+      const arr = [];
+      const d = toDate(startIso);
+      for (let i = 0; i < 8; i++) {
+        const dd = new Date(d);
+        dd.setDate(dd.getDate() + i);
+        arr.push(fmt(dd));
+      }
+      return arr;
+    }
+    function emptyApproval() { return { by: "", time: "", comment: "" }; }
+    function ensureWeek(weekKey, startDate = "") {
+      if (!APP.state.weeks[weekKey]) {
+        const normalizedStart = startDate || trim(String(weekKey).split("::").pop());
+        const dates = getWeekDates(normalizedStart);
+        APP.state.weeks[weekKey] = {
+          startDate: normalizedStart,
+          endDate: dates[7],
+          teachingWeek: "",
+          members: { a: "", b: "" },
+          nextGroup: "",
+          creative: {
+            marketing: "",
+            recipe: "",
+            procurement: "",
+            posters: [],
+            approval: emptyApproval()
+          },
+          daily: {},
+          handover: {
+            summary: "",
+            nextGroup: "",
+            photos: [],
+            approval: emptyApproval()
+          },
+          reflection: {
+            a: "",
+            b: "",
+            optPlan: "",
+            managerComment: "",
+            approval: emptyApproval()
+          }
+        };
+      }
+      seedWeekGroupFromSession(APP.state.weeks[weekKey].startDate);
+      syncWeekGroupForWeek(APP.state.weeks[weekKey]);
+      saveApp();
+    }
+    function ensureDay(week, day) {
+      if (!week.daily[day]) {
+        week.daily[day] = {
+          checkIn: "",
+          checkOut: "",
+          attendanceNote: "",
+          notes: "",
+          grooming: [],
+          openingPublic: [],
+          openingBar: [],
+          closingPublic: [],
+          closingBar: [],
+          sales: "",
+          cost: "",
+          lossAmount: "",
+          lossDesc: "",
+          lossImgs: [],
+          inventoryDesc: "",
+          inventoryImgs: [],
+          receiptDesc: "",
+          receiptImgs: [],
+          approvals: {
+            checkIn: emptyApproval(),
+            checkOut: emptyApproval(),
+            grooming: emptyApproval(),
+            opening: emptyApproval(),
+            finance: emptyApproval(),
+            receipt: emptyApproval(),
+            closing: emptyApproval()
+          }
+        };
+      }
+      const approvals = week.daily[day].approvals || {};
+      if (!approvals.checkIn && approvals.attendance) approvals.checkIn = { ...approvals.attendance };
+      if (!approvals.checkOut && approvals.attendance) approvals.checkOut = { ...approvals.attendance };
+      week.daily[day].approvals = {
+        checkIn: approvals.checkIn || emptyApproval(),
+        checkOut: approvals.checkOut || emptyApproval(),
+        grooming: approvals.grooming || emptyApproval(),
+        opening: approvals.opening || emptyApproval(),
+        finance: approvals.finance || emptyApproval(),
+        receipt: approvals.receipt || emptyApproval(),
+        closing: approvals.closing || emptyApproval()
+      };
+    }
+    async function filesToDataUrls(fileList) {
+      const files = Array.from(fileList || []);
+      const tasks = files.map((f) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(f);
+      }));
+      return Promise.all(tasks);
+    }
+    function renderImgs(containerId, list) {
+      const box = $(containerId);
+      box.innerHTML = "";
+      (list || []).forEach((src) => {
+        const img = document.createElement("img");
+        img.src = src;
+        box.appendChild(img);
+      });
+    }
+    function stampApproval(target, comment = "") {
+  if (!canApprove()) {
+    setStatus("仅P1/P2可签核。", true);
+    return false;
+  }
+  const actor = getCurrentUserRecord();
+  target.by = (actor && actor.displayName) || (actor && actor.username) || "";
+  target.time = new Date().toLocaleString();
+  target.comment = comment;
+  saveApp();
+  return true;
+}
+
+    function renderApprovalText(ap) {
+  if (!ap || !ap.by) return "待运营经理确认";
+  return `已确认：${ap.by}（${ap.time}）`;
+}
+
+    function setStatus(msg, isErr = false) {
+      const el = $("sysStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isErr ? "#9b2226" : "#1f5f46";
+    }
+    function renderWeek() {
+  if (!APP.currentWeekKey) return;
+  const week = APP.state.weeks[APP.currentWeekKey];
+  syncWeekGroupForWeek(week);
+  const shared = getWeekGroup(week.startDate);
+  $("weekEnd").value = week.endDate;
+  $("teachingWeek").value = shared.teachingWeek || "";
+  $("groupTemplateHint").textContent = describeTeachingWeek(shared);
+  $("memberA").value = week.members.a;
+  $("memberB").value = week.members.b;
+  $("nextGroup").value = week.nextGroup;
+  $("creativeMarketing").value = week.creative.marketing;
+  $("creativeRecipe").value = week.creative.recipe;
+  $("creativeProcurement").value = week.creative.procurement;
+  renderImgs("creativePosterPreview", week.creative.posters);
+  $("creativeApproval").textContent = renderApprovalText(week.creative.approval);
+  $("handoverSummary").value = week.handover.summary;
+  $("handoverTo").value = week.handover.nextGroup;
+  renderImgs("handoverPreview", week.handover.photos);
+  $("handoverStatus").textContent = renderApprovalText(week.handover.approval);
+  $("reflectionA").value = week.reflection.a;
+  $("reflectionB").value = week.reflection.b;
+  $("optPlan").value = week.reflection.optPlan;
+  $("managerComment").value = week.reflection.managerComment;
+  $("finalStatus").textContent = renderApprovalText(week.reflection.approval);
+  const dates = getWeekDates(week.startDate);
+  const labels = ["周三", "周四", "周五", "周六", "周日", "周一", "周二", "次周三(交接)"];
+  const sel = $("dailyDate");
+  sel.innerHTML = "";
+  dates.forEach((d, i) => {
+    const op = document.createElement("option");
+    op.value = d;
+    op.textContent = `${d} ${labels[i]}`;
+    sel.appendChild(op);
+  });
+  if (!APP.currentDay || !dates.includes(APP.currentDay)) APP.currentDay = dates[0];
+  sel.value = APP.currentDay;
+  renderDay();
+  renderAccounts();
+  toggleManagerOnly();
+}
+
+    function renderDay() {
+      const week = APP.state.weeks[APP.currentWeekKey];
+      ensureDay(week, APP.currentDay);
+      const d = week.daily[APP.currentDay];
+      $("checkIn").value = d.checkIn;
+      $("checkOut").value = d.checkOut;
+      $("attendanceNote").value = d.attendanceNote;
+      $("dailyNote").value = d.notes;
+      $("salesAmount").value = d.sales;
+      $("costAmount").value = d.cost;
+      $("lossAmount").value = d.lossAmount;
+      $("lossDesc").value = d.lossDesc;
+      $("inventoryDesc").value = d.inventoryDesc;
+      $("receiptDesc").value = d.receiptDesc;
+      renderImgs("groomPreview", d.grooming);
+      renderImgs("openCleanPreview", [...d.openingPublic, ...d.openingBar]);
+      renderImgs("closeCleanPreview", [...d.closingPublic, ...d.closingBar]);
+      renderImgs("financePreview", [...d.lossImgs, ...d.inventoryImgs]);
+      renderImgs("receiptPreview", d.receiptImgs);
+      $("checkInStatus").textContent = renderApprovalText(d.approvals.checkIn);
+      $("checkOutStatus").textContent = renderApprovalText(d.approvals.checkOut);
+      $("groomStatus").textContent = renderApprovalText(d.approvals.grooming);
+      $("openCleanStatus").textContent = renderApprovalText(d.approvals.opening);
+      $("closeCleanStatus").textContent = renderApprovalText(d.approvals.closing);
+      $("financeStatus").textContent = renderApprovalText(d.approvals.finance);
+      $("receiptStatus").textContent = renderApprovalText(d.approvals.receipt);
+    }
+    function renderScopePicker() {
+  const wrap = $("scopePickerWrap");
+  const sel = $("scopeUser");
+  if (!wrap || !sel) return;
+  if (!canViewAllScopes()) {
+    wrap.classList.add("hidden");
+    sel.innerHTML = "";
+    return;
+  }
+  wrap.classList.remove("hidden");
+  const students = getStudentUsers();
+  sel.innerHTML = students.map((u) => `<option value="${u.username}">${u.displayName}（${u.username}）</option>`).join("");
+  const scopeUser = resolveScopeUser();
+  if (scopeUser) sel.value = scopeUser;
+}
+
+    function toggleManagerOnly() {
+      const manager = canApprove();
+      const editable = canEditCurrentScopeData();
+      ["approveCreative", "approveCheckIn", "approveCheckOut", "approveGroom", "approveOpenClean", "approveCloseClean", "approveFinance", "approveReceipt", "approveHandover", "approveFinal"].forEach((id) => {
+        $(id).disabled = !manager;
+      });
+      ["saveGroup", "saveCreative", "saveDaily", "saveHandover", "saveReflection", "addCreativePoster", "clearCreativePoster", "addGroom", "addOpenClean", "addCloseClean", "addFinanceImages", "addReceipt", "addHandover"].forEach((id) => {
+        $(id).disabled = !editable;
+      });
+      const lockIds = [
+        "memberA", "memberB", "nextGroup", "creativeMarketing", "creativeRecipe", "creativeProcurement",
+        "checkIn", "checkOut", "attendanceNote", "dailyNote", "salesAmount", "costAmount", "lossAmount", "lossDesc",
+        "inventoryDesc", "receiptDesc", "handoverSummary", "handoverTo", "reflectionA", "reflectionB", "optPlan"
+      ];
+      lockIds.forEach((id) => { if ($(id)) $(id).readOnly = !editable; });
+      $("teachingWeek").disabled = !editable;
+      ["creativePosterInput", "groomInput", "openPublicInput", "openBarInput", "closePublicInput", "closeBarInput", "lossInput", "inventoryInput", "receiptInput", "handoverInput"].forEach((id) => {
+        if ($(id)) $(id).disabled = !editable;
+      });
+      $("managerComment").readOnly = !canApprove();
+      $("managerAccountCard").classList.toggle("hidden", !canManageAccounts());
+      renderScopePicker();
+    }
+    function currentWeek() { return APP.state.weeks[APP.currentWeekKey]; }
+    function currentDayData() {
+      const w = currentWeek();
+      ensureDay(w, APP.currentDay);
+      return w.daily[APP.currentDay];
+    }
+    function saveCreative() {
+      if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+      const marketing = $("creativeMarketing").value.trim();
+      const recipe = $("creativeRecipe").value.trim();
+      const procurement = $("creativeProcurement").value.trim();
+      withScopedWeeks((week) => {
+        week.creative.marketing = marketing;
+        week.creative.recipe = recipe;
+        week.creative.procurement = procurement;
+      });
+      renderWeek();
+      setStatus("已保存：周三策划提交模块。");
+    }
+
+    function saveDaily() {
+      if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+      const day = APP.currentDay;
+      const payload = {
+        checkIn: $("checkIn").value,
+        checkOut: $("checkOut").value,
+        attendanceNote: $("attendanceNote").value.trim(),
+        notes: $("dailyNote").value.trim(),
+        sales: $("salesAmount").value,
+        cost: $("costAmount").value,
+        lossAmount: $("lossAmount").value,
+        lossDesc: $("lossDesc").value.trim(),
+        inventoryDesc: $("inventoryDesc").value.trim(),
+        receiptDesc: $("receiptDesc").value.trim()
+      };
+      withScopedWeeks((week) => {
+        ensureDay(week, day);
+        const d = week.daily[day];
+        d.checkIn = payload.checkIn;
+        d.checkOut = payload.checkOut;
+        d.attendanceNote = payload.attendanceNote;
+        d.notes = payload.notes;
+        d.sales = payload.sales;
+        d.cost = payload.cost;
+        d.lossAmount = payload.lossAmount;
+        d.lossDesc = payload.lossDesc;
+        d.inventoryDesc = payload.inventoryDesc;
+        d.receiptDesc = payload.receiptDesc;
+      });
+      renderDay();
+      setStatus(`已保存：${APP.currentDay} 当日记录。`);
+    }
+    function saveHandover() {
+      if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+      const summary = $("handoverSummary").value.trim();
+      const nextGroup = $("handoverTo").value.trim();
+      withScopedWeeks((week) => {
+        week.handover.summary = summary;
+        week.handover.nextGroup = nextGroup;
+      });
+      renderWeek();
+      setStatus("已保存：交接记录。");
+    }
+
+    function saveReflection() {
+      if (!canEditCurrentScopeData() && !canApprove()) return setStatus("当前权限不可修改该数据。", true);
+      const reflectionA = $("reflectionA").value.trim();
+      const reflectionB = $("reflectionB").value.trim();
+      const optPlan = $("optPlan").value.trim();
+      const managerComment = $("managerComment").value.trim();
+      withScopedWeeks((week) => {
+        week.reflection.a = reflectionA;
+        week.reflection.b = reflectionB;
+        week.reflection.optPlan = optPlan;
+        week.reflection.managerComment = managerComment;
+      });
+      renderWeek();
+      setStatus("已保存：总结与反思。");
+    }
+
+    function changeTab(tabName) {
+      ["creative", "daily", "handover", "reflection", "accounts"].forEach((t) => {
+        $(`tab-${t}`).classList.toggle("hidden", t !== tabName);
+      });
+      document.querySelectorAll(".tabs button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === tabName);
+      });
+    }
+    function loadWeekForCurrentScope(startRaw) {
+      const corrected = adjustToWednesday(startRaw || todayISO());
+      const scopeUser = resolveScopeUser();
+      APP.currentWeekKey = makeWeekKey(corrected, scopeUser);
+      $("weekStart").value = corrected;
+      ensureWeek(APP.currentWeekKey, corrected);
+      renderWeek();
+    }
+    function authenticateUser(username, password) {
+      const user = trim(username);
+      const pass = trim(password);
+      if (!user || !pass) return null;
+      return APP.state.users.find((x) => x.username === user && trim(x.password) === pass) || null;
+    }
+    function login() {
+      const first = authenticateUser($("loginUser").value, $("loginPass").value);
+      const secondUser = trim($("loginUser2").value);
+      const secondPass = trim($("loginPass2").value);
+      if (!first) {
+        $("loginMsg").textContent = "账号一或密码一错误。";
+        return;
+      }
+      let sessionUsers = [];
+      if (secondUser || secondPass) {
+        if (!secondUser || !secondPass) {
+          $("loginMsg").textContent = "如需双人登录，请完整填写账号二和密码二。";
+          return;
+        }
+        const second = authenticateUser(secondUser, secondPass);
+        if (!second) {
+          $("loginMsg").textContent = "账号二或密码二错误。";
+          return;
+        }
+        if (first.username === second.username) {
+          $("loginMsg").textContent = "双人登录不能重复填写同一个账号。";
+          return;
+        }
+        if (first.level !== "P3" || second.level !== "P3") {
+          $("loginMsg").textContent = "双人登录仅支持学生账号。";
+          return;
+        }
+        sessionUsers = [first.username, second.username];
+      } else if (first.level === "P3") {
+        sessionUsers = [first.username];
+      }
+      APP.state.currentUser = { username: first.username, role: first.role, level: first.level, displayName: first.displayName };
+      APP.state.currentSessionUsers = sessionUsers;
+      APP.activeScopeUser = first.level === "P3" ? first.username : "";
+      saveApp();
+      $("loginPanel").classList.add("hidden");
+      $("appPanel").classList.remove("hidden");
+      renderSessionInfo();
+      loadWeekForCurrentScope(todayISO());
+      setStatus(sessionUsers.length > 1 ? "双人登录成功。已自动加载本周轮值并同步到本组账号。" : "登录成功。已自动加载本周轮值。", false);
+    }
+
+    function logout() {
+      APP.state.currentUser = null;
+      APP.state.currentSessionUsers = [];
+      APP.activeScopeUser = "";
+      saveApp();
+      location.reload();
+    }
+    function renderAccounts() {
+  const isTop = canManageAccounts();
+  const sortedUsers = APP.state.users.slice().sort((a, b) => a.username.localeCompare(b.username));
+  const list = APP.state.users.slice().sort((a, b) => a.username.localeCompare(b.username)).map((u) => {
+    const base = `${u.displayName}（${u.username}） - ${levelLabel(u.level)}`;
+    if (!isTop) return `<div class="status-line">${base}</div>`;
+    const ext = `，密码：${u.password || "-"}，姓名更新时间：${u.nameUpdatedAt || "-"}，密码更新时间：${u.passwordUpdatedAt || "-"}`;
+    return `<div class="status-line">${base}${ext}</div>`;
+  }).join("");
+  $("accountList").innerHTML = list || "<div class='status-line'>无账号</div>";
+  if (isTop) {
+    $("editUserSelect").innerHTML = sortedUsers.map(u => `<option value="${u.username}">${u.displayName}（${u.username}）</option>`).join("");
+    const selected = $("editUserSelect").value || (sortedUsers[0] && sortedUsers[0].username) || "";
+    if (selected) {
+      $("editUserSelect").value = selected;
+      const target = sortedUsers.find(u => u.username === selected);
+      if (target) {
+        $("editDisplayName").value = target.displayName || "";
+        $("editUserPass").value = target.password || "";
+      }
+    }
+  }
+}
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[ch]));
+    }
+    function formatRichText(value, fallback = "-") {
+      const safe = escapeHtml(value);
+      return safe ? safe.replace(/\n/g, "<br/>") : fallback;
+    }
+    function svgToDataUri(svg) {
+      return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg.replace(/\s{2,}/g, " ").trim())}`;
+    }
+    function reportArt(kind, title = "", subtitle = "") {
+      const main = escapeHtml(title);
+      const sub = escapeHtml(subtitle);
+      const themes = {
+        cover: { a: "#784421", b: "#d6922b", c: "#2e8f88", d: "#f6efe2" },
+        creative: { a: "#9c5b12", b: "#f0c978", c: "#d96d41", d: "#fff8ef" },
+        daily: { a: "#2b6b88", b: "#8fc8d6", c: "#58a89a", d: "#eef8fa" },
+        handover: { a: "#5c4a7a", b: "#c8b8ec", c: "#8f7ad8", d: "#f5f1ff" },
+        reflection: { a: "#4f6b2f", b: "#c7df90", c: "#91ad54", d: "#f6faee" },
+        gallery: { a: "#6e4b2d", b: "#dfc6a2", c: "#b98c54", d: "#fbf7f0" }
+      };
+      const t = themes[kind] || themes.gallery;
+      const iconMap = {
+        cover: `
+          <circle cx="498" cy="88" r="42" fill="${t.b}" opacity=".95"/>
+          <path d="M434 154c18-40 58-67 104-67 17 0 35 4 48 12-10 43-49 75-96 75-22 0-40-7-56-20z" fill="${t.c}" opacity=".92"/>
+          <rect x="120" y="72" rx="28" ry="28" width="126" height="128" fill="rgba(255,255,255,.85)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M148 113c5-14 18-24 34-24h4c16 0 29 10 34 24l11 38c4 14-6 28-20 28h-58c-15 0-25-14-21-28z" fill="${t.a}"/>
+          <path d="M165 112c0-10 8-18 18-18h26c10 0 18 8 18 18v11h-62z" fill="${t.c}"/>
+          <path d="M245 116c18 0 31 13 31 29 0 16-13 29-31 29" fill="none" stroke="${t.a}" stroke-width="10" stroke-linecap="round"/>
+        `,
+        creative: `
+          <rect x="405" y="58" width="126" height="108" rx="24" fill="rgba(255,255,255,.86)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M432 112c9-18 23-28 42-28 21 0 36 10 46 28l9 24c6 16-6 30-23 30h-63c-17 0-28-16-22-31z" fill="${t.c}"/>
+          <path d="M455 92c6 5 10 12 11 20 8-7 18-10 29-9-5 4-9 10-10 16 9 1 17 5 24 12-11 1-20 5-29 12-5-9-13-16-25-21z" fill="${t.b}" opacity=".9"/>
+          <circle cx="148" cy="112" r="52" fill="rgba(255,255,255,.75)"/>
+          <path d="M120 136c23-33 44-50 68-55-6 18-16 34-32 49 10 2 18 8 26 16-24 0-44-4-62-10z" fill="${t.a}" opacity=".88"/>
+        `,
+        daily: `
+          <rect x="400" y="54" width="134" height="118" rx="22" fill="rgba(255,255,255,.9)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M433 88h66" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+          <path d="M433 118h46" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+          <path d="M433 148h58" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+          <path d="M414 90l8 9 15-18" fill="none" stroke="${t.c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M414 120l8 9 15-18" fill="none" stroke="${t.c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="154" cy="112" r="54" fill="rgba(255,255,255,.78)"/>
+          <path d="M124 142h61c9 0 15-8 13-16l-8-34c-4-18-19-31-38-31s-34 13-38 31l-5 22c-3 15 8 28 23 28z" fill="${t.c}"/>
+          <path d="M117 162h89" stroke="${t.a}" stroke-width="10" stroke-linecap="round"/>
+        `,
+        handover: `
+          <rect x="88" y="56" width="138" height="124" rx="18" fill="rgba(255,255,255,.88)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M118 92h79M118 120h79M118 148h54" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+          <path d="M282 116h116" stroke="${t.c}" stroke-width="12" stroke-linecap="round"/>
+          <path d="M378 88l40 28-40 28" fill="none" stroke="${t.c}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="430" y="72" width="90" height="90" rx="22" fill="rgba(255,255,255,.84)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M453 138h44M453 116h44M453 94h28" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+        `,
+        reflection: `
+          <circle cx="148" cy="112" r="56" fill="rgba(255,255,255,.82)"/>
+          <path d="M132 78h32v31c0 10-7 18-16 18s-16-8-16-18z" fill="${t.a}"/>
+          <path d="M120 80h12v18c0 8-5 14-12 14M176 80h-12v18c0 8 5 14 12 14" fill="none" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+          <path d="M130 142h36M120 162h56" stroke="${t.c}" stroke-width="10" stroke-linecap="round"/>
+          <rect x="394" y="58" width="138" height="112" rx="20" fill="rgba(255,255,255,.88)" stroke="${t.a}" stroke-width="4"/>
+          <path d="M424 92h79M424 121h79M424 150h58" stroke="${t.c}" stroke-width="8" stroke-linecap="round"/>
+        `,
+        gallery: `
+          <rect x="88" y="60" width="140" height="112" rx="18" fill="rgba(255,255,255,.84)" stroke="${t.a}" stroke-width="4"/>
+          <circle cx="136" cy="99" r="16" fill="${t.b}"/>
+          <path d="M105 155l27-28 24 19 16-14 39 23" fill="none" stroke="${t.c}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="370" y="74" width="154" height="82" rx="20" fill="rgba(255,255,255,.78)" stroke="${t.a}" stroke-dasharray="10 8" stroke-width="4"/>
+          <path d="M415 116h66" stroke="${t.a}" stroke-width="8" stroke-linecap="round"/>
+        `
+      };
+      return svgToDataUri(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320">
+          <defs>
+            <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="${t.d}"/>
+              <stop offset="55%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="${t.b}"/>
+            </linearGradient>
+          </defs>
+          <rect width="960" height="320" rx="34" fill="url(#bg)"/>
+          <circle cx="822" cy="58" r="92" fill="${t.b}" opacity=".22"/>
+          <circle cx="104" cy="264" r="84" fill="${t.c}" opacity=".18"/>
+          <rect x="28" y="26" width="904" height="268" rx="28" fill="none" stroke="${t.a}" stroke-opacity=".18" stroke-width="2"/>
+          ${iconMap[kind] || iconMap.gallery}
+          <text x="306" y="120" font-size="38" font-family="Microsoft YaHei, sans-serif" font-weight="700" fill="${t.a}">${main}</text>
+          <text x="306" y="170" font-size="20" font-family="Microsoft YaHei, sans-serif" fill="#5d5142">${sub}</text>
+          <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">Drink Training Report Visual</text>
+        </svg>
+      `);
+    }
+    function renderReportGallery(images, emptyKind, emptyText, large = false) {
+      if (images && images.length) {
+        return `<div class="gallery">${images.map((src) => `<img src="${src}" class="${large ? "gallery-image large" : "gallery-image"}" />`).join("")}</div>`;
+      }
+      return `<div class="empty-gallery"><img src="${reportArt(emptyKind, "AI视觉补位", emptyText)}" class="empty-art" /><div class="empty-copy">${escapeHtml(emptyText)}</div></div>`;
+    }
+    function buildReportHtml() {
+      const w = currentWeek();
+      const dates = getWeekDates(w.startDate);
+      const shared = getWeekGroup(w.startDate);
+      const teachingWeekText = trim(shared.teachingWeek) || "未设置";
+      const studentNames = [w.members.a, w.members.b].map(trim).filter(Boolean);
+      const reportOwners = studentNames.length ? studentNames.join("、") : escapeHtml(resolveScopeUser() || "本周学员");
+      const coverImage = reportArt("cover", "饮品实训周工作报告", "门店饮品设计与运营实践课程成果留痕");
+      let dailyHtml = "";
+      dates.forEach((d, idx) => {
+        ensureDay(w, d);
+        const x = w.daily[d];
+        const financeSummary = `营业额 ${escapeHtml(x.sales || "0")} 元 / 成本 ${escapeHtml(x.cost || "0")} 元 / 损耗 ${escapeHtml(x.lossAmount || "0")} 元`;
+        dailyHtml += `
+          <section class="day-card">
+            <div class="day-head">
+              <div>
+                <div class="eyebrow">Daily Operations</div>
+                <h3>${escapeHtml(d)} ${idx === 7 ? "次周三交接日" : "日常运营日"}</h3>
+              </div>
+              <span class="chip">${idx === 7 ? "交接收尾" : "执行记录"}</span>
+            </div>
+            <div class="metric-row">
+              <div class="metric-box"><span>签到</span><strong>${escapeHtml(x.checkIn || "-")}</strong><em>${escapeHtml(renderApprovalText(x.approvals.checkIn))}</em></div>
+              <div class="metric-box"><span>签退</span><strong>${escapeHtml(x.checkOut || "-")}</strong><em>${escapeHtml(renderApprovalText(x.approvals.checkOut))}</em></div>
+              <div class="metric-box"><span>财务摘要</span><strong>${escapeHtml(financeSummary)}</strong><em>运营数据留痕</em></div>
+            </div>
+            <div class="sub-card">
+              <h4>出勤说明</h4>
+              <p>${formatRichText(x.attendanceNote)}</p>
+            </div>
+            <div class="sub-card">
+              <h4>仪容仪表检查</h4>
+              ${renderReportGallery(x.grooming, "daily", "未上传仪容仪表照片，已用 AI 检查场景图示意。")}
+            </div>
+            <div class="sub-card">
+              <h4>上班前卫生（公区/吧台）</h4>
+              ${renderReportGallery([...x.openingPublic, ...x.openingBar], "daily", "未上传开档卫生图片，已用 AI 营运场景图示意。")}
+            </div>
+            <div class="sub-card">
+              <h4>下班后卫生（公区/吧台）</h4>
+              ${renderReportGallery([...x.closingPublic, ...x.closingBar], "daily", "未上传闭店卫生图片，已用 AI 营运场景图示意。")}
+            </div>
+            <div class="sub-card">
+              <h4>损耗与库存</h4>
+              <p><b>损耗说明：</b>${formatRichText(x.lossDesc)}</p>
+              <p><b>库存说明：</b>${formatRichText(x.inventoryDesc)}</p>
+              ${renderReportGallery([...x.lossImgs, ...x.inventoryImgs], "gallery", "未上传损耗或库存图片，已用 AI 物料陈列图示意。")}
+            </div>
+            <div class="sub-card">
+              <h4>签收记录</h4>
+              <p>${formatRichText(x.receiptDesc)}</p>
+              ${renderReportGallery(x.receiptImgs, "handover", "未上传签收照片，已用 AI 交接签收图示意。")}
+            </div>
+            <div class="sub-card">
+              <h4>当日补充说明</h4>
+              <p>${formatRichText(x.notes)}</p>
+            </div>
+          </section>
+        `;
+      });
+      return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>饮品实训周工作报告</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f5efe5; color: #2b241d; font-family: "Microsoft YaHei", "微软雅黑", sans-serif; line-height: 1.7; }
+    .report { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .cover { background: #fffaf2; border: 1px solid #d5c2a3; border-radius: 28px; overflow: hidden; box-shadow: 0 10px 26px rgba(69, 45, 22, .08); }
+    .cover img { display: block; width: 100%; height: auto; }
+    .cover-body { padding: 28px 32px 34px; background: linear-gradient(180deg, #fffaf2 0%, #f7efe2 100%); }
+    .eyebrow { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #8b6a40; margin-bottom: 6px; }
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font-size: 34px; color: #4f2d17; }
+    h2 { margin-bottom: 12px; font-size: 24px; color: #6a3a12; }
+    h3 { margin-bottom: 10px; font-size: 20px; color: #3f3023; }
+    h4 { margin-bottom: 8px; font-size: 16px; color: #5b3c18; }
+    .lead { color: #6d5b49; font-size: 15px; }
+    .meta-wrap { margin-top: 18px; }
+    .meta-card { display: inline-block; width: 47.6%; vertical-align: top; margin: 0 1.2% 12px 0; padding: 16px 18px; border-radius: 18px; background: #fff; border: 1px solid #e0cfb4; }
+    .meta-card:nth-child(2n) { margin-right: 0; }
+    .meta-card span { display: block; font-size: 12px; color: #8e785d; margin-bottom: 6px; }
+    .meta-card strong { font-size: 18px; color: #4d3015; }
+    .section { margin-top: 22px; padding: 22px 24px; border-radius: 24px; background: #fffdf9; border: 1px solid #ddcfba; box-shadow: 0 8px 22px rgba(83, 59, 33, .05); }
+    .section-banner { width: 100%; border-radius: 18px; border: 1px solid #dcc8a7; margin-bottom: 16px; }
+    .summary-box { padding: 16px 18px; border-radius: 16px; background: #f8f2e9; border-left: 5px solid #b67930; margin-bottom: 14px; }
+    .summary-box p:last-child, .sub-card p:last-child { margin-bottom: 0; }
+    .chip { display: inline-block; padding: 4px 12px; border-radius: 999px; background: #efe0c8; color: #694116; font-size: 12px; }
+    .approval { display: inline-block; margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: #eef6f3; color: #205b53; border: 1px solid #b9d8cf; font-size: 13px; }
+    .gallery { margin-top: 10px; }
+    .gallery-image { width: 31%; min-width: 150px; max-width: 220px; height: 150px; object-fit: cover; border-radius: 14px; border: 1px solid #d5c3aa; margin: 0 10px 10px 0; background: #faf8f4; }
+    .gallery-image.large { width: 47%; max-width: 320px; height: 190px; }
+    .empty-gallery { margin-top: 10px; padding: 14px; border-radius: 16px; background: #fbf6ef; border: 1px dashed #c9af88; text-align: center; }
+    .empty-art { width: 100%; max-width: 340px; border-radius: 14px; border: 1px solid #e1d1b8; }
+    .empty-copy { margin-top: 8px; color: #7a6854; font-size: 13px; }
+    .day-card { margin-bottom: 18px; padding: 18px; border-radius: 20px; background: #fff; border: 1px solid #e2d4bf; }
+    .day-head { margin-bottom: 14px; }
+    .day-head .chip { float: right; margin-top: 4px; }
+    .metric-row { margin-bottom: 12px; }
+    .metric-box { display: inline-block; width: 31%; vertical-align: top; margin-right: 2%; padding: 12px 14px; border-radius: 16px; background: #f6f7f3; border: 1px solid #d7ddcf; min-height: 96px; }
+    .metric-box:last-child { margin-right: 0; }
+    .metric-box span, .metric-box em { display: block; }
+    .metric-box span { font-size: 12px; color: #6f7767; margin-bottom: 6px; }
+    .metric-box strong { display: block; font-size: 18px; color: #2f4130; margin-bottom: 6px; }
+    .metric-box em { font-style: normal; color: #65716a; font-size: 12px; }
+    .sub-card { margin-top: 12px; padding: 14px 16px; border-radius: 16px; background: #fffaf4; border: 1px solid #eadbc7; }
+    .footer-note { margin-top: 24px; color: #7f715f; font-size: 12px; text-align: right; }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <div class="report">
+    <section class="cover">
+      <img src="${coverImage}" alt="AI封面视觉" />
+      <div class="cover-body">
+        <div class="eyebrow">Practical Training Weekly Portfolio</div>
+        <h1>饮品实训周工作报告</h1>
+        <p class="lead">围绕门店饮品设计与运营实践课程，对创意策划、每日执行、交接管理与复盘成长进行一体化留痕，形成可归档、可展示、可复盘的周度成果文档。</p>
+        <div class="meta-wrap">
+          <div class="meta-card"><span>教学周次</span><strong>${escapeHtml(teachingWeekText)}</strong></div>
+          <div class="meta-card"><span>轮值周期</span><strong>${escapeHtml(w.startDate)} 至 ${escapeHtml(w.endDate)}</strong></div>
+          <div class="meta-card"><span>本组成员</span><strong>${escapeHtml(reportOwners)}</strong></div>
+          <div class="meta-card"><span>下一组交接人</span><strong>${escapeHtml(w.nextGroup || "待补充")}</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <img src="${reportArt("creative", "创意饮品策划提交", "从市场洞察到海报表达，沉淀周三新品策划成果")}" class="section-banner" alt="AI创意策划插图" />
+      <h2>一、周三创意饮品策划提交</h2>
+      <div class="summary-box">
+        <p><b>行销计划：</b>${formatRichText(w.creative.marketing)}</p>
+        <p><b>饮品配方与制作方法：</b>${formatRichText(w.creative.recipe)}</p>
+        <p><b>特殊物料采购计划：</b>${formatRichText(w.creative.procurement)}</p>
+      </div>
+      <h4>创意海报展示</h4>
+      ${renderReportGallery(w.creative.posters, "creative", "本周未上传创意海报，已使用 AI 新品海报视觉示意。", true)}
+      <div class="approval">经理确认：${escapeHtml(renderApprovalText(w.creative.approval))}</div>
+    </section>
+
+    <section class="section page-break">
+      <img src="${reportArt("daily", "每日打卡与运营执行", "按日沉淀营运动作、卫生留痕、财务记录与签收情况")}" class="section-banner" alt="AI每日运营插图" />
+      <h2>二、每日打卡与运营执行</h2>
+      ${dailyHtml}
+    </section>
+
+    <section class="section page-break">
+      <img src="${reportArt("handover", "交接班记录", "将经验、问题与改进建议顺畅移交给下一组")}" class="section-banner" alt="AI交接班插图" />
+      <h2>三、交接班记录</h2>
+      <div class="summary-box">
+        <p><b>交接说明：</b>${formatRichText(w.handover.summary)}</p>
+        <p><b>交接对象：</b>${formatRichText(w.handover.nextGroup || w.nextGroup)}</p>
+      </div>
+      ${renderReportGallery(w.handover.photos, "handover", "未上传交接现场照片，已使用 AI 交接场景图示意。", true)}
+      <div class="approval">经理确认：${escapeHtml(renderApprovalText(w.handover.approval))}</div>
+    </section>
+
+    <section class="section">
+      <img src="${reportArt("reflection", "总结与反思", "沉淀个人成长、门店优化方案与运营经理评语")}" class="section-banner" alt="AI总结反思插图" />
+      <h2>四、总结与反思</h2>
+      <div class="sub-card">
+        <h4>学员A自评与收获</h4>
+        <p>${formatRichText(w.reflection.a)}</p>
+      </div>
+      <div class="sub-card">
+        <h4>学员B自评与收获</h4>
+        <p>${formatRichText(w.reflection.b)}</p>
+      </div>
+      <div class="sub-card">
+        <h4>门店运营优化与建议方案</h4>
+        <p>${formatRichText(w.reflection.optPlan)}</p>
+      </div>
+      <div class="sub-card">
+        <h4>运营经理结语</h4>
+        <p>${formatRichText(w.reflection.managerComment)}</p>
+      </div>
+      <div class="approval">最终确认：${escapeHtml(renderApprovalText(w.reflection.approval))}</div>
+    </section>
+
+    <p class="footer-note">导出时间：${escapeHtml(new Date().toLocaleString())}</p>
+  </div>
+</body>
+</html>`;
+    }
+
+    function exportWord() {
+  const w = currentWeek();
+  const html = buildReportHtml();
+  const blob = new Blob([html], { type: "application/msword" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const scopeUser = resolveScopeUser();
+  a.download = `实训周工作报告_${scopeUser}_${w.startDate}_to_${w.endDate}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setStatus("已导出美化版 Word 实训报告（含图片）。");
+}
+
+    function openReportPreview() {
+      const html = buildReportHtml();
+      const win = window.open("", "_blank");
+      if (!win) {
+        setStatus("浏览器拦截了弹窗，请允许弹窗后重试。", true);
+        return;
+      }
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    }
+function initEvents() {
+  renderTeachingWeekOptions();
+  $("loginBtn").onclick = login;
+  $("logoutBtn").onclick = logout;
+  $("loadWeek").onclick = () => {
+    const raw = $("weekStart").value || todayISO();
+    const corrected = adjustToWednesday(raw);
+    loadWeekForCurrentScope(corrected);
+    if (raw !== corrected) setStatus(`已自动调整到最近周三：${corrected}`);
+    else setStatus("已加载所选周次。");
+  };
+  $("scopeUser").onchange = () => {
+    APP.activeScopeUser = $("scopeUser").value;
+    loadWeekForCurrentScope($("weekStart").value || todayISO());
+    setStatus(`已切换查看：${$("scopeUser").selectedOptions[0]?.textContent || APP.activeScopeUser}`);
+  };
+  $("teachingWeek").onchange = () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const w = currentWeek();
+    const shared = getWeekGroup(w.startDate);
+    const selected = $("teachingWeek").value;
+    applyTeachingWeekPreset(shared, selected);
+    applyWeekGroupToAllWeeks(w.startDate);
+    saveApp();
+    renderWeek();
+    const preset = getTeachingWeekPreset(selected);
+    if (preset && (preset.a || preset.b)) {
+      setStatus(`已套用 ${preset.label} 分组名单。`);
+    } else if (preset && preset.note) {
+      setStatus(`已记录 ${preset.label} 安排：${preset.note}。`);
+    } else {
+      setStatus("已切换为手动填写分组。");
+    }
+  };
+  $("saveGroup").onclick = () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const w = currentWeek();
+    const shared = getWeekGroup(w.startDate);
+    shared.teachingWeek = $("teachingWeek").value;
+    shared.a = $("memberA").value.trim();
+    shared.b = $("memberB").value.trim();
+    shared.nextGroup = $("nextGroup").value.trim();
+    applyWeekGroupToAllWeeks(w.startDate);
+    saveApp();
+    renderWeek();
+    setStatus("分组信息已按本周保存，本周无需重复填写。");
+  };
+  document.querySelectorAll(".tabs button").forEach(btn => btn.onclick = () => changeTab(btn.dataset.tab));
+  $("saveCreative").onclick = saveCreative;
+  $("saveDaily").onclick = saveDaily;
+  $("saveHandover").onclick = saveHandover;
+  $("saveReflection").onclick = saveReflection;
+  $("dailyDate").onchange = () => { APP.currentDay = $("dailyDate").value; renderDay(); };
+  $("addCreativePoster").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const input = $("creativePosterInput");
+    const urls = await filesToDataUrls(input.files);
+    withScopedWeeks((week) => {
+      week.creative.posters = week.creative.posters.concat(urls);
+    });
+    input.value = "";
+    renderWeek();
+  };
+  $("clearCreativePoster").onclick = () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    withScopedWeeks((week) => {
+      week.creative.posters = [];
+    });
+    renderWeek();
+  };
+  $("addGroom").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const day = APP.currentDay;
+    const urls = await filesToDataUrls($("groomInput").files);
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      week.daily[day].grooming = week.daily[day].grooming.concat(urls);
+    });
+    $("groomInput").value = "";
+    renderDay();
+  };
+  $("addOpenClean").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const day = APP.currentDay;
+    const publicUrls = await filesToDataUrls($("openPublicInput").files);
+    const barUrls = await filesToDataUrls($("openBarInput").files);
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      week.daily[day].openingPublic = week.daily[day].openingPublic.concat(publicUrls);
+      week.daily[day].openingBar = week.daily[day].openingBar.concat(barUrls);
+    });
+    $("openPublicInput").value = ""; $("openBarInput").value = "";
+    renderDay();
+  };
+  $("addCloseClean").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const day = APP.currentDay;
+    const publicUrls = await filesToDataUrls($("closePublicInput").files);
+    const barUrls = await filesToDataUrls($("closeBarInput").files);
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      week.daily[day].closingPublic = week.daily[day].closingPublic.concat(publicUrls);
+      week.daily[day].closingBar = week.daily[day].closingBar.concat(barUrls);
+    });
+    $("closePublicInput").value = ""; $("closeBarInput").value = "";
+    renderDay();
+  };
+  $("addFinanceImages").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const day = APP.currentDay;
+    const lossUrls = await filesToDataUrls($("lossInput").files);
+    const inventoryUrls = await filesToDataUrls($("inventoryInput").files);
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      week.daily[day].lossImgs = week.daily[day].lossImgs.concat(lossUrls);
+      week.daily[day].inventoryImgs = week.daily[day].inventoryImgs.concat(inventoryUrls);
+    });
+    $("lossInput").value = ""; $("inventoryInput").value = "";
+    renderDay();
+  };
+  $("addReceipt").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const day = APP.currentDay;
+    const urls = await filesToDataUrls($("receiptInput").files);
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      week.daily[day].receiptImgs = week.daily[day].receiptImgs.concat(urls);
+    });
+    $("receiptInput").value = "";
+    renderDay();
+  };
+  $("addHandover").onclick = async () => {
+    if (!canEditCurrentScopeData()) return setStatus("当前权限不可修改该数据。", true);
+    const urls = await filesToDataUrls($("handoverInput").files);
+    withScopedWeeks((week) => {
+      week.handover.photos = week.handover.photos.concat(urls);
+    });
+    $("handoverInput").value = "";
+    renderWeek();
+  };
+  $("approveCreative").onclick = () => {
+    let approved = false;
+    withScopedWeeks((week) => { approved = stampApproval(week.creative.approval) || approved; });
+    if (approved) { renderWeek(); setStatus("已确认：周三策划提交。", false); }
+  };
+  $("approveCheckIn").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.checkIn) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：签到时间。", false); }
+  };
+  $("approveCheckOut").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.checkOut) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：签退时间。", false); }
+  };
+  $("approveGroom").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.grooming) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：仪容仪表。", false); }
+  };
+  $("approveOpenClean").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.opening) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：上班前卫生。", false); }
+  };
+  $("approveCloseClean").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.closing) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：下班后卫生。", false); }
+  };
+  $("approveFinance").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.finance) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：财务与库存。", false); }
+  };
+  $("approveReceipt").onclick = () => {
+    const day = APP.currentDay;
+    let approved = false;
+    withScopedWeeks((week) => {
+      ensureDay(week, day);
+      approved = stampApproval(week.daily[day].approvals.receipt) || approved;
+    });
+    if (approved) { renderDay(); setStatus("已确认：货品签收。", false); }
+  };
+  $("approveHandover").onclick = () => {
+    let approved = false;
+    withScopedWeeks((week) => { approved = stampApproval(week.handover.approval) || approved; });
+    if (approved) { renderWeek(); setStatus("已确认：交接班。", false); }
+  };
+  $("approveFinal").onclick = () => {
+    let approved = false;
+    withScopedWeeks((week) => { approved = stampApproval(week.reflection.approval) || approved; });
+    if (approved) { renderWeek(); setStatus("已确认：周总结。", false); }
+  };
+  $("changePassBtn").onclick = () => {
+    const pass = $("newPass").value.trim();
+    if (!pass) return setStatus("新密码不能为空。", true);
+    const u = APP.state.users.find(x => x.username === APP.state.currentUser.username);
+    u.password = pass;
+    u.passwordUpdatedAt = new Date().toLocaleString();
+    saveApp();
+    $("newPass").value = "";
+    setStatus("密码已修改。", false);
+    renderAccounts();
+  };
+  $("addUserBtn").onclick = () => {
+    if (!canManageAccounts()) return setStatus("仅P1可新增账号。", true);
+    const un = trim($("newUserName").value);
+    const dn = trim($("newDisplayName").value);
+    const pw = trim($("newUserPass").value);
+    const lv = $("newUserLevel").value;
+    if (!un || !dn || !pw) return setStatus("请完整填写新增账号信息。", true);
+    if (APP.state.users.some(x => x.username === un)) return setStatus("账号已存在。", true);
+    APP.state.users.push(normalizeUser({ username: un, displayName: dn, password: pw, level: lv, role: roleFromLevel(lv), nameUpdatedAt: new Date().toLocaleString(), passwordUpdatedAt: new Date().toLocaleString() }));
+    saveApp();
+    $("newUserName").value = "";
+    $("newDisplayName").value = "";
+    $("newUserPass").value = "123456";
+    $("newUserLevel").value = "P3";
+    renderAccounts();
+    renderScopePicker();
+    setStatus(`已新增账号：${un}（${levelLabel(lv)}）`);
+  };
+  $("editUserSelect").onchange = () => {
+    const target = APP.state.users.find(u => u.username === $("editUserSelect").value);
+    if (!target) return;
+    $("editDisplayName").value = target.displayName || "";
+    $("editUserPass").value = target.password || "";
+  };
+  $("saveUserEditBtn").onclick = () => {
+    if (!canManageAccounts()) return setStatus("仅P1可修改账号资料。", true);
+    const un = $("editUserSelect").value;
+    const target = APP.state.users.find(u => u.username === un);
+    if (!target) return setStatus("请先选择账号。", true);
+    const newName = trim($("editDisplayName").value);
+    const newPass = trim($("editUserPass").value);
+    if (!newName || !newPass) return setStatus("姓名和密码都不能为空。", true);
+    if (target.displayName !== newName) target.nameUpdatedAt = new Date().toLocaleString();
+    if (target.password !== newPass) target.passwordUpdatedAt = new Date().toLocaleString();
+    target.displayName = newName;
+    target.password = newPass;
+    saveApp();
+    renderAccounts();
+    renderScopePicker();
+    setStatus(`已更新账号：${un}`);
+  };
+  $("exportWord").onclick = exportWord;
+  $("printReport").onclick = openReportPreview;
+}
+
+    (function boot() {
+      loadApp();
+      APP.state.users = (APP.state.users || []).map(normalizeUser);
+      if (!APP.state.users.length) APP.state.users = DEFAULT_USERS.map(u => ({ ...u }));
+      initEvents();
+      if (APP.state.currentUser) {
+        const found = APP.state.users.find(u => u.username === trim(APP.state.currentUser.username));
+        if (found) {
+          $("loginPanel").classList.add("hidden");
+          $("appPanel").classList.remove("hidden");
+          APP.state.currentUser = { username: found.username, role: found.role, level: found.level, displayName: found.displayName };
+          if (found.level === "P3" && !getCurrentSessionUsers().length) {
+            APP.state.currentSessionUsers = [found.username];
+          }
+          APP.activeScopeUser = found.level === "P3" ? found.username : APP.activeScopeUser;
+          renderSessionInfo();
+          loadWeekForCurrentScope(todayISO());
+        } else {
+          APP.state.currentUser = null;
+          APP.state.currentSessionUsers = [];
+          saveApp();
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
