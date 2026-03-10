@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .database import (
     create_user,
+    delete_user,
     get_user,
     get_week,
     get_week_group,
@@ -75,6 +76,15 @@ def update_account(username: str, payload: UserPayload) -> dict:
     if payload.username != username:
         raise HTTPException(status_code=400, detail="不支持修改账号编号。")
     return {"user": update_user(username, payload.model_dump())}
+
+
+@app.delete("/api/accounts/{username}", status_code=204)
+def remove_account(username: str) -> Response:
+    if not get_user(username):
+        raise HTTPException(status_code=404, detail="账号不存在。")
+    if not delete_user(username):
+        raise HTTPException(status_code=500, detail="删除账号失败。")
+    return Response(status_code=204)
 
 
 @app.get("/api/week-groups/{start_date}")

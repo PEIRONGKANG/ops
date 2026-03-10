@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "backend" / "data"
-DB_PATH = DATA_DIR / "ops_training.db"
+DB_PATH = Path(os.environ.get("OPS_TRAINING_DB_PATH", DATA_DIR / "ops_training.db"))
 
 
 DEFAULT_USERS = [
@@ -49,7 +50,7 @@ def _now_iso() -> str:
 
 
 def get_connection() -> sqlite3.Connection:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     return connection
@@ -217,6 +218,17 @@ def update_user(username: str, payload: dict) -> dict:
         )
         connection.commit()
     return get_user(username)
+
+
+def delete_user(username: str) -> bool:
+    with get_connection() as connection:
+        connection.execute("DELETE FROM weeks WHERE scope_user = ?", (username,))
+        deleted = connection.execute(
+            "DELETE FROM users WHERE username = ?",
+            (username,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0
 
 
 def get_week(scope_user: str, start_date: str) -> dict | None:

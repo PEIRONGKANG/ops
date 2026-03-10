@@ -1,68 +1,114 @@
+@import "tailwindcss";
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: #1f2937;
+  font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@media print {
+  .no-print {
+    display: none !important;
   }
-  a:hover {
-    color: #747bff;
+}
+
+@layer components {
+  .hero-card {
+    @apply grid gap-6 rounded-[32px] border border-white/40 bg-gradient-to-br from-[#2a6f97] via-[#2f7f86] to-[#5b6f2b] p-6 text-white shadow-[0_18px_40px_rgba(26,44,56,0.24)] xl:grid-cols-[minmax(0,1fr)_320px];
   }
-  button {
-    background-color: #f9f9f9;
+
+  .hero-kicker {
+    @apply text-xs uppercase tracking-[0.28em] text-white/75;
+  }
+
+  .hero-title {
+    @apply mt-2 text-3xl font-black tracking-wide xl:text-5xl;
+  }
+
+  .hero-subtitle {
+    @apply mt-3 max-w-3xl text-sm leading-7 text-white/90 xl:text-base;
+  }
+
+  .hero-image {
+    @apply h-full max-h-[220px] w-full rounded-[24px] border border-white/30 object-cover bg-white/10;
+  }
+
+  .panel-card {
+    @apply rounded-[28px] border border-[#d6c7a9] bg-[#fffdf8]/95 p-5 shadow-[0_12px_30px_rgba(58,45,29,0.08)] backdrop-blur;
+  }
+
+  .soft-card {
+    @apply rounded-[22px] border border-dashed border-[#bca57b] bg-[#fffaf1] p-4;
+  }
+
+  .section-title {
+    @apply text-3xl font-black text-[#15324f];
+  }
+
+  .panel-title {
+    @apply text-2xl font-black text-[#7c3f00];
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-xs font-semibold tracking-wide text-stone-500;
+  }
+
+  .field-input {
+    @apply w-full rounded-2xl border border-[#d6c7a9] bg-white px-4 py-2.5 text-sm text-stone-700 shadow-inner outline-none transition focus:border-[#2a6f97] focus:ring-2 focus:ring-[#2a6f97]/20;
+  }
+
+  .field-textarea {
+    @apply w-full min-h-32 resize-y rounded-2xl border border-[#d6c7a9] bg-white px-4 py-2.5 text-sm text-stone-700 shadow-inner outline-none transition focus:border-[#2a6f97] focus:ring-2 focus:ring-[#2a6f97]/20;
+  }
+
+  .tag-pill {
+    @apply inline-flex items-center rounded-full border border-[#d6c7a9] bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700;
+  }
+
+  .status-line {
+    @apply rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600;
+  }
+
+  .btn-base {
+    @apply inline-flex items-center justify-center rounded-2xl border px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-2xl border border-[#245f82] bg-[#2a6f97] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#245f82] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-2xl border border-[#9a7d52] bg-[#f6e9d2] px-4 py-2.5 text-sm font-bold text-[#553514] transition hover:bg-[#eed9b7] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-good {
+    @apply inline-flex items-center justify-center rounded-2xl border border-[#20786d] bg-[#2a9d8f] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#237f73] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-warn {
+    @apply inline-flex items-center justify-center rounded-2xl border border-[#d35e42] bg-[#e76f51] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#d96549] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .tab-button {
+    @apply rounded-2xl border border-[#9a7d52] bg-[#f6e9d2] px-4 py-2 text-sm font-bold text-[#553514] transition hover:bg-[#eed8b5];
+  }
+
+  .tab-button.active {
+    @apply border-[#553514] bg-[#553514] text-white;
   }
 }
