@@ -1,0 +1,97 @@
+<svg width="1600" height="560" viewBox="0 0 1600 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">每日打卡与运营执行示意图</title>
+  <desc id="desc">用于每日打卡与运营执行模块的横版效果图，展示卫生检查、出勤打卡和开闭店巡检主题。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4ea"/>
+      <stop offset="55%" stop-color="#dcebe7"/>
+      <stop offset="100%" stop-color="#f7ecd8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fffdf9"/>
+      <stop offset="100%" stop-color="#f4ede0"/>
+    </linearGradient>
+    <linearGradient id="board" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#264653"/>
+      <stop offset="100%" stop-color="#2a9d8f"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5d18c"/>
+      <stop offset="100%" stop-color="#d89c49"/>
+    </linearGradient>
+    <linearGradient id="spray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7bc4d6"/>
+      <stop offset="100%" stop-color="#2a6f97"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#8b7c64" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="560" fill="url(#bg)"/>
+  <circle cx="1350" cy="110" r="130" fill="#fff5d8" fill-opacity="0.75"/>
+  <circle cx="180" cy="470" r="90" fill="#ffffff" fill-opacity="0.3"/>
+  <circle cx="1510" cy="420" r="70" fill="#ffffff" fill-opacity="0.22"/>
+
+  <g opacity="0.18">
+    <path d="M0 430 C220 382 404 390 560 438 C714 486 884 494 1072 456 C1244 422 1402 380 1600 412 L1600 560 L0 560 Z" fill="#cfded5"/>
+    <path d="M0 458 C186 430 360 446 520 484 C690 522 852 520 1058 478 C1258 438 1420 404 1600 438 L1600 560 L0 560 Z" fill="#d8e7de"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="118" y="88" width="1364" height="384" rx="34" fill="url(#panel)" stroke="#d6c29b" stroke-width="3"/>
+  </g>
+
+  <g transform="translate(158 126)">
+    <rect x="0" y="0" width="360" height="296" rx="26" fill="url(#board)"/>
+    <rect x="24" y="24" width="312" height="248" rx="18" fill="#ffffff" fill-opacity="0.12" stroke="#f3e6c8" stroke-opacity="0.7"/>
+    <text x="36" y="62" font-size="20" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#f8e8c4" letter-spacing="3">DAILY OPS CHECK</text>
+    <text x="36" y="114" font-size="40" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#ffffff" font-weight="700">卫生检查与出勤确认</text>
+    <text x="36" y="156" font-size="21" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#dceef2">仪容仪表 / 开闭店卫生 / 库存巡检</text>
+    <g transform="translate(36 192)">
+      <rect x="0" y="0" width="120" height="38" rx="19" fill="#ffd07b"/>
+      <text x="60" y="25" text-anchor="middle" font-size="18" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#5f3c12" font-weight="700">每日执行</text>
+      <rect x="140" y="0" width="130" height="38" rx="19" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.55"/>
+      <text x="205" y="25" text-anchor="middle" font-size="18" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#ffffff">经理复核</text>
+    </g>
+    <path d="M258 72 L304 118 L322 96" fill="none" stroke="#f8e8c4" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g transform="translate(620 116)">
+    <ellipse cx="238" cy="308" rx="250" ry="42" fill="#7f6b4e" fill-opacity="0.12"/>
+    <rect x="108" y="118" width="138" height="150" rx="26" fill="url(#spray)" stroke="#d1ecf2" stroke-width="4"/>
+    <rect x="136" y="72" width="84" height="58" rx="16" fill="#f5f1e5" stroke="#d8cbb0" stroke-width="4"/>
+    <rect x="160" y="40" width="82" height="24" rx="10" fill="#2a6f97"/>
+    <path d="M242 54 H312 C330 54 340 70 340 88" fill="none" stroke="#d8cbb0" stroke-width="10" stroke-linecap="round"/>
+    <path d="M334 88 C352 74 378 72 398 86 C416 100 420 126 408 144" fill="none" stroke="#8ecae6" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="390" cy="128" r="8" fill="#bde7f3"/>
+    <circle cx="426" cy="112" r="10" fill="#d2f3fb"/>
+    <circle cx="452" cy="140" r="7" fill="#bde7f3"/>
+    <path d="M56 92 C32 140 42 198 84 230" fill="none" stroke="#67b37a" stroke-width="16" stroke-linecap="round"/>
+    <path d="M360 88 C404 60 452 72 486 116 C512 150 516 198 490 230" fill="none" stroke="#67b37a" stroke-width="16" stroke-linecap="round"/>
+    <path d="M156 178 L188 208 L244 138" fill="none" stroke="#f8f8f6" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="0" y="16" width="102" height="54" rx="16" fill="#fff5de" stroke="#d7bb87"/>
+    <text x="51" y="50" text-anchor="middle" font-size="22" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#7c4b12" font-weight="700">开店前</text>
+    <rect x="388" y="12" width="102" height="54" rx="16" fill="#fff5de" stroke="#d7bb87"/>
+    <text x="439" y="46" text-anchor="middle" font-size="22" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#7c4b12" font-weight="700">闭店后</text>
+  </g>
+
+  <g transform="translate(1158 118)">
+    <rect x="0" y="24" width="254" height="300" rx="24" fill="#fffaf1" stroke="#d8c29a" stroke-width="4"/>
+    <rect x="34" y="0" width="186" height="54" rx="18" fill="url(#gold)"/>
+    <text x="127" y="35" text-anchor="middle" font-size="28" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#5a3814" font-weight="700">出勤打卡</text>
+    <circle cx="60" cy="104" r="14" fill="#2a9d8f"/>
+    <path d="M54 104 L59 110 L70 96" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="92" y="111" font-size="22" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#5b4e3d">签到 08:30</text>
+    <circle cx="60" cy="156" r="14" fill="#2a9d8f"/>
+    <path d="M54 156 L59 162 L70 148" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="92" y="163" font-size="22" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#5b4e3d">签退 17:00</text>
+    <path d="M38 208 H216" stroke="#d7c6a8" stroke-width="3"/>
+    <rect x="36" y="228" width="182" height="58" rx="16" fill="#2a6f97" fill-opacity="0.1" stroke="#2a6f97" stroke-opacity="0.25"/>
+    <text x="127" y="265" text-anchor="middle" font-size="22" font-family="'Microsoft YaHei','微软雅黑',sans-serif" fill="#2a6f97" font-weight="700">待经理复核</text>
+    <path d="M214 88 C236 90 246 108 246 124 V152" fill="none" stroke="#7fa7bb" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="232" cy="168" r="18" fill="#7fa7bb"/>
+    <path d="M232 168 L232 156" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M232 168 L242 174" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

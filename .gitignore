@@ -3,10 +3,10 @@
 .smoke-artifacts/
 .tools/
 frontend/node_modules/
-frontend/dist/
 backend/data/*.db
 backend/data/*.sqlite
 backend/data/*.sqlite3
+database-backups/
+_deploy_test/
 *.pyc
 __pycache__/
-
