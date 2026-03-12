@@ -12,7 +12,7 @@ export function ImagePreviewGrid({ images }) {
           key={`${src.slice(0, 24)}-${index}`}
           src={src}
           alt="上传预览"
-          className="h-32 w-full rounded-[22px] border border-[#d8cec3] bg-[#f3eee7] object-cover shadow-[0_10px_24px_rgba(18,14,11,0.08)]"
+          className="h-32 w-full rounded-[20px] border border-[var(--line)] bg-[var(--surface-muted)] object-cover shadow-[0_14px_28px_rgba(19,33,24,0.06)]"
         />
       ))}
     </div>

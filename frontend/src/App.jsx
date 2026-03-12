@@ -1,4 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBars,
+  faBookOpen,
+  faClipboardList,
+  faDownload,
+  faFileArrowDown,
+  faFileLines,
+  faLightbulb,
+  faMagnifyingGlass,
+  faMugHot,
+  faRightFromBracket,
+  faRightLeft,
+  faUserGear,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 
 import { AccountsTab } from "./components/AccountsTab";
 import { CreativeTab } from "./components/CreativeTab";
@@ -8,7 +24,7 @@ import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
 import { Sidebar } from "./components/Sidebar";
 import { TabNav } from "./components/TabNav";
-import { TAB_ITEMS } from "./lib/constants";
+import { NAV_SECTIONS, TAB_ITEMS } from "./lib/constants";
 import {
   adjustToWednesday,
   applyTeachingWeekPreset,
@@ -49,7 +65,7 @@ const initialState = {
   currentDay: "",
   selectedWeekStart: adjustToWednesday(todayISO()),
   activeScopeUser: "",
-  activeTab: "creative",
+  activeTab: "overview",
   loginForm: {
     username: "",
     password: "",
@@ -110,11 +126,19 @@ function getDailyApprovalDefaults() {
 
 function App() {
   const [app, setApp] = useState(initialState);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const stateRef = useRef(initialState);
+  const weekLoadRequestRef = useRef(0);
 
   useEffect(() => {
     stateRef.current = app;
   }, [app]);
+
+  useEffect(() => {
+    if (!app.currentUser) {
+      setMobileNavOpen(false);
+    }
+  }, [app.currentUser]);
 
   const replaceState = (next) => {
     stateRef.current = next;
@@ -333,19 +357,26 @@ function App() {
   };
 
   const loadWeekForCurrentScope = async (startRaw, statusMessage) => {
-    const next = cloneValue(stateRef.current);
-    const corrected = adjustToWednesday(startRaw || next.selectedWeekStart || todayISO());
-    const scopeUser = resolveScopeUser(next);
+    const snapshot = cloneValue(stateRef.current);
+    const corrected = adjustToWednesday(startRaw || snapshot.selectedWeekStart || todayISO());
+    const scopeUser = resolveScopeUser(snapshot);
     if (!scopeUser) {
       throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
     }
 
-    next.selectedWeekStart = corrected;
+    const requestId = ++weekLoadRequestRef.current;
+    const requestUser = snapshot.currentUser?.username || "";
     const weekKey = makeWeekKey(corrected, scopeUser);
     const [weekResponse, groupResponse] = await Promise.all([
       api.fetchWeek(scopeUser, corrected),
       api.fetchWeekGroup(corrected),
     ]);
+
+    if (requestId !== weekLoadRequestRef.current) return;
+    if ((stateRef.current.currentUser?.username || "") !== requestUser) return;
+
+    const next = cloneValue(stateRef.current);
+    next.selectedWeekStart = corrected;
     next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
     next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
     ensureWeekInState(next, weekKey, corrected);
@@ -410,16 +441,16 @@ function App() {
 
   const sessionInfo = (() => {
     if (!currentUser) return "当前未登录。";
-    if (currentUser.level !== "P3") return "当前为管理账号单独登录。";
+    if (currentUser.level !== "P3") return `当前账号：${currentUser.displayName}（${currentUser.username}）`;
     const sessionUsers = getCurrentSessionUsers();
     const labels = sessionUsers.map((username) => {
       const user = app.users.find((item) => item.username === username);
       return user ? `${user.displayName}（${user.username}）` : username;
     });
     if (labels.length > 1) {
-      return `双人协同登录：${labels.join("、")}。本次录入会同步到这两个学生账号。`;
+      return `本次会话：${labels.join("、")}`;
     }
-    return `单人登录：${labels[0] || `${currentUser.displayName}（${currentUser.username}）`}。本次录入同步到当前账号。`;
+    return `当前账号：${labels[0] || `${currentUser.displayName}（${currentUser.username}）`}`;
   })();
 
   const dailyDateOptions = currentWeek
@@ -505,11 +536,13 @@ function App() {
         };
         draft.currentSessionUsers = sessionUsers;
         draft.activeScopeUser = first.user.level === "P3" ? first.user.username : "";
+        draft.activeTab = "overview";
         draft.loading = false;
         draft.loginForm.password = "";
         draft.loginForm.secondPassword = "";
         draft.loginMessage = "";
       });
+      setMobileNavOpen(false);
 
       await loadWeekForCurrentScope(
         todayISO(),
@@ -526,7 +559,9 @@ function App() {
   };
 
   const handleLogout = () => {
+    weekLoadRequestRef.current += 1;
     localStorage.removeItem(SESSION_KEY);
+    setMobileNavOpen(false);
     replaceState({
       ...cloneValue(initialState),
       users: stateRef.current.users,
@@ -560,6 +595,7 @@ function App() {
     applyState((draft) => {
       draft.activeTab = tab;
     });
+    setMobileNavOpen(false);
   };
 
   const handleTeachingWeekChange = async (value) => runAction(async () => {
@@ -1000,362 +1036,466 @@ function App() {
     setStatus("已导出美化版 Word 实训报告（含图片）。");
   };
 
-  if (app.booting) {
-    return (
-      <div className="site-shell flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="panel-card w-full max-w-3xl text-center">
-          <p className="panel-eyebrow">Operations Arrival</p>
-          <h1 className="section-title mt-3">系统初始化中...</h1>
-          <p className="panel-lead mx-auto max-w-xl">正在连接本地 SQLite 数据与工程版前端资源，请稍候片刻。</p>
-        </div>
-      </div>
-    );
-  }
-
-  const showEmptyWeekState = app.activeTab !== "accounts" && !currentWeek;
   const studentUsers = getStudentUsers(app.users);
   const resolvedScopeUser = currentUser
     ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
     : "";
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
-  const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
-  const publicNavItems = ["系统总览", "轮值实训", "运营执行", "经理审核", "报告导出"];
-  const heroStats = app.currentUser
+  const activePage = currentUser ? app.activeTab : "overview";
+  const tabMap = Object.fromEntries(TAB_ITEMS.map((item) => [item.key, item]));
+  const navIconMap = {
+    overview: faBookOpen,
+    creative: faLightbulb,
+    daily: faClipboardList,
+    handover: faRightLeft,
+    reflection: faFileLines,
+    reports: faFileArrowDown,
+    accounts: faUserGear,
+  };
+  const navSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.map((key) => ({
+      ...tabMap[key],
+      icon: navIconMap[key],
+      disabled: !currentUser && key !== "overview",
+    })),
+  }));
+  const reportStatusCards = currentWeek
     ? [
-      { label: "当前身份", value: currentUser ? `${currentUser.displayName} · ${levelLabel(currentUser.level)}` : "未登录" },
-      { label: "当前查看", value: scopeUserRecord ? `${scopeUserRecord.displayName}（${scopeUserRecord.username}）` : "待选择学员" },
-      { label: "教学周次", value: currentWeekGroup?.teachingWeek || "尚未选择" },
-      { label: "轮值周期", value: currentWeek ? `${currentWeek.startDate} 至 ${currentWeek.endDate}` : "尚未加载本周" },
+      {
+        key: "creative",
+        title: "周三策划",
+        state: renderApprovalText(currentWeek.creative.approval),
+        summary: hasText(currentWeek.creative.marketing, currentWeek.creative.recipe, currentWeek.creative.procurement) || hasImages(currentWeek.creative.posters)
+          ? "已录入策划内容"
+          : "待录入策划内容",
+      },
+      {
+        key: "daily",
+        title: "每日执行",
+        state: currentDayData ? renderApprovalText(currentDayData.approvals.finance) : "待运营经理确认",
+        summary: Object.keys(currentWeek.daily || {}).length
+          ? `已记录 ${Object.keys(currentWeek.daily).length} 天`
+          : "尚未录入每日执行",
+      },
+      {
+        key: "handover",
+        title: "交接班",
+        state: renderApprovalText(currentWeek.handover.approval),
+        summary: hasText(currentWeek.handover.summary, currentWeek.handover.nextGroup || currentWeek.nextGroup) || hasImages(currentWeek.handover.photos)
+          ? "已记录交接内容"
+          : "待补充交接记录",
+      },
+      {
+        key: "reflection",
+        title: "总结反思",
+        state: renderApprovalText(currentWeek.reflection.approval),
+        summary: hasText(currentWeek.reflection.a, currentWeek.reflection.b, currentWeek.reflection.optPlan, currentWeek.reflection.managerComment)
+          ? "已沉淀复盘与评语"
+          : "待补充总结与评语",
+      },
     ]
-    : [
-      { label: "双人协同", value: "支持同组 2 名学生一次登录并同步周度记录" },
-      { label: "经理审核", value: "签到、签退、卫生、财务与交接均可逐项确认" },
-      { label: "报告导出", value: "周结束后可预览与导出美化版 Word 实训报告" },
-      { label: "数据留存", value: "工程版采用 SQLite 保存账号、周报与审核数据" },
-    ];
-  const featureCards = app.currentUser
-    ? [
-      {
-        title: "本周排期",
-        eyebrow: currentWeekGroup?.teachingWeek || "未设置教学周次",
-        copy: currentWeek
-          ? `当前轮值周期为 ${currentWeek.startDate} 至 ${currentWeek.endDate}，可直接进入 ${activeTabItem?.label || "当前模块"} 继续录入。`
-          : "先从左侧加载或创建本周，系统才会开启本轮运营记录与报告导出。",
-      },
-      {
-        title: "协同录入",
-        eyebrow: currentUser?.level === "P3" ? "同组学生协作" : "管理视角查看",
-        copy: sessionInfo,
-      },
-      {
-        title: "报告状态",
-        eyebrow: currentWeek ? "本周报告可生成" : "尚未生成报告",
-        copy: currentWeek
-          ? "当前周已经满足预览入口，可一键打开排版预览或导出 Word 报告。"
-          : "加载本周并完成业务录入后，系统会自动开放报告预览与导出。",
-      },
-    ]
-    : [
-      {
-        title: "双人周值录入",
-        eyebrow: "学生协同体验",
-        copy: "同组 2 个学生账号可以同时登录，本周的日常记录、海报与总结会自动同步到两位成员。",
-      },
-      {
-        title: "运营经理逐项确认",
-        eyebrow: "审核留痕",
-        copy: "签到、签退、仪容仪表、卫生、财务与交接都能单独确认，保证业务流程与纸面要求一致。",
-      },
-      {
-        title: "周报一键归档",
-        eyebrow: "成果导出",
-        copy: "系统会在周结束后生成美化版实训报告，支持预览、打印和导出 Word，适合课程留档与教学汇报。",
-      },
-    ];
+    : [];
+  const activeNavGroup = NAV_SECTIONS.find((section) => section.items.includes(activePage));
+  const pageMeta = {
+    overview: {
+      eyebrow: activeNavGroup?.title || "开始使用",
+      title: currentUser ? "系统概览" : "登录与概览",
+      description: currentUser
+        ? "查看本周状态。"
+        : "请先登录。",
+    },
+    creative: {
+      eyebrow: "本周轮值",
+      title: "周三策划提交",
+      description: "提交本周策划。",
+    },
+    daily: {
+      eyebrow: "本周轮值",
+      title: "每日打卡与运营",
+      description: "记录每日执行。",
+    },
+    handover: {
+      eyebrow: "本周轮值",
+      title: "交接班（次周三）",
+      description: "填写交接记录。",
+    },
+    reflection: {
+      eyebrow: "本周轮值",
+      title: "总结与反思",
+      description: "完成周总结。",
+    },
+    reports: {
+      eyebrow: "管理与归档",
+      title: "周报导出",
+      description: "预览或导出周报。",
+    },
+    accounts: {
+      eyebrow: "管理与归档",
+      title: "账号管理",
+      description: "维护账号信息。",
+    },
+  };
+  const currentPageMeta = pageMeta[activePage] || pageMeta.overview;
+  const requiresWeek = currentUser && ["creative", "daily", "handover", "reflection"].includes(activePage);
+
+  const renderOverviewPage = () => {
+    if (!currentUser) {
+      return (
+        <div className="content-stack max-w-3xl">
+          <LoginPanel
+            loginForm={app.loginForm}
+            loginMessage={app.loginMessage}
+            loading={app.loading}
+            onChange={handleLoginFormChange}
+            onSubmit={handleLogin}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="content-grid">
+        <div className="content-stack">
+          <section className="soft-card">
+            <h2 className="section-title">本周工作概览</h2>
+            <div className="stats-grid">
+              <article className="metric-card">
+                <span>当前身份</span>
+                <strong>{currentUser.displayName} · {levelLabel(currentUser.level)}</strong>
+              </article>
+              <article className="metric-card">
+                <span>当前查看</span>
+                <strong>{scopeUserRecord ? `${scopeUserRecord.displayName}（${scopeUserRecord.username}）` : "待选择学员"}</strong>
+              </article>
+              <article className="metric-card">
+                <span>教学周次</span>
+                <strong>{currentWeekGroup?.teachingWeek || "未设置"}</strong>
+              </article>
+              <article className="metric-card">
+                <span>轮值周期</span>
+                <strong>{currentWeek ? `${currentWeek.startDate} 至 ${currentWeek.endDate}` : "尚未加载本周"}</strong>
+              </article>
+            </div>
+          </section>
+
+          <section className="soft-card">
+            <div className="section-row">
+              <div>
+                <h3 className="panel-title">本周状态</h3>
+              </div>
+            </div>
+            <div className="status-grid">
+              {reportStatusCards.length ? reportStatusCards.map((card) => (
+                <article key={card.key} className="status-card">
+                  <div className="status-card-head">
+                    <span>{card.title}</span>
+                    <button type="button" className="mini-link" onClick={() => handleTabChange(card.key)}>
+                      进入
+                    </button>
+                  </div>
+                  <strong>{card.summary}</strong>
+                  <p>{card.state}</p>
+                </article>
+              )) : (
+                <article className="status-card">
+                  <div className="status-card-head">
+                    <span>尚未加载本周</span>
+                  </div>
+                  <strong>先从左侧选择起始日并加载本周</strong>
+                </article>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <aside className="content-stack">
+          <section className="guide-card">
+            <div className="guide-card-head">
+              <FontAwesomeIcon icon={faUsers} />
+              <h3>当前会话</h3>
+            </div>
+            <p>{sessionInfo}</p>
+          </section>
+
+          <section className="guide-card">
+            <div className="guide-card-head">
+              <FontAwesomeIcon icon={faDownload} />
+              <h3>报告导出</h3>
+            </div>
+            <div className="guide-actions">
+              <button className="btn-secondary" type="button" onClick={handlePreviewReport} disabled={!currentWeek}>
+                预览/打印周报
+              </button>
+              <button className="btn-primary" type="button" onClick={handleExportWord} disabled={!currentWeek}>
+                导出周报 Word
+              </button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    );
+  };
+
+  const renderReportsPage = () => (
+    <div className="content-grid">
+      <div className="content-stack">
+        <section className="soft-card">
+          <h2 className="section-title">周报预览与导出</h2>
+          <div className="guide-actions mt-4">
+            <button className="btn-secondary" type="button" onClick={handlePreviewReport} disabled={!currentWeek}>
+              预览/打印周报
+            </button>
+            <button className="btn-primary" type="button" onClick={handleExportWord} disabled={!currentWeek}>
+              导出周报 Word
+            </button>
+          </div>
+        </section>
+
+        {currentWeek ? (
+          <section className="soft-card">
+            <h3 className="panel-title">归档状态</h3>
+            <div className="status-grid">
+              {reportStatusCards.map((card) => (
+                <article key={card.key} className="status-card">
+                  <div className="status-card-head">
+                    <span>{card.title}</span>
+                    <button type="button" className="mini-link" onClick={() => handleTabChange(card.key)}>
+                      查看页面
+                    </button>
+                  </div>
+                  <strong>{card.summary}</strong>
+                  <p>{card.state}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="soft-card">
+            <h3 className="panel-title">尚未生成报告源数据</h3>
+            <p className="status-line mt-4">先加载本周并填写模块内容。</p>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+
+  if (app.booting) {
+    return (
+      <div className="site-shell loading-shell">
+        <div className="loading-card">
+          <h1 className="section-title">系统初始化中...</h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="site-shell">
-      <header className="site-header no-print">
-        <div className="site-header-inner">
-          <div className="brand-plate">
-            <span>Drink Atelier</span>
-            <strong>OPS<br />WEEKLY</strong>
-            <i className="brand-mark" />
+    <div className="site-shell docs-shell">
+      <Sidebar
+        currentUser={currentUser}
+        roleLabel={currentUser ? levelLabel(currentUser.level) : ""}
+        sessionInfo={sessionInfo}
+        navSections={navSections}
+        activePage={activePage}
+        onNavigate={handleTabChange}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
+        canViewAllScopes={canViewAllScopes()}
+        studentUsers={studentUsers}
+        activeScopeUser={resolvedScopeUser}
+        weekStart={app.selectedWeekStart}
+        weekEnd={currentWeek?.endDate || ""}
+        teachingWeekOptions={buildTeachingWeekOptions()}
+        teachingWeek={currentWeekGroup?.teachingWeek || ""}
+        groupHint={describeTeachingWeek(currentWeekGroup)}
+        memberA={currentWeek?.members.a || currentWeekGroup.a || ""}
+        memberB={currentWeek?.members.b || currentWeekGroup.b || ""}
+        nextGroup={currentWeek?.nextGroup || currentWeekGroup.nextGroup || ""}
+        hasWeek={Boolean(currentWeek)}
+        canSaveGroup={canEditCurrentScopeData() && Boolean(currentWeek)}
+        canExportReport={Boolean(currentWeek)}
+        onScopeChange={handleScopeChange}
+        onWeekStartChange={handleWeekStartChange}
+        onLoadWeek={handleLoadWeek}
+        onLogout={handleLogout}
+        onTeachingWeekChange={handleTeachingWeekChange}
+        onGroupChange={handleGroupChange}
+        onSaveGroup={handleSaveGroup}
+        onExportWord={handleExportWord}
+        onPreviewReport={handlePreviewReport}
+        statusMessage={app.statusMessage}
+        statusError={app.statusError}
+        editable={canEditCurrentScopeData()}
+      />
+
+      <div className="site-main">
+        <header className="topbar no-print">
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="icon-button lg:hidden"
+              aria-label="打开导航"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <FontAwesomeIcon icon={faBars} />
+            </button>
+
+            <label className="topbar-search">
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="topbar-search-icon" />
+              <input
+                type="text"
+                placeholder="搜索页面、模块或动作"
+                aria-label="搜索页面、模块或动作"
+                readOnly
+                onFocus={(event) => event.target.blur()}
+              />
+            </label>
           </div>
 
-          <div className="site-nav-wrap">
-            <div className="utility-nav">
-              <span><i className="utility-dot" />帮助</span>
-              <span><i className="utility-dot" />中文</span>
-              <span><i className="utility-dot" />实训报告</span>
-              <span><i className="utility-dot" />{app.currentUser ? `登录 ${currentUser.displayName}` : "登录加入"}</span>
+          <div className="topbar-right">
+            <span className="utility-pill">
+              <FontAwesomeIcon icon={currentUser ? faMugHot : faBookOpen} />
+              {currentUser ? `${currentUser.displayName} · ${levelLabel(currentUser.level)}` : "访客模式"}
+            </span>
+            {currentUser ? (
+              <button className="icon-button" type="button" onClick={handleLogout} aria-label="顶部退出">
+                <FontAwesomeIcon icon={faRightFromBracket} />
+              </button>
+            ) : null}
+          </div>
+        </header>
+
+        {currentUser ? (
+          <div className="mobile-tabbar no-print">
+            <TabNav items={TAB_ITEMS} activeTab={activePage} onChange={handleTabChange} />
+          </div>
+        ) : null}
+
+        <main className="content-shell">
+          <section className="page-header">
+            <div className="page-header-copy">
+              <p className="workspace-kicker">{currentPageMeta.eyebrow}</p>
+              <h1 className="workspace-heading">{currentPageMeta.title}</h1>
+              {currentPageMeta.description ? <p className="panel-lead">{currentPageMeta.description}</p> : null}
             </div>
 
-            {app.currentUser ? (
-              <TabNav items={TAB_ITEMS} activeTab={app.activeTab} onChange={handleTabChange} />
-            ) : (
-              <nav className="marketing-nav">
-                {publicNavItems.map((item, index) => (
-                  <span key={item} className={`marketing-link ${index === 0 ? "active" : ""}`}>{item}</span>
-                ))}
-              </nav>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <section className="hero-stage">
-        <div className="hero-backdrop" style={{ backgroundImage: "url('/assets/luxury-hero.svg')" }} />
-        <div className="hero-scrim" />
-
-        <div className="hero-panel">
-          <div className="hero-grid">
-            <div className="hero-copy">
-              <p className="hero-kicker">Luxury Hospitality Inspired Interface</p>
-              <h1 className="hero-title">饮品生产性实训基地周运营系统</h1>
-              <p className="hero-subtitle">
-                参考国际高端酒店官网的视觉语气，将学生轮值、每日运营执行、经理确认与周报导出整合为一套更统一、更有品牌感的实训工作台。
-              </p>
-
-              <div className="hero-stat-grid">
-                {heroStats.map((item) => (
-                  <div key={item.label} className="hero-stat">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-
-              {app.currentUser ? (
-                <div className="hero-action-row">
-                  <button className="btn-primary" type="button" onClick={handleLoadWeek}>
+            <div className="page-actions no-print">
+              {currentUser ? (
+                <>
+                  <button className="btn-secondary" type="button" onClick={handleLoadWeek}>
                     快速加载本周
                   </button>
                   <button className="btn-secondary" type="button" onClick={handlePreviewReport} disabled={!currentWeek}>
                     快速预览周报
                   </button>
-                </div>
+                  <button className="btn-primary" type="button" onClick={handleExportWord} disabled={!currentWeek}>
+                    快速导出周报
+                  </button>
+                </>
               ) : null}
             </div>
+          </section>
 
-            {app.currentUser ? (
-              <div className="hero-summary-card">
-                <p className="panel-eyebrow !text-white/52">Current Session</p>
-                <h3>运营工作台</h3>
-                <div className="hero-summary-list">
-                  <div className="hero-summary-item">
-                    <span>当前会话</span>
-                    <strong>{sessionInfo}</strong>
-                  </div>
-                  <div className="hero-summary-item">
-                    <span>当前模块</span>
-                    <strong>{activeTabItem?.label || "未选择模块"}</strong>
-                  </div>
-                  <div className="hero-summary-item">
-                    <span>周报状态</span>
-                    <strong>{currentWeek ? "已开放预览与 Word 导出" : "请先加载本周后启用报告功能"}</strong>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <LoginPanel
-                loginForm={app.loginForm}
-                loginMessage={app.loginMessage}
-                loading={app.loading}
-                onChange={handleLoginFormChange}
-                onSubmit={handleLogin}
-              />
-            )}
-          </div>
-        </div>
-      </section>
+          {requiresWeek && !currentWeek ? (
+            <section className="soft-card">
+              <h2 className="section-title">请先加载本周</h2>
+              <p className="status-line mt-4">左侧选择起始日后，点击“加载/创建本周”。</p>
+            </section>
+          ) : null}
 
-      <section className="feature-strip no-print">
-        {featureCards.map((item) => (
-          <article key={item.title} className="feature-card">
-            <p>{item.eyebrow}</p>
-            <h3>{item.title}</h3>
-            <p>{item.copy}</p>
-          </article>
-        ))}
-      </section>
+          {activePage === "overview" ? renderOverviewPage() : null}
 
-      {app.currentUser ? (
-        <section className="workspace-shell -mt-2 lg:-mt-4">
-          <div className="workspace-grid">
-            <Sidebar
-              currentUser={currentUser}
-              roleLabel={currentUser ? levelLabel(currentUser.level) : ""}
-              sessionInfo={sessionInfo}
-              canViewAllScopes={canViewAllScopes()}
-              studentUsers={studentUsers}
-              activeScopeUser={resolvedScopeUser}
-              weekStart={app.selectedWeekStart}
-              weekEnd={currentWeek?.endDate || ""}
-              teachingWeekOptions={buildTeachingWeekOptions()}
-              teachingWeek={currentWeekGroup?.teachingWeek || ""}
-              groupHint={describeTeachingWeek(currentWeekGroup)}
-              memberA={currentWeek?.members.a || currentWeekGroup.a || ""}
-              memberB={currentWeek?.members.b || currentWeekGroup.b || ""}
-              nextGroup={currentWeek?.nextGroup || currentWeekGroup.nextGroup || ""}
-              hasWeek={Boolean(currentWeek)}
-              canSaveGroup={canEditCurrentScopeData() && Boolean(currentWeek)}
-              canExportReport={Boolean(currentWeek)}
-              onScopeChange={handleScopeChange}
-              onWeekStartChange={handleWeekStartChange}
-              onLoadWeek={handleLoadWeek}
-              onLogout={handleLogout}
-              onTeachingWeekChange={handleTeachingWeekChange}
-              onGroupChange={handleGroupChange}
-              onSaveGroup={handleSaveGroup}
-              onExportWord={handleExportWord}
-              onPreviewReport={handlePreviewReport}
-              statusMessage={app.statusMessage}
-              statusError={app.statusError}
+          {activePage === "creative" && currentWeek ? (
+            <CreativeTab
+              data={currentWeek.creative}
+              approvalText={renderApprovalText(currentWeek.creative.approval)}
               editable={canEditCurrentScopeData()}
+              approveDisabled={creativeApproveDisabled}
+              onFieldChange={handleCreativeFieldChange}
+              onSave={saveCreative}
+              onAddPoster={addCreativePoster}
+              onClearPoster={clearCreativePoster}
+              onApprove={approveCreative}
             />
+          ) : null}
 
-            <main className="workspace-main">
-              <p className="workspace-kicker">Curated Operations Suite</p>
-              <h2 className="workspace-heading">{activeTabItem?.label || "运营工作台"}</h2>
-              <p className="panel-lead">
-                当前界面围绕周度实训动线组织，保留原有按钮与业务逻辑，但整体视觉改为更接近高端酒店官网的沉浸式展示方式。
-              </p>
+          {activePage === "daily" && currentWeek && currentDayData ? (
+            <DailyTab
+              dailyDateOptions={dailyDateOptions}
+              currentDay={app.currentDay}
+              data={currentDayData}
+              approvals={{
+                checkIn: renderApprovalText(currentDayData.approvals.checkIn),
+                checkOut: renderApprovalText(currentDayData.approvals.checkOut),
+                grooming: renderApprovalText(currentDayData.approvals.grooming),
+                opening: renderApprovalText(currentDayData.approvals.opening),
+                closing: renderApprovalText(currentDayData.approvals.closing),
+                finance: renderApprovalText(currentDayData.approvals.finance),
+                receipt: renderApprovalText(currentDayData.approvals.receipt),
+              }}
+              editable={canEditCurrentScopeData()}
+              approveDisabled={dailyApproveDisabled}
+              onDateChange={handleDailyDateChange}
+              onFieldChange={handleDailyFieldChange}
+              onAddImages={addDailyImages}
+              onSave={saveDaily}
+              onApprove={approveDaily}
+            />
+          ) : null}
 
-              <div className="mt-7">
-                {showEmptyWeekState ? (
-                  <section className="soft-card">
-                    <p className="module-kicker">Weekly Preparation</p>
-                    <h2 className="section-title mt-2">请先加载本周</h2>
-                    <p className="status-line mt-4">左侧选择轮值起始日后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
-                  </section>
-                ) : null}
+          {activePage === "handover" && currentWeek ? (
+            <HandoverTab
+              data={currentWeek.handover}
+              statusText={renderApprovalText(currentWeek.handover.approval)}
+              editable={canEditCurrentScopeData()}
+              approveDisabled={handoverApproveDisabled}
+              onFieldChange={handleHandoverFieldChange}
+              onAddImages={addHandoverImages}
+              onSave={saveHandover}
+              onApprove={approveHandover}
+            />
+          ) : null}
 
-                {app.activeTab === "creative" && currentWeek ? (
-                  <CreativeTab
-                    data={currentWeek.creative}
-                    approvalText={renderApprovalText(currentWeek.creative.approval)}
-                    editable={canEditCurrentScopeData()}
-                    approveDisabled={creativeApproveDisabled}
-                    onFieldChange={handleCreativeFieldChange}
-                    onSave={saveCreative}
-                    onAddPoster={addCreativePoster}
-                    onClearPoster={clearCreativePoster}
-                    onApprove={approveCreative}
-                  />
-                ) : null}
+          {activePage === "reflection" && currentWeek ? (
+            <ReflectionTab
+              data={currentWeek.reflection}
+              statusText={renderApprovalText(currentWeek.reflection.approval)}
+              editable={canEditCurrentScopeData()}
+              canApprove={canApprove()}
+              approveDisabled={reflectionApproveDisabled}
+              saveLabel={reflectionSaveLabel}
+              onFieldChange={handleReflectionFieldChange}
+              onSave={saveReflection}
+              onApprove={approveReflection}
+            />
+          ) : null}
 
-                {app.activeTab === "daily" && currentWeek && currentDayData ? (
-                  <DailyTab
-                    dailyDateOptions={dailyDateOptions}
-                    currentDay={app.currentDay}
-                    data={currentDayData}
-                    approvals={{
-                      checkIn: renderApprovalText(currentDayData.approvals.checkIn),
-                      checkOut: renderApprovalText(currentDayData.approvals.checkOut),
-                      grooming: renderApprovalText(currentDayData.approvals.grooming),
-                      opening: renderApprovalText(currentDayData.approvals.opening),
-                      closing: renderApprovalText(currentDayData.approvals.closing),
-                      finance: renderApprovalText(currentDayData.approvals.finance),
-                      receipt: renderApprovalText(currentDayData.approvals.receipt),
-                    }}
-                    editable={canEditCurrentScopeData()}
-                    approveDisabled={dailyApproveDisabled}
-                    onDateChange={handleDailyDateChange}
-                    onFieldChange={handleDailyFieldChange}
-                    onAddImages={addDailyImages}
-                    onSave={saveDaily}
-                    onApprove={approveDaily}
-                  />
-                ) : null}
+          {activePage === "reports" ? renderReportsPage() : null}
 
-                {app.activeTab === "handover" && currentWeek ? (
-                  <HandoverTab
-                    data={currentWeek.handover}
-                    statusText={renderApprovalText(currentWeek.handover.approval)}
-                    editable={canEditCurrentScopeData()}
-                    approveDisabled={handoverApproveDisabled}
-                    onFieldChange={handleHandoverFieldChange}
-                    onAddImages={addHandoverImages}
-                    onSave={saveHandover}
-                    onApprove={approveHandover}
-                  />
-                ) : null}
-
-                {app.activeTab === "reflection" && currentWeek ? (
-                  <ReflectionTab
-                    data={currentWeek.reflection}
-                    statusText={renderApprovalText(currentWeek.reflection.approval)}
-                    editable={canEditCurrentScopeData()}
-                    canApprove={canApprove()}
-                    approveDisabled={reflectionApproveDisabled}
-                    saveLabel={reflectionSaveLabel}
-                    onFieldChange={handleReflectionFieldChange}
-                    onSave={saveReflection}
-                    onApprove={approveReflection}
-                  />
-                ) : null}
-
-                {app.activeTab === "accounts" ? (
-                  <AccountsTab
-                    users={app.users}
-                    currentUser={currentUser}
-                    isTop={canManageAccounts()}
-                    passwordForm={app.passwordForm}
-                    newUserForm={app.newUserForm}
-                    editUserId={app.editUserId}
-                    editForm={app.editForm}
-                    onPasswordChange={(value) => applyState((draft) => { draft.passwordForm.newPassword = value; })}
-                    onSubmitPassword={handlePasswordSubmit}
-                    onNewUserChange={handleNewUserChange}
-                    onCreateUser={handleCreateUser}
-                    onEditUserSelect={handleEditUserSelect}
-                    onEditFormChange={handleEditFormChange}
-                    onSaveUserEdit={handleSaveUserEdit}
-                    onDeleteUser={handleDeleteUser}
-                    canDeleteSelected={canManageAccounts() && Boolean(app.editUserId) && app.editUserId !== currentUser?.username}
-                    deleteHint={deleteHint}
-                  />
-                ) : null}
-              </div>
-            </main>
-          </div>
-        </section>
-      ) : null}
-
-      <footer className="site-footer no-print">
-        <div className="site-footer-inner">
-          <div className="footer-grid">
-            <div>
-              <h3 className="footer-title">饮品实训周运营系统</h3>
-              <p className="footer-copy">围绕周三策划、每日运营、交接班与总结反思建立统一留痕流程，让课程执行、审核和导出都保持同一套视觉与业务语言。</p>
-            </div>
-            <div>
-              <h3 className="footer-title">核心模块</h3>
-              <div className="footer-links">
-                <div>周三策划提交</div>
-                <div>每日打卡与运营执行</div>
-                <div>交接班（次周三）</div>
-                <div>总结与反思 / 账号管理</div>
-              </div>
-            </div>
-            <div>
-              <h3 className="footer-title">数据与交付</h3>
-              <div className="footer-links">
-                <div>本地 SQLite 持久化保存</div>
-                <div>经理逐项确认与最终审核</div>
-                <div>美化版周报预览与 Word 导出</div>
-                <div>支持 Windows 一键启动与数据库迁移</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="footer-bottom">
-            <span>Drink Atelier Weekly Operations System</span>
-            <span>{app.currentUser ? `当前登录：${currentUser.displayName}（${currentUser.username}）` : "当前未登录，可使用学生或管理账号进入系统。"}</span>
-          </div>
-        </div>
-      </footer>
+          {activePage === "accounts" ? (
+            <AccountsTab
+              users={app.users}
+              currentUser={currentUser}
+              isTop={canManageAccounts()}
+              passwordForm={app.passwordForm}
+              newUserForm={app.newUserForm}
+              editUserId={app.editUserId}
+              editForm={app.editForm}
+              onPasswordChange={(value) => applyState((draft) => { draft.passwordForm.newPassword = value; })}
+              onSubmitPassword={handlePasswordSubmit}
+              onNewUserChange={handleNewUserChange}
+              onCreateUser={handleCreateUser}
+              onEditUserSelect={handleEditUserSelect}
+              onEditFormChange={handleEditFormChange}
+              onSaveUserEdit={handleSaveUserEdit}
+              onDeleteUser={handleDeleteUser}
+              canDeleteSelected={canManageAccounts() && Boolean(app.editUserId) && app.editUserId !== currentUser?.username}
+              deleteHint={deleteHint}
+            />
+          ) : null}
+        </main>
+      </div>
     </div>
   );
 }

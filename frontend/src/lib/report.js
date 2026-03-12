@@ -89,7 +89,7 @@ function reportArt(kind, title = "", subtitle = "") {
       ${iconMap[kind] || iconMap.gallery}
       <text x="306" y="120" font-size="38" font-family="Microsoft YaHei, sans-serif" font-weight="700" fill="${theme.a}">${main}</text>
       <text x="306" y="170" font-size="20" font-family="Microsoft YaHei, sans-serif" fill="#5d5142">${sub}</text>
-      <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">Drink Training Report Visual</text>
+      <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">饮品实训周报</text>
     </svg>
   `);
 }
@@ -98,7 +98,7 @@ function renderReportGallery(images, emptyKind, emptyText, large = false) {
   if (images && images.length) {
     return `<div class="gallery">${images.map((src) => `<img src="${src}" class="${large ? "gallery-image large" : "gallery-image"}" />`).join("")}</div>`;
   }
-  return `<div class="empty-gallery"><img src="${reportArt(emptyKind, "AI视觉补位", emptyText)}" class="empty-art" /><div class="empty-copy">${escapeHtml(emptyText)}</div></div>`;
+  return `<div class="empty-gallery"><img src="${reportArt(emptyKind, "图片占位", emptyText)}" class="empty-art" /><div class="empty-copy">${escapeHtml(emptyText)}</div></div>`;
 }
 
 export function buildReportHtml({ week, group, scopeUser }) {
@@ -117,7 +117,7 @@ export function buildReportHtml({ week, group, scopeUser }) {
       <section class="day-card">
         <div class="day-head">
           <div>
-            <div class="eyebrow">Daily Operations</div>
+            <div class="eyebrow">日常运营</div>
             <h3>${escapeHtml(date)} ${index === 7 ? "次周三交接日" : "日常运营日"}</h3>
           </div>
           <span class="chip">${index === 7 ? "交接收尾" : "执行记录"}</span>
@@ -133,26 +133,26 @@ export function buildReportHtml({ week, group, scopeUser }) {
         </div>
         <div class="sub-card">
           <h4>仪容仪表检查</h4>
-          ${renderReportGallery(day.grooming, "daily", "未上传仪容仪表照片，已用 AI 检查场景图示意。")}
+          ${renderReportGallery(day.grooming, "daily", "未上传仪容仪表照片。")}
         </div>
         <div class="sub-card">
           <h4>上班前卫生（公区/吧台）</h4>
-          ${renderReportGallery([...day.openingPublic, ...day.openingBar], "daily", "未上传开档卫生图片，已用 AI 营运场景图示意。")}
+          ${renderReportGallery([...day.openingPublic, ...day.openingBar], "daily", "未上传开档卫生图片。")}
         </div>
         <div class="sub-card">
           <h4>下班后卫生（公区/吧台）</h4>
-          ${renderReportGallery([...day.closingPublic, ...day.closingBar], "daily", "未上传闭店卫生图片，已用 AI 营运场景图示意。")}
+          ${renderReportGallery([...day.closingPublic, ...day.closingBar], "daily", "未上传闭店卫生图片。")}
         </div>
         <div class="sub-card">
           <h4>损耗与库存</h4>
           <p><b>损耗说明：</b>${formatRichText(day.lossDesc)}</p>
           <p><b>库存说明：</b>${formatRichText(day.inventoryDesc)}</p>
-          ${renderReportGallery([...day.lossImgs, ...day.inventoryImgs], "gallery", "未上传损耗或库存图片，已用 AI 物料陈列图示意。")}
+          ${renderReportGallery([...day.lossImgs, ...day.inventoryImgs], "gallery", "未上传损耗或库存图片。")}
         </div>
         <div class="sub-card">
           <h4>签收记录</h4>
           <p>${formatRichText(day.receiptDesc)}</p>
-          ${renderReportGallery(day.receiptImgs, "handover", "未上传签收照片，已用 AI 交接签收图示意。")}
+          ${renderReportGallery(day.receiptImgs, "handover", "未上传签收照片。")}
         </div>
         <div class="sub-card">
           <h4>当日补充说明</h4>
@@ -215,9 +215,9 @@ export function buildReportHtml({ week, group, scopeUser }) {
 <body>
   <div class="report">
     <section class="cover">
-      <img src="${coverImage}" alt="AI封面视觉" />
+      <img src="${coverImage}" alt="周报封面" />
       <div class="cover-body">
-        <div class="eyebrow">Practical Training Weekly Portfolio</div>
+        <div class="eyebrow">饮品实训周报</div>
         <h1>饮品实训周工作报告</h1>
         <p class="lead">围绕门店饮品设计与运营实践课程，对创意策划、每日执行、交接管理与复盘成长进行一体化留痕，形成可归档、可展示、可复盘的周度成果文档。</p>
         <div class="meta-wrap">
@@ -238,7 +238,7 @@ export function buildReportHtml({ week, group, scopeUser }) {
         <p><b>特殊物料采购计划：</b>${formatRichText(week.creative.procurement)}</p>
       </div>
       <h4>创意海报展示</h4>
-      ${renderReportGallery(week.creative.posters, "creative", "本周未上传创意海报，已使用 AI 新品海报视觉示意。", true)}
+      ${renderReportGallery(week.creative.posters, "creative", "本周未上传创意海报。", true)}
       <div class="approval">经理确认：${escapeHtml(renderApprovalText(week.creative.approval))}</div>
     </section>
 
@@ -255,7 +255,7 @@ export function buildReportHtml({ week, group, scopeUser }) {
         <p><b>交接说明：</b>${formatRichText(week.handover.summary)}</p>
         <p><b>交接对象：</b>${formatRichText(week.handover.nextGroup || week.nextGroup)}</p>
       </div>
-      ${renderReportGallery(week.handover.photos, "handover", "未上传交接现场照片，已使用 AI 交接场景图示意。", true)}
+      ${renderReportGallery(week.handover.photos, "handover", "未上传交接现场照片。", true)}
       <div class="approval">经理确认：${escapeHtml(renderApprovalText(week.handover.approval))}</div>
     </section>
 

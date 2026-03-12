@@ -58,9 +58,26 @@ export const TEACHING_WEEK_MAP = Object.fromEntries(
 );
 
 export const TAB_ITEMS = [
+  { key: "overview", label: "系统概览" },
   { key: "creative", label: "周三策划提交" },
   { key: "daily", label: "每日打卡与运营" },
   { key: "handover", label: "交接班（次周三）" },
   { key: "reflection", label: "总结与反思" },
+  { key: "reports", label: "周报导出" },
   { key: "accounts", label: "账号管理" },
+];
+
+export const NAV_SECTIONS = [
+  {
+    title: "开始使用",
+    items: ["overview"],
+  },
+  {
+    title: "本周轮值",
+    items: ["creative", "daily", "handover", "reflection"],
+  },
+  {
+    title: "管理与归档",
+    items: ["reports", "accounts"],
+  },
 ];

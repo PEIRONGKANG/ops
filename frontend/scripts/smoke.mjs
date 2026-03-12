@@ -47,6 +47,13 @@ async function ensureTextVisible(text) {
   await page.locator(`text=${text}`).first().waitFor({ state: "visible", timeout: 20000 });
 }
 
+async function expectDocsShell() {
+  await expectVisible(page.getByRole("navigation", { name: "主导航" }), "主导航未显示");
+  await expectVisible(page.getByPlaceholder("搜索页面、模块或动作"), "顶部搜索栏未显示");
+  await expectVisible(page.getByText("开始使用").first(), "文档导航分组“开始使用”未显示");
+  await expectVisible(page.getByText("本周轮值").first(), "文档导航分组“本周轮值”未显示");
+}
+
 function sectionByHeading(name) {
   return page.getByRole("heading", { name, exact: true }).last().locator("xpath=ancestor::section[1]");
 }
@@ -60,7 +67,7 @@ async function chooseFiles(scope, buttonName, filePath = uploadFixture) {
 }
 
 async function loginAs({ username, password, secondUsername = "", secondPassword = "" }) {
-  await expectVisible(page.getByRole("heading", { name: "登录" }), "登录面板未显示");
+  await expectVisible(page.getByRole("heading", { name: "登录", exact: true }), "登录面板未显示");
   await typeAndBlur(page.getByPlaceholder("请输入账号，如：2401270101").first(), username);
   await typeAndBlur(page.getByPlaceholder("请输入密码").first(), password);
 
@@ -74,7 +81,7 @@ async function loginAs({ username, password, secondUsername = "", secondPassword
 
 async function logout() {
   await page.getByRole("button", { name: "退出登录" }).click();
-  await expectVisible(page.getByRole("heading", { name: "登录" }), "退出登录后未回到登录页");
+  await expectVisible(page.getByRole("heading", { name: "登录", exact: true }), "退出登录后未回到登录页");
 }
 
 async function openTab(name) {
@@ -116,9 +123,8 @@ async function runAccountsAudit() {
   const accountsSection = sectionByHeading("账号管理");
   await expectVisible(accountsSection, "账号管理页面未打开");
   await expectVisible(accountsSection.locator('text=P1 账号管理（最高权限）').first(), "P1管理卡片未显示");
-  const cards = accountsSection.locator(".soft-card");
-  const createCard = cards.nth(1);
-  const editCard = cards.nth(2);
+  const createCard = accountsSection.locator('div:has(> h3:has-text("P1 账号管理（最高权限）"))').first();
+  const editCard = accountsSection.locator('div:has(> h3:has-text("修改已有账号（姓名 / 密码）"))').first();
 
   const createInputs = createCard.locator("input");
   await typeAndBlur(createInputs.nth(0), tempUser);
@@ -131,7 +137,7 @@ async function runAccountsAudit() {
   await openTab("账号管理");
   const accountsSectionAfterCreate = sectionByHeading("账号管理");
   await expectVisible(accountsSectionAfterCreate, "新增账号后账号管理页面未保持可见");
-  const editCardAfterCreate = accountsSectionAfterCreate.locator(".soft-card").nth(2);
+  const editCardAfterCreate = accountsSectionAfterCreate.locator('div:has(> h3:has-text("修改已有账号（姓名 / 密码）"))').first();
   await editCardAfterCreate.locator("select").selectOption(tempUser);
   const editInputs = editCardAfterCreate.locator("input");
   await typeAndBlur(editInputs.nth(0), "巡检账号已编辑");
@@ -145,7 +151,7 @@ async function runAccountsAudit() {
 
   await openTab("账号管理");
   const accountsSectionForPassword = sectionByHeading("账号管理");
-  const passwordCard = accountsSectionForPassword.locator(".soft-card").first();
+  const passwordCard = accountsSectionForPassword.locator('div:has(> h3:has-text("当前账号密码修改"))').first();
   await typeAndBlur(passwordCard.locator('input[type="password"]').first(), finalPassword);
   await passwordCard.getByRole("button", { name: "修改密码" }).click();
   await ensureTextVisible("密码已修改。");
@@ -162,7 +168,7 @@ async function runAccountsAudit() {
   await openTab("账号管理");
   const accountsSectionRelogin = sectionByHeading("账号管理");
   await expectVisible(accountsSectionRelogin, "删除账号前未回到账号管理页");
-  const editCardAfterRelogin = accountsSectionRelogin.locator(".soft-card").nth(2);
+  const editCardAfterRelogin = accountsSectionRelogin.locator('div:has(> h3:has-text("修改已有账号（姓名 / 密码）"))').first();
   await editCardAfterRelogin.locator("select").selectOption("103085");
   await expectVisible(editCardAfterRelogin.getByText("不能删除当前登录账号").first(), "当前登录账号删除提示未显示");
   await assertButtonDisabled(editCardAfterRelogin.getByRole("button", { name: "删除账号" }), "当前登录账号的删除按钮应禁用");
@@ -182,6 +188,7 @@ try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
+  await expectDocsShell();
 
   await loginAs({
     username: "2401270101",
@@ -190,6 +197,7 @@ try {
     secondPassword: "2401270106",
   });
 
+  await expectDocsShell();
   await expectVisible(page.getByRole("button", { name: "周三策划提交" }), "学生登录后未进入主界面");
   await ensureTextVisible("双人登录成功。已自动加载本周轮值并同步到本组账号。");
 
