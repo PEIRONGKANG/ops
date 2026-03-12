@@ -1,6 +1,7 @@
 .venv/
 .logs/
 .smoke-artifacts/
+.worktrees/
 .tools/
 frontend/node_modules/
 backend/data/*.db
