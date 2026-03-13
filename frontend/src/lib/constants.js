@@ -62,5 +62,8 @@ export const TAB_ITEMS = [
   { key: "daily", label: "每日打卡与运营" },
   { key: "handover", label: "交接班（次周三）" },
   { key: "reflection", label: "总结与反思" },
-  { key: "accounts", label: "账号管理" },
+  { key: "courseConfig", label: "课程配置", levels: ["P1"] },
+  { key: "scheduling", label: "分组与排班", levels: ["P1"] },
+  { key: "resources", label: "资源中心" },
+  { key: "accounts", label: "账号管理", levels: ["P1"] },
 ];

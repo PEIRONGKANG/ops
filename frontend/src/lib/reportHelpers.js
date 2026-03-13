@@ -1,7 +1,7 @@
-import { ensureDayOnWeek, getWeekDates, renderApprovalText, trim } from "./core";
+import { ensureDayOnWeek, ensureWeekStructure, getWeekDates, PROCESS_ITEM_DEFINITIONS, renderApprovalText, trim } from "./core.js";
 
 
-export { ensureDayOnWeek, getWeekDates, renderApprovalText, trim };
+export { ensureDayOnWeek, ensureWeekStructure, getWeekDates, PROCESS_ITEM_DEFINITIONS, renderApprovalText, trim };
 
 
 export function escapeHtml(value) {

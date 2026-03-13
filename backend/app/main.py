@@ -1,12 +1,29 @@
+import sqlite3
 from pathlib import Path
+from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .database import (
+    create_class_item,
+    create_course_batch,
+    create_group,
+    create_group_member,
+    create_resource,
+    create_schedule_assignment,
+    create_term,
     create_user,
+    delete_class_item,
+    delete_course_batch,
+    delete_group,
+    delete_group_member,
+    delete_resource,
+    delete_schedule_assignment,
+    delete_term,
     delete_user,
+    get_foundation_bootstrap,
     get_user,
     get_week,
     get_week_group,
@@ -17,7 +34,19 @@ from .database import (
     update_user,
     verify_user,
 )
-from .schemas import LoginRequest, UserPayload, WeekGroupPayload, WeekPayload
+from .schemas import (
+    ClassPayload,
+    CourseBatchPayload,
+    GroupMemberPayload,
+    GroupPayload,
+    LoginRequest,
+    ResourcePayload,
+    ScheduleAssignmentPayload,
+    TermPayload,
+    UserPayload,
+    WeekGroupPayload,
+    WeekPayload,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -42,6 +71,31 @@ def on_startup() -> None:
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+def _get_actor(request: Request) -> Optional[Dict]:
+    actor_username = request.headers.get("X-Actor-Username", "").strip()
+    if not actor_username:
+        return None
+    return get_user(actor_username)
+
+
+def _require_actor(request: Request) -> Dict:
+    actor = _get_actor(request)
+    if not actor:
+        raise HTTPException(status_code=401, detail="缺少操作人信息。")
+    return actor
+
+
+def _require_p1(request: Request) -> Dict:
+    actor = _require_actor(request)
+    if actor["level"] != "P1":
+        raise HTTPException(status_code=403, detail="仅 P1 可执行该操作。")
+    return actor
+
+
+def _as_conflict(error: sqlite3.IntegrityError) -> HTTPException:
+    return HTTPException(status_code=409, detail=str(error) or "数据冲突。")
 
 
 @app.get("/api/bootstrap")
@@ -84,6 +138,130 @@ def remove_account(username: str) -> Response:
         raise HTTPException(status_code=404, detail="账号不存在。")
     if not delete_user(username):
         raise HTTPException(status_code=500, detail="删除账号失败。")
+    return Response(status_code=204)
+
+
+@app.get("/api/foundation/bootstrap")
+def foundation_bootstrap(request: Request) -> dict:
+    _require_actor(request)
+    return get_foundation_bootstrap()
+
+
+@app.post("/api/terms")
+def create_term_entry(request: Request, payload: TermPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"term": create_term(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/terms/{term_id}", status_code=204)
+def remove_term(term_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_term(term_id):
+        raise HTTPException(status_code=404, detail="学期不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/classes")
+def create_class_entry(request: Request, payload: ClassPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"classItem": create_class_item(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/classes/{class_id}", status_code=204)
+def remove_class(class_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_class_item(class_id):
+        raise HTTPException(status_code=404, detail="班级不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/course-batches")
+def create_course_batch_entry(request: Request, payload: CourseBatchPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"courseBatch": create_course_batch(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/course-batches/{batch_id}", status_code=204)
+def remove_course_batch(batch_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_course_batch(batch_id):
+        raise HTTPException(status_code=404, detail="课程批次不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/groups")
+def create_group_entry(request: Request, payload: GroupPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"group": create_group(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/groups/{group_id}", status_code=204)
+def remove_group(group_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_group(group_id):
+        raise HTTPException(status_code=404, detail="分组不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/group-members")
+def create_group_member_entry(request: Request, payload: GroupMemberPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"groupMember": create_group_member(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/group-members/{member_id}", status_code=204)
+def remove_group_member(member_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_group_member(member_id):
+        raise HTTPException(status_code=404, detail="组员记录不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/schedule-assignments")
+def create_schedule_assignment_entry(request: Request, payload: ScheduleAssignmentPayload) -> dict:
+    _require_p1(request)
+    try:
+        return {"scheduleAssignment": create_schedule_assignment(payload.model_dump())}
+    except sqlite3.IntegrityError as error:
+        raise _as_conflict(error) from error
+
+
+@app.delete("/api/schedule-assignments/{assignment_id}", status_code=204)
+def remove_schedule_assignment(assignment_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_schedule_assignment(assignment_id):
+        raise HTTPException(status_code=404, detail="排班记录不存在。")
+    return Response(status_code=204)
+
+
+@app.post("/api/resources")
+def create_resource_entry(request: Request, payload: ResourcePayload) -> dict:
+    actor = _require_p1(request)
+    resource_payload = payload.model_dump()
+    resource_payload["createdBy"] = actor["displayName"] or actor["username"]
+    return {"resource": create_resource(resource_payload)}
+
+
+@app.delete("/api/resources/{resource_id}", status_code=204)
+def remove_resource(resource_id: int, request: Request) -> Response:
+    _require_p1(request)
+    if not delete_resource(resource_id):
+        raise HTTPException(status_code=404, detail="资源不存在。")
     return Response(status_code=204)
 
 

@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AccountsTab } from "./components/AccountsTab";
+import { CourseConfigTab } from "./components/CourseConfigTab";
 import { CreativeTab } from "./components/CreativeTab";
 import { DailyTab } from "./components/DailyTab";
 import { HandoverTab } from "./components/HandoverTab";
 import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
+import { ResourcesTab } from "./components/ResourcesTab";
+import { SchedulingTab } from "./components/SchedulingTab";
 import { Sidebar } from "./components/Sidebar";
 import { TabNav } from "./components/TabNav";
 import { TAB_ITEMS } from "./lib/constants";
 import {
   adjustToWednesday,
+  addImagesWithLimit,
   applyTeachingWeekPreset,
   buildTeachingWeekOptions,
   createEmptyWeek,
   createEmptyWeekGroup,
   emptyApproval,
   ensureDayOnWeek,
+  ensureWeekStructure,
   filesToDataUrls,
   findStudentByToken,
   getStudentUsers,
@@ -25,6 +30,7 @@ import {
   levelLabel,
   makeWeekKey,
   normalizeUser,
+  PROCESS_ITEM_DEFINITIONS,
   renderApprovalText,
   roleFromLevel,
   describeTeachingWeek,
@@ -38,6 +44,19 @@ import { api } from "./services/api";
 
 const SESSION_KEY = "ops_training_ops_react_session_v1";
 const DAY_LABELS = ["周三", "周四", "周五", "周六", "周日", "周一", "周二", "次周三(交接)"];
+const STANDALONE_TABS = new Set(["accounts", "courseConfig", "scheduling", "resources"]);
+
+function createEmptyFoundation() {
+  return {
+    terms: [],
+    classes: [],
+    courseBatches: [],
+    groups: [],
+    groupMembers: [],
+    scheduleAssignments: [],
+    resources: [],
+  };
+}
 
 const initialState = {
   users: [],
@@ -73,6 +92,7 @@ const initialState = {
     displayName: "",
     password: "",
   },
+  foundation: createEmptyFoundation(),
 };
 
 function cloneValue(value) {
@@ -97,14 +117,16 @@ function hasImages(images) {
 }
 
 function getDailyApprovalDefaults() {
+  const processes = {};
+  PROCESS_ITEM_DEFINITIONS.forEach((item) => {
+    processes[item.key] = true;
+  });
   return {
     checkIn: true,
     checkOut: true,
     grooming: true,
-    opening: true,
-    closing: true,
-    finance: true,
     receipt: true,
+    processes,
   };
 }
 
@@ -179,6 +201,8 @@ function App() {
     return !!user && user.level === "P1";
   };
 
+  const canManageFoundation = (source = stateRef.current) => canManageAccounts(source);
+
   const canEditCurrentScopeData = (source = stateRef.current) => {
     const user = getCurrentUserRecord(source);
     return !!user && (user.level === "P1" || user.level === "P3");
@@ -239,6 +263,7 @@ function App() {
     if (!source.weeks[weekKey]) {
       source.weeks[weekKey] = createEmptyWeek(startDate);
     }
+    source.weeks[weekKey] = ensureWeekStructure(source.weeks[weekKey], startDate);
     const week = source.weeks[weekKey];
     const shared = getWeekGroupRecord(source, week.startDate);
     seedWeekGroupFromSession(source, week.startDate);
@@ -347,8 +372,9 @@ function App() {
       api.fetchWeekGroup(corrected),
     ]);
     next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
-    next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
+    next.weeks[weekKey] = ensureWeekStructure(weekResponse.week || createEmptyWeek(corrected), corrected);
     ensureWeekInState(next, weekKey, corrected);
+    await hydrateHandoverReference(next, weekKey, scopeUser);
     next.currentWeekKey = weekKey;
     const dateList = getWeekDates(corrected);
     next.currentDay = dateList.includes(next.currentDay) ? next.currentDay : dateList[0];
@@ -356,6 +382,78 @@ function App() {
     next.statusMessage = statusMessage || "已加载所选周次。";
     next.statusError = false;
     replaceState(next);
+  };
+
+  const loadFoundationData = async (statusMessage) => {
+    const current = getCurrentUserRecord();
+    if (!current) return;
+    const foundation = await api.foundationBootstrap();
+    applyState((draft) => {
+      draft.foundation = foundation;
+      if (statusMessage) {
+        draft.statusMessage = statusMessage;
+        draft.statusError = false;
+      }
+    });
+  };
+
+  const hydrateHandoverReference = async (source, weekKey, scopeUser) => {
+    const week = source.weeks[weekKey];
+    if (!week) return;
+
+    const foundation = source.foundation || createEmptyFoundation();
+    const memberships = (foundation.groupMembers || []).filter((item) => item.studentUsername === scopeUser);
+    const groupIds = memberships.map((item) => item.groupId);
+    if (!groupIds.length) {
+      week.handover.inheritedDrinks = [];
+      return;
+    }
+
+    const currentAssignment = (foundation.scheduleAssignments || [])
+      .filter((item) => item.weekStartDate === week.startDate && (groupIds.includes(item.primaryGroupId) || groupIds.includes(item.secondaryGroupId)))
+      .sort((a, b) => String(b.weekStartDate).localeCompare(String(a.weekStartDate)))[0];
+
+    if (!currentAssignment) {
+      week.handover.inheritedDrinks = [];
+      return;
+    }
+
+    const previousAssignment = (foundation.scheduleAssignments || [])
+      .filter((item) => item.batchId === currentAssignment.batchId && item.weekStartDate && item.weekStartDate < week.startDate)
+      .sort((a, b) => String(b.weekStartDate).localeCompare(String(a.weekStartDate)))[0];
+
+    if (!previousAssignment) {
+      week.handover.inheritedDrinks = [];
+      return;
+    }
+
+    const sourceMember = (foundation.groupMembers || []).find((item) => item.groupId === previousAssignment.primaryGroupId);
+    if (!sourceMember) {
+      week.handover.inheritedDrinks = [];
+      return;
+    }
+
+    const response = await api.fetchWeek(sourceMember.studentUsername, previousAssignment.weekStartDate);
+    const previousWeek = ensureWeekStructure(response.week || createEmptyWeek(previousAssignment.weekStartDate), previousAssignment.weekStartDate);
+    week.handover.inheritedDrinks = previousWeek.creative.drinks.map((item, index) => ({
+      id: item.id || `drink-${index + 1}`,
+      name: item.name,
+      type: item.type,
+      inspiration: item.inspiration,
+      ingredients: item.ingredients,
+      ratio: item.ratio,
+      steps: item.steps,
+      productImages: item.productImages || [],
+      posterImages: item.posterImages || [],
+      specialMaterials: item.specialMaterials,
+      notes: item.notes,
+    }));
+    week.handover.inheritedFrom = {
+      batchName: previousAssignment.batchName || "",
+      groupName: previousAssignment.primaryGroupName || "",
+      weekStartDate: previousAssignment.weekStartDate || "",
+      studentName: sourceMember.studentName || "",
+    };
   };
 
   useEffect(() => {
@@ -386,7 +484,11 @@ function App() {
         next.booting = false;
         replaceState(next);
         if (next.currentUser) {
+          api.setActor(next.currentUser.username);
+          await loadFoundationData();
           await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。");
+        } else {
+          api.setActor("");
         }
       } catch (error) {
         replaceState({
@@ -407,6 +509,8 @@ function App() {
   const currentWeek = app.currentWeekKey ? app.weeks[app.currentWeekKey] : null;
   const currentWeekGroup = currentWeek ? app.weekGroups[currentWeek.startDate] || createEmptyWeekGroup() : createEmptyWeekGroup();
   const currentDayData = currentWeek && app.currentDay ? ensureDayOnWeek(currentWeek, app.currentDay) : null;
+  const foundation = app.foundation || createEmptyFoundation();
+  const visibleTabs = TAB_ITEMS.filter((item) => !item.levels || item.levels.includes(currentUser?.level));
 
   const sessionInfo = (() => {
     if (!currentUser) return "当前未登录。";
@@ -430,26 +534,46 @@ function App() {
     : [];
 
   const creativeApproveDisabled = !canApprove() || !currentWeek
-    || !(hasText(currentWeek.creative.marketing, currentWeek.creative.recipe, currentWeek.creative.procurement) || hasImages(currentWeek.creative.posters));
+    || !(
+      hasText(
+        currentWeek.creative.survey.questions,
+        currentWeek.creative.survey.resultSummary,
+        currentWeek.creative.survey.analysis,
+        ...currentWeek.creative.drinks.flatMap((item) => [
+          item.name,
+          item.type,
+          item.inspiration,
+          item.ingredients,
+          item.ratio,
+          item.steps,
+          item.specialMaterials,
+          item.notes,
+        ]),
+      )
+      || hasImages(currentWeek.creative.posters)
+    );
 
   const dailyApproveDisabled = currentDayData
-    ? {
-      checkIn: !canApprove() || !trim(currentDayData.checkIn),
-      checkOut: !canApprove() || !trim(currentDayData.checkOut),
-      grooming: !canApprove() || !hasImages(currentDayData.grooming),
-      opening: !canApprove() || !(hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar)),
-      closing: !canApprove() || !(hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar)),
-      finance: !canApprove() || !(
-        hasText(currentDayData.sales, currentDayData.cost, currentDayData.lossAmount, currentDayData.lossDesc, currentDayData.inventoryDesc)
-        || hasImages(currentDayData.lossImgs)
-        || hasImages(currentDayData.inventoryImgs)
-      ),
-      receipt: !canApprove() || !(hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs)),
-    }
+    ? (() => {
+      const processes = {};
+      PROCESS_ITEM_DEFINITIONS.forEach((item) => {
+        const process = currentDayData.processes[item.key];
+        const hasExecution = hasText(process?.execution);
+        const hasRequiredImages = !item.requiresImages || hasImages(process?.images);
+        processes[item.key] = !canApprove() || !hasExecution || !hasRequiredImages;
+      });
+      return {
+        checkIn: !canApprove() || !trim(currentDayData.checkIn),
+        checkOut: !canApprove() || !trim(currentDayData.checkOut),
+        grooming: !canApprove() || !hasImages(currentDayData.grooming),
+        receipt: !canApprove() || !(hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs)),
+        processes,
+      };
+    })()
     : getDailyApprovalDefaults();
 
   const handoverApproveDisabled = !canApprove() || !currentWeek
-    || !(hasText(currentWeek.handover.summary, currentWeek.handover.nextGroup || currentWeek.nextGroup) || hasImages(currentWeek.handover.photos));
+    || !(hasText(currentWeek.handover.summary, currentWeek.handover.nextGroup || currentWeek.nextGroup) || hasImages(currentWeek.handover.photos) || currentWeek.handover.inheritedDrinks.length);
 
   const reflectionApproveDisabled = !canApprove() || !currentWeek
     || !(hasText(currentWeek.reflection.a, currentWeek.reflection.b, currentWeek.reflection.optPlan, currentWeek.reflection.managerComment));
@@ -511,6 +635,9 @@ function App() {
         draft.loginMessage = "";
       });
 
+      api.setActor(first.user.username);
+      await loadFoundationData();
+
       await loadWeekForCurrentScope(
         todayISO(),
         sessionUsers.length > 1
@@ -527,6 +654,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
+    api.setActor("");
     replaceState({
       ...cloneValue(initialState),
       users: stateRef.current.users,
@@ -599,11 +727,114 @@ function App() {
     setStatus("分组信息已按本周保存，本周无需重复填写。");
   }, "分组信息保存失败，请稍后重试。");
 
-  const handleCreativeFieldChange = (field, value) => {
+  const handleCreativeSurveyChange = (field, value) => {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week) return;
-      week.creative[field] = value;
+      week.creative.survey[field] = value;
+    });
+  };
+
+  const handleCreativeDrinkChange = (index, field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      week.creative.drinks[index][field] = value;
+    });
+  };
+
+  const handleCreativeProcurementItemChange = (index, field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      const item = week.creative.procurementItems[index];
+      if (!item) return;
+      item[field] = value;
+      if (field === "quantity" || field === "unitPrice") {
+        const quantity = Number(item.quantity);
+        const unitPrice = Number(item.unitPrice);
+        if (Number.isFinite(quantity) && Number.isFinite(unitPrice)) {
+          item.subtotal = quantity && unitPrice ? (quantity * unitPrice).toFixed(2) : "";
+        }
+      }
+    });
+  };
+
+  const handleAddCreativeProcurementItem = () => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      week.creative.procurementItems.push({
+        name: "",
+        spec: "",
+        quantity: "",
+        unitPrice: "",
+        subtotal: "",
+        notes: "",
+      });
+    });
+  };
+
+  const handleRemoveCreativeProcurementItem = (index) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      if (week.creative.procurementItems.length === 1) {
+        week.creative.procurementItems[0] = {
+          name: "",
+          spec: "",
+          quantity: "",
+          unitPrice: "",
+          subtotal: "",
+          notes: "",
+        };
+        return;
+      }
+      week.creative.procurementItems.splice(index, 1);
+    });
+  };
+
+  const handleDailyBasicChange = (field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week || !draft.currentDay) return;
+      ensureDayOnWeek(week, draft.currentDay)[field] = value;
+    });
+  };
+
+  const handleDailyProcessChange = (key, field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week || !draft.currentDay) return;
+      const dayData = ensureDayOnWeek(week, draft.currentDay);
+      dayData.processes[key][field] = value;
+
+      if (key === "19" && field === "execution") dayData.inventoryDesc = value;
+      if (key === "20" && field === "execution") dayData.notes = value;
+      if (key === "21" && field === "execution") dayData.lossDesc = value;
+      if (key === "23" && field === "issues") dayData.notes = value;
+    });
+  };
+
+  const handleDailyReportChange = (field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week || !draft.currentDay) return;
+      const dayData = ensureDayOnWeek(week, draft.currentDay);
+      dayData.dailyReport[field] = value;
+      if (field === "issues") dayData.notes = value;
+    });
+  };
+
+  const handleDailyReceiptChange = (field, value) => {
+    handleDailyBasicChange(field, value);
+  };
+
+  const handleHandoverFieldChange = (field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      week.handover[field] = value;
     });
   };
 
@@ -613,22 +844,6 @@ function App() {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week) return;
       ensureDayOnWeek(week, value);
-    });
-  };
-
-  const handleDailyFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week || !draft.currentDay) return;
-      ensureDayOnWeek(week, draft.currentDay)[field] = value;
-    });
-  };
-
-  const handleHandoverFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.handover[field] = value;
     });
   };
 
@@ -689,7 +904,36 @@ function App() {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week) return;
-      week.creative.posters = week.creative.posters.concat(urls);
+      week.creative.posters = addImagesWithLimit(week.creative.posters, urls, 8);
+    });
+    await saveCreative();
+  };
+
+  const addCreativeSurveyImages = async (files) => {
+    const urls = await filesToDataUrls(files);
+    if (!urls.length) return;
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      week.creative.survey.resultImages = addImagesWithLimit(week.creative.survey.resultImages, urls, 5);
+    });
+    await saveCreative();
+  };
+
+  const addCreativeDrinkImages = async (index, kind, files) => {
+    const urls = await filesToDataUrls(files);
+    if (!urls.length) return;
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week) return;
+      const drink = week.creative.drinks[index];
+      if (!drink) return;
+      if (kind === "productImages") {
+        drink.productImages = addImagesWithLimit(drink.productImages, urls, 5);
+      }
+      if (kind === "posterImages") {
+        drink.posterImages = addImagesWithLimit(drink.posterImages, urls, 5);
+      }
     });
     await saveCreative();
   };
@@ -703,7 +947,7 @@ function App() {
     await saveCreative();
   };
 
-  const addDailyImages = async (kind, files) => {
+  const addDailyGroomingImages = async (files) => {
     const day = stateRef.current.currentDay;
     if (!day) return;
     const urls = await filesToDataUrls(files);
@@ -712,32 +956,50 @@ function App() {
     const week = next.weeks[next.currentWeekKey];
     if (!week) return;
     const target = ensureDayOnWeek(week, day);
+    target.grooming = addImagesWithLimit(target.grooming, urls, 5);
+    replaceState(next);
+    await saveDaily();
+  };
 
-    if (kind === "groom") {
-      target.grooming = target.grooming.concat(urls);
+  const addDailyProcessImages = async (processKey, files) => {
+    const day = stateRef.current.currentDay;
+    if (!day) return;
+    const urls = await filesToDataUrls(files);
+    if (!urls.length) return;
+    const next = cloneValue(stateRef.current);
+    const week = next.weeks[next.currentWeekKey];
+    if (!week) return;
+    const target = ensureDayOnWeek(week, day);
+    target.processes[processKey].images = addImagesWithLimit(target.processes[processKey].images, urls, 5);
+    if (processKey === "13") {
+      target.openingPublic = target.processes[processKey].images.slice();
+      target.openingBar = [];
     }
-    if (kind === "openingPublic") {
-      target.openingPublic = target.openingPublic.concat(urls);
+    if (processKey === "18") {
+      target.closingPublic = target.processes[processKey].images.slice();
+      target.closingBar = [];
     }
-    if (kind === "openingBar") {
-      target.openingBar = target.openingBar.concat(urls);
+    if (processKey === "19") {
+      target.inventoryImgs = target.processes[processKey].images.slice();
     }
-    if (kind === "closingPublic") {
-      target.closingPublic = target.closingPublic.concat(urls);
-    }
-    if (kind === "closingBar") {
-      target.closingBar = target.closingBar.concat(urls);
-    }
-    if (kind === "loss") {
-      target.lossImgs = target.lossImgs.concat(urls);
-    }
-    if (kind === "inventory") {
-      target.inventoryImgs = target.inventoryImgs.concat(urls);
-    }
-    if (kind === "receipt") {
-      target.receiptImgs = target.receiptImgs.concat(urls);
+    if (processKey === "21") {
+      target.lossImgs = target.processes[processKey].images.slice();
     }
 
+    replaceState(next);
+    await saveDaily();
+  };
+
+  const addDailyReceiptImages = async (files) => {
+    const day = stateRef.current.currentDay;
+    if (!day) return;
+    const urls = await filesToDataUrls(files);
+    if (!urls.length) return;
+    const next = cloneValue(stateRef.current);
+    const week = next.weeks[next.currentWeekKey];
+    if (!week) return;
+    const target = ensureDayOnWeek(week, day);
+    target.receiptImgs = addImagesWithLimit(target.receiptImgs, urls, 5);
     replaceState(next);
     await saveDaily();
   };
@@ -748,7 +1010,7 @@ function App() {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week) return;
-      week.handover.photos = week.handover.photos.concat(urls);
+      week.handover.photos = addImagesWithLimit(week.handover.photos, urls, 5);
     });
     await saveHandover();
   };
@@ -771,29 +1033,34 @@ function App() {
       setStatus("请先选择日期后再执行经理确认。", true);
       return;
     }
-    if (dailyApproveDisabled[kind]) {
+    const isProcess = PROCESS_ITEM_DEFINITIONS.some((item) => item.key === String(kind));
+    const disabled = isProcess ? dailyApproveDisabled.processes[kind] : dailyApproveDisabled[kind];
+    if (disabled) {
       const blockerMessages = {
         checkIn: "请先填写签到时间，再执行经理确认。",
         checkOut: "请先填写签退时间，再执行经理确认。",
         grooming: "请先上传仪容仪表照片，再执行经理确认。",
-        opening: "请先上传上班前卫生照片，再执行经理确认。",
-        closing: "请先上传下班后卫生照片，再执行经理确认。",
-        finance: "请先填写财务/库存数据或上传相关图片，再执行经理确认。",
         receipt: "请先填写签收信息或上传签收照片，再执行经理确认。",
       };
+      if (isProcess) {
+        const definition = PROCESS_ITEM_DEFINITIONS.find((item) => item.key === String(kind));
+        setStatus(`请先补充“${definition?.shortTitle || kind}”的执行说明${definition?.requiresImages ? "并上传图片" : ""}，再执行经理确认。`, true);
+        return;
+      }
       setStatus(blockerMessages[kind] || "当前内容不足以执行经理确认。", true);
       return;
     }
     let approved = false;
     await withScopedWeeks((week, _username, source) => {
       const record = ensureDayOnWeek(week, day);
+      if (isProcess) {
+        approved = stampApproval(source, record.processes[kind].approval) || approved;
+        return;
+      }
       const targetMap = {
         checkIn: record.approvals.checkIn,
         checkOut: record.approvals.checkOut,
         grooming: record.approvals.grooming,
-        opening: record.approvals.opening,
-        closing: record.approvals.closing,
-        finance: record.approvals.finance,
         receipt: record.approvals.receipt,
       };
       approved = stampApproval(source, targetMap[kind] || emptyApproval()) || approved;
@@ -803,12 +1070,14 @@ function App() {
         checkIn: "签到时间",
         checkOut: "签退时间",
         grooming: "仪容仪表",
-        opening: "上班前卫生",
-        closing: "下班后卫生",
-        finance: "财务与库存",
         receipt: "货品签收",
       };
-      setStatus(`已确认：${labels[kind]}。`);
+      if (isProcess) {
+        const definition = PROCESS_ITEM_DEFINITIONS.find((item) => item.key === String(kind));
+        setStatus(`已确认：${definition?.title || kind}。`);
+      } else {
+        setStatus(`已确认：${labels[kind]}。`);
+      }
     }
   };
 
@@ -820,6 +1089,11 @@ function App() {
     let approved = false;
     await withScopedWeeks((week, _username, source) => {
       approved = stampApproval(source, week.handover.approval) || approved;
+      week.handover.confirmation = {
+        status: "已确认",
+        by: source.currentUser?.displayName || source.currentUser?.username || "",
+        time: new Date().toLocaleString(),
+      };
     });
     if (approved) setStatus("已确认：交接班。");
   };
@@ -968,6 +1242,99 @@ function App() {
     setStatus(`已删除账号：${target.displayName}（${target.username}）`);
   }, "删除账号失败，请稍后重试。");
 
+  const handleCreateTerm = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!trim(payload.code) || !trim(payload.name)) throw new Error("请完整填写学期编码和名称。");
+    await api.createTerm(payload);
+    await loadFoundationData("已新增学期。");
+  }, "新增学期失败，请稍后重试。");
+
+  const handleDeleteTerm = async (termId) => runAction(async () => {
+    if (!window.confirm("确认删除这个学期吗？相关课程批次将失去学期关联。")) return;
+    await api.deleteTerm(termId);
+    await loadFoundationData("已删除学期。");
+  }, "删除学期失败，请稍后重试。");
+
+  const handleCreateClassItem = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!trim(payload.code) || !trim(payload.name)) throw new Error("请完整填写班级编码和名称。");
+    await api.createClassItem(payload);
+    await loadFoundationData("已新增班级。");
+  }, "新增班级失败，请稍后重试。");
+
+  const handleDeleteClassItem = async (classId) => runAction(async () => {
+    if (!window.confirm("确认删除这个班级吗？相关课程批次中的班级关联也会一并移除。")) return;
+    await api.deleteClassItem(classId);
+    await loadFoundationData("已删除班级。");
+  }, "删除班级失败，请稍后重试。");
+
+  const handleCreateCourseBatch = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!trim(payload.name) || !trim(payload.courseName)) throw new Error("请完整填写课程批次和课程名称。");
+    await api.createCourseBatch(payload);
+    await loadFoundationData("已新增课程批次。");
+  }, "新增课程批次失败，请稍后重试。");
+
+  const handleDeleteCourseBatch = async (batchId) => runAction(async () => {
+    if (!window.confirm("确认删除这个课程批次吗？其下分组、排班和绑定关系也会一并删除。")) return;
+    await api.deleteCourseBatch(batchId);
+    await loadFoundationData("已删除课程批次。");
+  }, "删除课程批次失败，请稍后重试。");
+
+  const handleCreateGroup = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!payload.batchId || !trim(payload.name) || !payload.sequence) throw new Error("请完整填写分组信息。");
+    await api.createGroup(payload);
+    await loadFoundationData("已新增分组。");
+  }, "新增分组失败，请稍后重试。");
+
+  const handleDeleteGroup = async (groupId) => runAction(async () => {
+    if (!window.confirm("确认删除这个分组吗？该组成员绑定和相关排班会一并移除。")) return;
+    await api.deleteGroup(groupId);
+    await loadFoundationData("已删除分组。");
+  }, "删除分组失败，请稍后重试。");
+
+  const handleCreateGroupMember = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!payload.groupId || !trim(payload.studentUsername)) throw new Error("请选择分组和学生账号。");
+    await api.createGroupMember(payload);
+    await loadFoundationData("已绑定组员。");
+  }, "绑定组员失败，请稍后重试。");
+
+  const handleDeleteGroupMember = async (memberId) => runAction(async () => {
+    await api.deleteGroupMember(memberId);
+    await loadFoundationData("已解除组员绑定。");
+  }, "删除组员绑定失败，请稍后重试。");
+
+  const handleCreateScheduleAssignment = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!payload.batchId || !trim(payload.teachingWeek) || !payload.primaryGroupId) {
+      throw new Error("请至少填写课程批次、教学周次和本周轮值组。");
+    }
+    await api.createScheduleAssignment(payload);
+    await loadFoundationData("已新增排班。");
+  }, "新增排班失败，请稍后重试。");
+
+  const handleDeleteScheduleAssignment = async (assignmentId) => runAction(async () => {
+    await api.deleteScheduleAssignment(assignmentId);
+    await loadFoundationData("已删除排班。");
+  }, "删除排班失败，请稍后重试。");
+
+  const handleCreateResource = async (payload) => runAction(async () => {
+    if (!canManageFoundation()) throw new Error("只有 P1 账号可以维护基础配置。");
+    if (!trim(payload.title) || !trim(payload.category)) throw new Error("请填写资源标题和分类。");
+    if (!trim(payload.externalUrl) && !trim(payload.fileData)) {
+      throw new Error("请至少提供一个外部链接或上传一个文件。");
+    }
+    await api.createResource(payload);
+    await loadFoundationData("已新增资源。");
+  }, "新增资源失败，请稍后重试。");
+
+  const handleDeleteResource = async (resourceId) => runAction(async () => {
+    await api.deleteResource(resourceId);
+    await loadFoundationData("已删除资源。");
+  }, "删除资源失败，请稍后重试。");
+
   const generateReportHtml = () => {
     if (!currentWeek) return "";
     return buildReportHtml({
@@ -1012,13 +1379,13 @@ function App() {
     );
   }
 
-  const showEmptyWeekState = app.activeTab !== "accounts" && !currentWeek;
+  const showEmptyWeekState = !STANDALONE_TABS.has(app.activeTab) && !currentWeek;
   const studentUsers = getStudentUsers(app.users);
   const resolvedScopeUser = currentUser
     ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
     : "";
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
-  const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
+  const activeTabItem = visibleTabs.find((item) => item.key === app.activeTab) || visibleTabs[0];
   const publicNavItems = ["系统总览", "轮值实训", "运营执行", "经理审核", "报告导出"];
   const heroStats = app.currentUser
     ? [
@@ -1092,7 +1459,7 @@ function App() {
             </div>
 
             {app.currentUser ? (
-              <TabNav items={TAB_ITEMS} activeTab={app.activeTab} onChange={handleTabChange} />
+              <TabNav items={visibleTabs} activeTab={app.activeTab} onChange={handleTabChange} />
             ) : (
               <nav className="marketing-nav">
                 {publicNavItems.map((item, index) => (
@@ -1237,10 +1604,16 @@ function App() {
                     approvalText={renderApprovalText(currentWeek.creative.approval)}
                     editable={canEditCurrentScopeData()}
                     approveDisabled={creativeApproveDisabled}
-                    onFieldChange={handleCreativeFieldChange}
+                    onSurveyChange={handleCreativeSurveyChange}
+                    onAddSurveyImages={addCreativeSurveyImages}
+                    onDrinkChange={handleCreativeDrinkChange}
+                    onAddDrinkImages={addCreativeDrinkImages}
                     onSave={saveCreative}
                     onAddPoster={addCreativePoster}
                     onClearPoster={clearCreativePoster}
+                    onProcurementItemChange={handleCreativeProcurementItemChange}
+                    onAddProcurementItem={handleAddCreativeProcurementItem}
+                    onRemoveProcurementItem={handleRemoveCreativeProcurementItem}
                     onApprove={approveCreative}
                   />
                 ) : null}
@@ -1254,16 +1627,24 @@ function App() {
                       checkIn: renderApprovalText(currentDayData.approvals.checkIn),
                       checkOut: renderApprovalText(currentDayData.approvals.checkOut),
                       grooming: renderApprovalText(currentDayData.approvals.grooming),
-                      opening: renderApprovalText(currentDayData.approvals.opening),
-                      closing: renderApprovalText(currentDayData.approvals.closing),
-                      finance: renderApprovalText(currentDayData.approvals.finance),
                       receipt: renderApprovalText(currentDayData.approvals.receipt),
+                      processes: Object.fromEntries(
+                        PROCESS_ITEM_DEFINITIONS.map((item) => [
+                          item.key,
+                          renderApprovalText(currentDayData.processes[item.key].approval),
+                        ]),
+                      ),
                     }}
                     editable={canEditCurrentScopeData()}
                     approveDisabled={dailyApproveDisabled}
                     onDateChange={handleDailyDateChange}
-                    onFieldChange={handleDailyFieldChange}
-                    onAddImages={addDailyImages}
+                    onBasicChange={handleDailyBasicChange}
+                    onProcessChange={handleDailyProcessChange}
+                    onAddProcessImages={addDailyProcessImages}
+                    onAddGroomingImages={addDailyGroomingImages}
+                    onReceiptChange={handleDailyReceiptChange}
+                    onAddReceiptImages={addDailyReceiptImages}
+                    onReportChange={handleDailyReportChange}
                     onSave={saveDaily}
                     onApprove={approveDaily}
                   />
@@ -1315,6 +1696,45 @@ function App() {
                     onDeleteUser={handleDeleteUser}
                     canDeleteSelected={canManageAccounts() && Boolean(app.editUserId) && app.editUserId !== currentUser?.username}
                     deleteHint={deleteHint}
+                  />
+                ) : null}
+
+                {app.activeTab === "courseConfig" ? (
+                  <CourseConfigTab
+                    terms={foundation.terms}
+                    classes={foundation.classes}
+                    courseBatches={foundation.courseBatches}
+                    onCreateTerm={handleCreateTerm}
+                    onDeleteTerm={handleDeleteTerm}
+                    onCreateClass={handleCreateClassItem}
+                    onDeleteClass={handleDeleteClassItem}
+                    onCreateBatch={handleCreateCourseBatch}
+                    onDeleteBatch={handleDeleteCourseBatch}
+                  />
+                ) : null}
+
+                {app.activeTab === "scheduling" ? (
+                  <SchedulingTab
+                    courseBatches={foundation.courseBatches}
+                    groups={foundation.groups}
+                    groupMembers={foundation.groupMembers}
+                    scheduleAssignments={foundation.scheduleAssignments}
+                    students={studentUsers}
+                    onCreateGroup={handleCreateGroup}
+                    onDeleteGroup={handleDeleteGroup}
+                    onCreateGroupMember={handleCreateGroupMember}
+                    onDeleteGroupMember={handleDeleteGroupMember}
+                    onCreateScheduleAssignment={handleCreateScheduleAssignment}
+                    onDeleteScheduleAssignment={handleDeleteScheduleAssignment}
+                  />
+                ) : null}
+
+                {app.activeTab === "resources" ? (
+                  <ResourcesTab
+                    resources={foundation.resources}
+                    editable={canManageFoundation()}
+                    onCreateResource={handleCreateResource}
+                    onDeleteResource={handleDeleteResource}
                   />
                 ) : null}
               </div>

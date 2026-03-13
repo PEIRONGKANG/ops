@@ -1,4 +1,4 @@
-import { ensureDayOnWeek, escapeHtml, getWeekDates, renderApprovalText, trim } from "./reportHelpers";
+import { ensureDayOnWeek, ensureWeekStructure, escapeHtml, getWeekDates, PROCESS_ITEM_DEFINITIONS, renderApprovalText, trim } from "./reportHelpers";
 
 function formatRichText(value, fallback = "-") {
   const safe = escapeHtml(value);
@@ -101,62 +101,126 @@ function renderReportGallery(images, emptyKind, emptyText, large = false) {
   return `<div class="empty-gallery"><img src="${reportArt(emptyKind, "AI视觉补位", emptyText)}" class="empty-art" /><div class="empty-copy">${escapeHtml(emptyText)}</div></div>`;
 }
 
+function renderDrinkSummary(drink, index) {
+  return `
+    <div class="sub-card">
+      <h4>创意饮品 ${index + 1}${drink.name ? ` · ${escapeHtml(drink.name)}` : ""}</h4>
+      <p><b>类型：</b>${formatRichText(drink.type)}</p>
+      <p><b>创意来源：</b>${formatRichText(drink.inspiration)}</p>
+      <p><b>原料清单：</b>${formatRichText(drink.ingredients)}</p>
+      <p><b>配方比例：</b>${formatRichText(drink.ratio)}</p>
+      <p><b>制作步骤：</b>${formatRichText(drink.steps)}</p>
+      <p><b>特殊物料：</b>${formatRichText(drink.specialMaterials)}</p>
+      <p><b>备注：</b>${formatRichText(drink.notes)}</p>
+      <div class="gallery-pair">
+        <div>
+          <h5>成品图</h5>
+          ${renderReportGallery(drink.productImages, "creative", "未上传成品图，已使用 AI 饮品视觉示意。")}
+        </div>
+        <div>
+          <h5>海报图</h5>
+          ${renderReportGallery(drink.posterImages, "creative", "未上传海报图，已使用 AI 海报视觉示意。")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProcurementTable(items) {
+  const validItems = (items || []).filter((item) => Object.values(item || {}).some((value) => trim(value)));
+  if (!validItems.length) {
+    return `<p>-</p>`;
+  }
+
+  const rows = validItems.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.name || "-")}</td>
+      <td>${escapeHtml(item.spec || "-")}</td>
+      <td>${escapeHtml(item.quantity || "-")}</td>
+      <td>${escapeHtml(item.unitPrice || "-")}</td>
+      <td>${escapeHtml(item.subtotal || "-")}</td>
+      <td>${escapeHtml(item.notes || "-")}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>名称</th>
+          <th>规格</th>
+          <th>数量</th>
+          <th>单价</th>
+          <th>金额小计</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
 export function buildReportHtml({ week, group, scopeUser }) {
-  const dates = getWeekDates(week.startDate);
+  const normalizedWeek = ensureWeekStructure(week, week?.startDate);
+  const dates = getWeekDates(normalizedWeek.startDate);
   const teachingWeekText = trim(group?.teachingWeek) || "未设置";
-  const studentNames = [week.members.a, week.members.b].map(trim).filter(Boolean);
+  const studentNames = [normalizedWeek.members.a, normalizedWeek.members.b].map(trim).filter(Boolean);
   const reportOwners = studentNames.length ? studentNames.join("、") : escapeHtml(scopeUser || "本周学员");
-  const coverImage = reportArt("cover", "饮品实训周工作报告", "门店饮品设计与运营实践课程成果留痕");
+  const coverImage = reportArt("cover", "实践周实训手册", "门店创意饮品策划与运营实践");
+
+  const creativeDrinksHtml = normalizedWeek.creative.drinks.map((drink, index) => renderDrinkSummary(drink, index)).join("");
+  const inheritedDrinksHtml = (normalizedWeek.handover.inheritedDrinks || []).map((drink, index) => renderDrinkSummary(drink, index)).join("");
 
   let dailyHtml = "";
   dates.forEach((date, index) => {
-    ensureDayOnWeek(week, date);
-    const day = week.daily[date];
-    const financeSummary = `营业额 ${escapeHtml(day.sales || "0")} 元 / 成本 ${escapeHtml(day.cost || "0")} 元 / 损耗 ${escapeHtml(day.lossAmount || "0")} 元`;
+    ensureDayOnWeek(normalizedWeek, date);
+    const day = normalizedWeek.daily[date];
+    const processHtml = PROCESS_ITEM_DEFINITIONS.map((item) => `
+      <div class="sub-card">
+        <h4>${escapeHtml(item.key)} ${escapeHtml(item.title)}</h4>
+        <p><b>标准提示：</b>${formatRichText(item.guidance)}</p>
+        <p><b>执行说明：</b>${formatRichText(day.processes[item.key].execution)}</p>
+        ${renderReportGallery(day.processes[item.key].images, "daily", `未上传${item.shortTitle}图片，已使用 AI 场景示意。`)}
+        <div class="approval">经理确认：${escapeHtml(renderApprovalText(day.processes[item.key].approval))}</div>
+      </div>
+    `).join("");
     dailyHtml += `
       <section class="day-card">
         <div class="day-head">
           <div>
-            <div class="eyebrow">Daily Operations</div>
-            <h3>${escapeHtml(date)} ${index === 7 ? "次周三交接日" : "日常运营日"}</h3>
+            <div class="eyebrow">Daily Practice</div>
+            <h3>${escapeHtml(date)} ${index === 7 ? "次周三交接日" : "实训执行日"}</h3>
           </div>
           <span class="chip">${index === 7 ? "交接收尾" : "执行记录"}</span>
         </div>
         <div class="metric-row">
           <div class="metric-box"><span>签到</span><strong>${escapeHtml(day.checkIn || "-")}</strong><em>${escapeHtml(renderApprovalText(day.approvals.checkIn))}</em></div>
           <div class="metric-box"><span>签退</span><strong>${escapeHtml(day.checkOut || "-")}</strong><em>${escapeHtml(renderApprovalText(day.approvals.checkOut))}</em></div>
-          <div class="metric-box"><span>财务摘要</span><strong>${escapeHtml(financeSummary)}</strong><em>运营数据留痕</em></div>
+          <div class="metric-box"><span>经营统计</span><strong>营业额 ${escapeHtml(day.sales || "0")} / 成本 ${escapeHtml(day.cost || "0")} / 损耗 ${escapeHtml(day.lossAmount || "0")}</strong><em>当日经营数据</em></div>
         </div>
         <div class="sub-card">
-          <h4>出勤说明</h4>
+          <h4>出勤与异常说明</h4>
           <p>${formatRichText(day.attendanceNote)}</p>
+          <p><b>异常补充：</b>${formatRichText(day.exceptionNote)}</p>
         </div>
         <div class="sub-card">
           <h4>仪容仪表检查</h4>
           ${renderReportGallery(day.grooming, "daily", "未上传仪容仪表照片，已用 AI 检查场景图示意。")}
+          <div class="approval">经理确认：${escapeHtml(renderApprovalText(day.approvals.grooming))}</div>
         </div>
-        <div class="sub-card">
-          <h4>上班前卫生（公区/吧台）</h4>
-          ${renderReportGallery([...day.openingPublic, ...day.openingBar], "daily", "未上传开档卫生图片，已用 AI 营运场景图示意。")}
-        </div>
-        <div class="sub-card">
-          <h4>下班后卫生（公区/吧台）</h4>
-          ${renderReportGallery([...day.closingPublic, ...day.closingBar], "daily", "未上传闭店卫生图片，已用 AI 营运场景图示意。")}
-        </div>
-        <div class="sub-card">
-          <h4>损耗与库存</h4>
-          <p><b>损耗说明：</b>${formatRichText(day.lossDesc)}</p>
-          <p><b>库存说明：</b>${formatRichText(day.inventoryDesc)}</p>
-          ${renderReportGallery([...day.lossImgs, ...day.inventoryImgs], "gallery", "未上传损耗或库存图片，已用 AI 物料陈列图示意。")}
-        </div>
+        ${processHtml}
         <div class="sub-card">
           <h4>签收记录</h4>
           <p>${formatRichText(day.receiptDesc)}</p>
           ${renderReportGallery(day.receiptImgs, "handover", "未上传签收照片，已用 AI 交接签收图示意。")}
+          <div class="approval">经理确认：${escapeHtml(renderApprovalText(day.approvals.receipt))}</div>
         </div>
         <div class="sub-card">
-          <h4>当日补充说明</h4>
-          <p>${formatRichText(day.notes)}</p>
+          <h4>23 每日工作报表</h4>
+          <p><b>工作概述：</b>${formatRichText(day.dailyReport.summary)}</p>
+          <p><b>当日亮点：</b>${formatRichText(day.dailyReport.highlights)}</p>
+          <p><b>问题与异常：</b>${formatRichText(day.dailyReport.issues)}</p>
+          <p><b>次日跟进：</b>${formatRichText(day.dailyReport.followUp)}</p>
         </div>
       </section>
     `;
@@ -166,7 +230,7 @@ export function buildReportHtml({ week, group, scopeUser }) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>饮品实训周工作报告</title>
+  <title>实践周实训手册</title>
   <style>
     body { margin: 0; padding: 0; background: #f5efe5; color: #2b241d; font-family: "Microsoft YaHei", "微软雅黑", sans-serif; line-height: 1.7; }
     .report { max-width: 980px; margin: 0 auto; padding: 24px; }
@@ -208,6 +272,11 @@ export function buildReportHtml({ week, group, scopeUser }) {
     .metric-box strong { display: block; font-size: 18px; color: #2f4130; margin-bottom: 6px; }
     .metric-box em { font-style: normal; color: #65716a; font-size: 12px; }
     .sub-card { margin-top: 12px; padding: 14px 16px; border-radius: 16px; background: #fffaf4; border: 1px solid #eadbc7; }
+    .gallery-pair { margin-top: 10px; }
+    .gallery-pair h5 { margin: 0 0 8px; font-size: 14px; color: #6d5b49; }
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    .report-table th, .report-table td { border: 1px solid #e1d1b8; padding: 8px 10px; text-align: left; vertical-align: top; }
+    .report-table th { background: #f8f1e7; color: #5f4627; }
     .footer-note { margin-top: 24px; color: #7f715f; font-size: 12px; text-align: right; }
     .page-break { page-break-before: always; }
   </style>
@@ -217,46 +286,63 @@ export function buildReportHtml({ week, group, scopeUser }) {
     <section class="cover">
       <img src="${coverImage}" alt="AI封面视觉" />
       <div class="cover-body">
-        <div class="eyebrow">Practical Training Weekly Portfolio</div>
-        <h1>饮品实训周工作报告</h1>
-        <p class="lead">围绕门店饮品设计与运营实践课程，对创意策划、每日执行、交接管理与复盘成长进行一体化留痕，形成可归档、可展示、可复盘的周度成果文档。</p>
+        <div class="eyebrow">Practical Training Manual</div>
+        <h1>实践周实训手册</h1>
+        <p class="lead">围绕准备期调研、两款创意饮品设计、13-23 项过程执行、交接传承与总结反思，形成一份可归档的个人实训成果文档。</p>
         <div class="meta-wrap">
           <div class="meta-card"><span>教学周次</span><strong>${escapeHtml(teachingWeekText)}</strong></div>
-          <div class="meta-card"><span>轮值周期</span><strong>${escapeHtml(week.startDate)} 至 ${escapeHtml(week.endDate)}</strong></div>
+          <div class="meta-card"><span>轮值周期</span><strong>${escapeHtml(normalizedWeek.startDate)} 至 ${escapeHtml(normalizedWeek.endDate)}</strong></div>
           <div class="meta-card"><span>本组成员</span><strong>${escapeHtml(reportOwners)}</strong></div>
-          <div class="meta-card"><span>下一组交接人</span><strong>${escapeHtml(week.nextGroup || "待补充")}</strong></div>
+          <div class="meta-card"><span>下一组交接人</span><strong>${escapeHtml(normalizedWeek.nextGroup || "待补充")}</strong></div>
         </div>
       </div>
     </section>
 
     <section class="section">
-      <img src="${reportArt("creative", "创意饮品策划提交", "从市场洞察到海报表达，沉淀周三新品策划成果")}" class="section-banner" alt="AI创意策划插图" />
-      <h2>一、周三创意饮品策划提交</h2>
+      <img src="${reportArt("creative", "准备期提交", "问卷调研、两款创意饮品、物料与海报")}" class="section-banner" alt="AI创意策划插图" />
+      <h2>一、准备期提交</h2>
       <div class="summary-box">
-        <p><b>行销计划：</b>${formatRichText(week.creative.marketing)}</p>
-        <p><b>饮品配方与制作方法：</b>${formatRichText(week.creative.recipe)}</p>
-        <p><b>特殊物料采购计划：</b>${formatRichText(week.creative.procurement)}</p>
+        <p><b>问卷设计：</b>${formatRichText(normalizedWeek.creative.survey.questions)}</p>
+        <p><b>样本量：</b>${formatRichText(normalizedWeek.creative.survey.sampleSize)}</p>
+        <p><b>结果摘要：</b>${formatRichText(normalizedWeek.creative.survey.resultSummary)}</p>
+        <p><b>分析结论：</b>${formatRichText(normalizedWeek.creative.survey.analysis)}</p>
+      </div>
+      <h4>调研截图</h4>
+      ${renderReportGallery(normalizedWeek.creative.survey.resultImages, "creative", "未上传调研截图，已使用 AI 调研视觉示意。")}
+      ${creativeDrinksHtml}
+      <div class="sub-card">
+        <h4>特殊物料清单</h4>
+        ${renderProcurementTable(normalizedWeek.creative.procurementItems)}
       </div>
       <h4>创意海报展示</h4>
-      ${renderReportGallery(week.creative.posters, "creative", "本周未上传创意海报，已使用 AI 新品海报视觉示意。", true)}
-      <div class="approval">经理确认：${escapeHtml(renderApprovalText(week.creative.approval))}</div>
+      ${renderReportGallery(normalizedWeek.creative.posters, "creative", "本周未上传创意海报，已使用 AI 新品海报视觉示意。", true)}
+      <div class="approval">经理确认：${escapeHtml(renderApprovalText(normalizedWeek.creative.approval))}</div>
     </section>
 
     <section class="section page-break">
-      <img src="${reportArt("daily", "每日打卡与运营执行", "按日沉淀营运动作、卫生留痕、财务记录与签收情况")}" class="section-banner" alt="AI每日运营插图" />
-      <h2>二、每日打卡与运营执行</h2>
+      <img src="${reportArt("daily", "13-23 项过程管理", "按日沉淀门店运营过程、经营数据与工作报表")}" class="section-banner" alt="AI每日运营插图" />
+      <h2>二、13-23 项过程管理</h2>
       ${dailyHtml}
     </section>
 
     <section class="section page-break">
-      <img src="${reportArt("handover", "交接班记录", "将经验、问题与改进建议顺畅移交给下一组")}" class="section-banner" alt="AI交接班插图" />
-      <h2>三、交接班记录</h2>
-      <div class="summary-box">
-        <p><b>交接说明：</b>${formatRichText(week.handover.summary)}</p>
-        <p><b>交接对象：</b>${formatRichText(week.handover.nextGroup || week.nextGroup)}</p>
+      <img src="${reportArt("handover", "交接传承", "上一组配方继承、交接说明与确认留痕")}" class="section-banner" alt="AI交接班插图" />
+      <h2>三、交接传承</h2>
+      <div class="sub-card">
+        <h4>上一组可继承内容</h4>
+        <p><b>来源批次：</b>${formatRichText(normalizedWeek.handover.inheritedFrom?.batchName)}</p>
+        <p><b>来源小组：</b>${formatRichText(normalizedWeek.handover.inheritedFrom?.groupName)}</p>
+        <p><b>来源周次：</b>${formatRichText(normalizedWeek.handover.inheritedFrom?.weekStartDate)}</p>
+        <p><b>来源组员：</b>${formatRichText(normalizedWeek.handover.inheritedFrom?.studentName)}</p>
       </div>
-      ${renderReportGallery(week.handover.photos, "handover", "未上传交接现场照片，已使用 AI 交接场景图示意。", true)}
-      <div class="approval">经理确认：${escapeHtml(renderApprovalText(week.handover.approval))}</div>
+      ${inheritedDrinksHtml || `<div class="sub-card"><p>未找到上一组可继承的创意饮品数据。</p></div>`}
+      <div class="summary-box">
+        <p><b>交接说明：</b>${formatRichText(normalizedWeek.handover.summary)}</p>
+        <p><b>交接对象：</b>${formatRichText(normalizedWeek.handover.nextGroup || normalizedWeek.nextGroup)}</p>
+      </div>
+      ${renderReportGallery(normalizedWeek.handover.photos, "handover", "未上传交接现场照片，已使用 AI 交接场景图示意。", true)}
+      <div class="approval">交接确认：${escapeHtml(normalizedWeek.handover.confirmation?.status || "待确认")} ${escapeHtml(normalizedWeek.handover.confirmation?.by || "")} ${escapeHtml(normalizedWeek.handover.confirmation?.time || "")}</div>
+      <div class="approval">经理确认：${escapeHtml(renderApprovalText(normalizedWeek.handover.approval))}</div>
     </section>
 
     <section class="section">
@@ -264,21 +350,21 @@ export function buildReportHtml({ week, group, scopeUser }) {
       <h2>四、总结与反思</h2>
       <div class="sub-card">
         <h4>学员A自评与收获</h4>
-        <p>${formatRichText(week.reflection.a)}</p>
+        <p>${formatRichText(normalizedWeek.reflection.a)}</p>
       </div>
       <div class="sub-card">
         <h4>学员B自评与收获</h4>
-        <p>${formatRichText(week.reflection.b)}</p>
+        <p>${formatRichText(normalizedWeek.reflection.b)}</p>
       </div>
       <div class="sub-card">
         <h4>门店运营优化与建议方案</h4>
-        <p>${formatRichText(week.reflection.optPlan)}</p>
+        <p>${formatRichText(normalizedWeek.reflection.optPlan)}</p>
       </div>
       <div class="sub-card">
         <h4>运营经理结语</h4>
-        <p>${formatRichText(week.reflection.managerComment)}</p>
+        <p>${formatRichText(normalizedWeek.reflection.managerComment)}</p>
       </div>
-      <div class="approval">最终确认：${escapeHtml(renderApprovalText(week.reflection.approval))}</div>
+      <div class="approval">最终确认：${escapeHtml(renderApprovalText(normalizedWeek.reflection.approval))}</div>
     </section>
 
     <p class="footer-note">导出时间：${escapeHtml(new Date().toLocaleString())}</p>

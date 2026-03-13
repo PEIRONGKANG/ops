@@ -11,3 +11,4 @@ database-backups/
 _deploy_test/
 *.pyc
 __pycache__/
+frontend/.npm-cache

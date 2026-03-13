@@ -1,11 +1,23 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+let actorUsername = "";
+
+function buildHeaders(options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+  };
+
+  if (!("Content-Type" in headers) && options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (actorUsername) {
+    headers["X-Actor-Username"] = actorUsername;
+  }
+  return headers;
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers: buildHeaders(options),
     ...options,
   });
 
@@ -25,6 +37,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  setActor(username) {
+    actorUsername = username || "";
+  },
   health() {
     return request("/health");
   },
@@ -73,6 +88,86 @@ export const api = {
     return request(`/week-groups/${encodeURIComponent(startDate)}`, {
       method: "PUT",
       body: JSON.stringify({ group }),
+    });
+  },
+  foundationBootstrap() {
+    return request("/foundation/bootstrap");
+  },
+  createTerm(term) {
+    return request("/terms", {
+      method: "POST",
+      body: JSON.stringify(term),
+    });
+  },
+  deleteTerm(termId) {
+    return request(`/terms/${termId}`, {
+      method: "DELETE",
+    });
+  },
+  createClassItem(classItem) {
+    return request("/classes", {
+      method: "POST",
+      body: JSON.stringify(classItem),
+    });
+  },
+  deleteClassItem(classId) {
+    return request(`/classes/${classId}`, {
+      method: "DELETE",
+    });
+  },
+  createCourseBatch(courseBatch) {
+    return request("/course-batches", {
+      method: "POST",
+      body: JSON.stringify(courseBatch),
+    });
+  },
+  deleteCourseBatch(batchId) {
+    return request(`/course-batches/${batchId}`, {
+      method: "DELETE",
+    });
+  },
+  createGroup(group) {
+    return request("/groups", {
+      method: "POST",
+      body: JSON.stringify(group),
+    });
+  },
+  deleteGroup(groupId) {
+    return request(`/groups/${groupId}`, {
+      method: "DELETE",
+    });
+  },
+  createGroupMember(groupMember) {
+    return request("/group-members", {
+      method: "POST",
+      body: JSON.stringify(groupMember),
+    });
+  },
+  deleteGroupMember(memberId) {
+    return request(`/group-members/${memberId}`, {
+      method: "DELETE",
+    });
+  },
+  createScheduleAssignment(scheduleAssignment) {
+    return request("/schedule-assignments", {
+      method: "POST",
+      body: JSON.stringify(scheduleAssignment),
+    });
+  },
+  deleteScheduleAssignment(assignmentId) {
+    return request(`/schedule-assignments/${assignmentId}`, {
+      method: "DELETE",
+    });
+  },
+  createResource(resource) {
+    return request("/resources", {
+      method: "POST",
+      body: JSON.stringify(resource),
+    });
+  },
+  deleteResource(resourceId) {
+    return request(`/resources/${resourceId}`, {
+      method: "DELETE",
     });
   },
 };
