@@ -31,7 +31,6 @@ import {
   buildTeachingWeekOptions,
   createEmptyWeek,
   createEmptyWeekGroup,
-  emptyApproval,
   ensureDayOnWeek,
   filesToDataUrls,
   findStudentByToken,
@@ -48,6 +47,14 @@ import {
   todayISO,
   trim,
 } from "./lib/core";
+import {
+  canEditDailyField,
+  canSubmitManagerReview,
+  canUploadDailyImages,
+  getDailyRoleCapabilities,
+  renderManagerReviewText,
+  submitManagerReview,
+} from "./lib/dailyWorkflow.js";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
 import { api } from "./services/api";
 
@@ -110,18 +117,6 @@ function hasText(...values) {
 
 function hasImages(images) {
   return Array.isArray(images) && images.length > 0;
-}
-
-function getDailyApprovalDefaults() {
-  return {
-    checkIn: true,
-    checkOut: true,
-    grooming: true,
-    opening: true,
-    closing: true,
-    finance: true,
-    receipt: true,
-  };
 }
 
 function App() {
@@ -438,6 +433,7 @@ function App() {
   const currentWeek = app.currentWeekKey ? app.weeks[app.currentWeekKey] : null;
   const currentWeekGroup = currentWeek ? app.weekGroups[currentWeek.startDate] || createEmptyWeekGroup() : createEmptyWeekGroup();
   const currentDayData = currentWeek && app.currentDay ? ensureDayOnWeek(currentWeek, app.currentDay) : null;
+  const dailyRole = getDailyRoleCapabilities(currentUser?.level);
 
   const sessionInfo = (() => {
     if (!currentUser) return "当前未登录。";
@@ -463,21 +459,10 @@ function App() {
   const creativeApproveDisabled = !canApprove() || !currentWeek
     || !(hasText(currentWeek.creative.marketing, currentWeek.creative.recipe, currentWeek.creative.procurement) || hasImages(currentWeek.creative.posters));
 
-  const dailyApproveDisabled = currentDayData
-    ? {
-      checkIn: !canApprove() || !trim(currentDayData.checkIn),
-      checkOut: !canApprove() || !trim(currentDayData.checkOut),
-      grooming: !canApprove() || !hasImages(currentDayData.grooming),
-      opening: !canApprove() || !(hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar)),
-      closing: !canApprove() || !(hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar)),
-      finance: !canApprove() || !(
-        hasText(currentDayData.sales, currentDayData.cost, currentDayData.lossAmount, currentDayData.lossDesc, currentDayData.inventoryDesc)
-        || hasImages(currentDayData.lossImgs)
-        || hasImages(currentDayData.inventoryImgs)
-      ),
-      receipt: !canApprove() || !(hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs)),
-    }
-    : getDailyApprovalDefaults();
+  const dailyManagerReviewDisabled = !currentDayData || !canSubmitManagerReview(currentUser?.level, currentDayData);
+  const dailyManagerReviewStatus = currentDayData
+    ? renderManagerReviewText(currentDayData.managerReview)
+    : "待 P2 确认";
 
   const handoverApproveDisabled = !canApprove() || !currentWeek
     || !(hasText(currentWeek.handover.summary, currentWeek.handover.nextGroup || currentWeek.nextGroup) || hasImages(currentWeek.handover.photos));
@@ -656,7 +641,17 @@ function App() {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week || !draft.currentDay) return;
+      if (!canEditDailyField(draft.currentUser?.level, field)) return;
       ensureDayOnWeek(week, draft.currentDay)[field] = value;
+    });
+  };
+
+  const handleManagerReviewFieldChange = (field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week || !draft.currentDay) return;
+      if (!getDailyRoleCapabilities(draft.currentUser?.level).canEditManagerReview) return;
+      ensureDayOnWeek(week, draft.currentDay).managerReview[field] = value;
     });
   };
 
@@ -742,6 +737,10 @@ function App() {
   const addDailyImages = async (kind, files) => {
     const day = stateRef.current.currentDay;
     if (!day) return;
+    if (!canUploadDailyImages(stateRef.current.currentUser?.level)) {
+      setStatus("P2 仅查看 P3 上传的执行照片，不需要新增图片。", true);
+      return;
+    }
     const urls = await filesToDataUrls(files);
     if (!urls.length) return;
     const next = cloneValue(stateRef.current);
@@ -801,51 +800,25 @@ function App() {
     if (approved) setStatus("已确认：周三策划提交。");
   };
 
-  const approveDaily = async (kind) => {
+  const submitDailyReview = async () => {
     const day = stateRef.current.currentDay;
     if (!day) {
-      setStatus("请先选择日期后再执行经理确认。", true);
+      setStatus("请先选择日期后再提交 P2 确认。", true);
       return;
     }
-    if (dailyApproveDisabled[kind]) {
-      const blockerMessages = {
-        checkIn: "请先填写签到时间，再执行经理确认。",
-        checkOut: "请先填写签退时间，再执行经理确认。",
-        grooming: "请先上传仪容仪表照片，再执行经理确认。",
-        opening: "请先上传上班前卫生照片，再执行经理确认。",
-        closing: "请先上传下班后卫生照片，再执行经理确认。",
-        finance: "请先填写财务/库存数据或上传相关图片，再执行经理确认。",
-        receipt: "请先填写签收信息或上传签收照片，再执行经理确认。",
-      };
-      setStatus(blockerMessages[kind] || "当前内容不足以执行经理确认。", true);
+    const actor = getCurrentUserRecord();
+    const sourceWeek = requireCurrentWeek("请先加载本周后再提交 P2 确认。");
+    if (!sourceWeek || !actor) return;
+    const sourceDay = ensureDayOnWeek(sourceWeek, day);
+    if (!canSubmitManagerReview(actor.level, sourceDay)) {
+      setStatus("请先补全 P2 确认说明，并确认 P3 已提交打卡、卫生、财务库存与签收相关内容。", true);
       return;
     }
-    let approved = false;
     await withScopedWeeks((week, _username, source) => {
       const record = ensureDayOnWeek(week, day);
-      const targetMap = {
-        checkIn: record.approvals.checkIn,
-        checkOut: record.approvals.checkOut,
-        grooming: record.approvals.grooming,
-        opening: record.approvals.opening,
-        closing: record.approvals.closing,
-        finance: record.approvals.finance,
-        receipt: record.approvals.receipt,
-      };
-      approved = stampApproval(source, targetMap[kind] || emptyApproval()) || approved;
+      submitManagerReview(record, getCurrentUserRecord(source), new Date().toLocaleString());
     });
-    if (approved) {
-      const labels = {
-        checkIn: "签到时间",
-        checkOut: "签退时间",
-        grooming: "仪容仪表",
-        opening: "上班前卫生",
-        closing: "下班后卫生",
-        finance: "财务与库存",
-        receipt: "货品签收",
-      };
-      setStatus(`已确认：${labels[kind]}。`);
-    }
+    setStatus(`已提交：${day} 的 P2 确认。`);
   };
 
   const approveHandover = async () => {
@@ -1073,7 +1046,7 @@ function App() {
       {
         key: "daily",
         title: "每日执行",
-        state: currentDayData ? renderApprovalText(currentDayData.approvals.finance) : "待运营经理确认",
+        state: dailyManagerReviewStatus,
         summary: Object.keys(currentWeek.daily || {}).length
           ? `已记录 ${Object.keys(currentWeek.daily).length} 天`
           : "尚未录入每日执行",
@@ -1425,22 +1398,18 @@ function App() {
               dailyDateOptions={dailyDateOptions}
               currentDay={app.currentDay}
               data={currentDayData}
-              approvals={{
-                checkIn: renderApprovalText(currentDayData.approvals.checkIn),
-                checkOut: renderApprovalText(currentDayData.approvals.checkOut),
-                grooming: renderApprovalText(currentDayData.approvals.grooming),
-                opening: renderApprovalText(currentDayData.approvals.opening),
-                closing: renderApprovalText(currentDayData.approvals.closing),
-                finance: renderApprovalText(currentDayData.approvals.finance),
-                receipt: renderApprovalText(currentDayData.approvals.receipt),
-              }}
-              editable={canEditCurrentScopeData()}
-              approveDisabled={dailyApproveDisabled}
+              rawEditable={dailyRole.canEditRawFields}
+              canUploadImages={dailyRole.canUploadImages}
+              canEditManagerReview={dailyRole.canEditManagerReview}
+              canSaveDaily={currentUser?.level === "P3"}
+              managerReviewStatus={dailyManagerReviewStatus}
+              managerSubmitDisabled={dailyManagerReviewDisabled}
               onDateChange={handleDailyDateChange}
               onFieldChange={handleDailyFieldChange}
+              onManagerReviewFieldChange={handleManagerReviewFieldChange}
               onAddImages={addDailyImages}
               onSave={saveDaily}
-              onApprove={approveDaily}
+              onSubmitManagerReview={submitDailyReview}
             />
           ) : null}
 

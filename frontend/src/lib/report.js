@@ -1,4 +1,5 @@
 import { ensureDayOnWeek, escapeHtml, getWeekDates, renderApprovalText, trim } from "./reportHelpers";
+import { renderManagerReviewText } from "./dailyWorkflow.js";
 
 function formatRichText(value, fallback = "-") {
   const safe = escapeHtml(value);
@@ -113,6 +114,7 @@ export function buildReportHtml({ week, group, scopeUser }) {
     ensureDayOnWeek(week, date);
     const day = week.daily[date];
     const financeSummary = `营业额 ${escapeHtml(day.sales || "0")} 元 / 成本 ${escapeHtml(day.cost || "0")} 元 / 损耗 ${escapeHtml(day.lossAmount || "0")} 元`;
+    const managerReviewStatus = escapeHtml(renderManagerReviewText(day.managerReview));
     dailyHtml += `
       <section class="day-card">
         <div class="day-head">
@@ -123,8 +125,8 @@ export function buildReportHtml({ week, group, scopeUser }) {
           <span class="chip">${index === 7 ? "交接收尾" : "执行记录"}</span>
         </div>
         <div class="metric-row">
-          <div class="metric-box"><span>签到</span><strong>${escapeHtml(day.checkIn || "-")}</strong><em>${escapeHtml(renderApprovalText(day.approvals.checkIn))}</em></div>
-          <div class="metric-box"><span>签退</span><strong>${escapeHtml(day.checkOut || "-")}</strong><em>${escapeHtml(renderApprovalText(day.approvals.checkOut))}</em></div>
+          <div class="metric-box"><span>签到</span><strong>${escapeHtml(day.checkIn || "-")}</strong><em>${managerReviewStatus}</em></div>
+          <div class="metric-box"><span>签退</span><strong>${escapeHtml(day.checkOut || "-")}</strong><em>${managerReviewStatus}</em></div>
           <div class="metric-box"><span>财务摘要</span><strong>${escapeHtml(financeSummary)}</strong><em>运营数据留痕</em></div>
         </div>
         <div class="sub-card">
@@ -157,6 +159,16 @@ export function buildReportHtml({ week, group, scopeUser }) {
         <div class="sub-card">
           <h4>当日补充说明</h4>
           <p>${formatRichText(day.notes)}</p>
+        </div>
+        <div class="sub-card">
+          <h4>P2 确认说明</h4>
+          <p><b>打卡确认：</b>${formatRichText(day.managerReview.attendance)}</p>
+          <p><b>上班前卫生确认：</b>${formatRichText(day.managerReview.opening)}</p>
+          <p><b>下班后卫生确认：</b>${formatRichText(day.managerReview.closing)}</p>
+          <p><b>财务与库存确认：</b>${formatRichText(day.managerReview.finance)}</p>
+          <p><b>签收确认：</b>${formatRichText(day.managerReview.receipt)}</p>
+          <p><b>补充说明确认：</b>${formatRichText(day.managerReview.notes)}</p>
+          <p><b>确认状态：</b>${managerReviewStatus}</p>
         </div>
       </section>
     `;

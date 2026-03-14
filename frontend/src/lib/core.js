@@ -1,4 +1,5 @@
-import { TEACHING_WEEK_MAP, TEACHING_WEEK_PRESETS } from "./constants";
+import { createEmptyManagerReview, ensureManagerReview } from "./dailyWorkflow.js";
+import { TEACHING_WEEK_MAP, TEACHING_WEEK_PRESETS } from "./constants.js";
 
 export const trim = (value) => String(value ?? "").trim();
 
@@ -141,6 +142,7 @@ export function ensureDayOnWeek(week, day) {
         receipt: emptyApproval(),
         closing: emptyApproval(),
       },
+      managerReview: createEmptyManagerReview(),
     };
   }
 
@@ -157,6 +159,7 @@ export function ensureDayOnWeek(week, day) {
     receipt: approvals.receipt || emptyApproval(),
     closing: approvals.closing || emptyApproval(),
   };
+  week.daily[day].managerReview = ensureManagerReview(week.daily[day].managerReview);
 
   return week.daily[day];
 }
