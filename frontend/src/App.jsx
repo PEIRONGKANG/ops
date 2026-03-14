@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AccountsTab } from "./components/AccountsTab";
+import { CertificationTab } from "./components/CertificationTab";
 import { CourseConfigTab } from "./components/CourseConfigTab";
 import { CreativeTab } from "./components/CreativeTab";
 import { DailyTab } from "./components/DailyTab";
@@ -8,6 +9,7 @@ import { HandoverTab } from "./components/HandoverTab";
 import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
 import { ResourcesTab } from "./components/ResourcesTab";
+import { ScoringTab } from "./components/ScoringTab";
 import { SchedulingTab } from "./components/SchedulingTab";
 import { Sidebar } from "./components/Sidebar";
 import { TabNav } from "./components/TabNav";
@@ -38,13 +40,20 @@ import {
   todayISO,
   trim,
 } from "./lib/core";
+import {
+  buildScoreSummary,
+  buildSessionSnapshot,
+  getWeekWorkflowActions,
+  normalizeWeekWorkflow,
+  resolveScopeFoundationContext,
+} from "./lib/foundation";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
 import { api } from "./services/api";
 
 
 const SESSION_KEY = "ops_training_ops_react_session_v1";
 const DAY_LABELS = ["周三", "周四", "周五", "周六", "周日", "周一", "周二", "次周三(交接)"];
-const STANDALONE_TABS = new Set(["accounts", "courseConfig", "scheduling", "resources"]);
+const STANDALONE_TABS = new Set(["accounts", "courseConfig", "scheduling", "resources", "certifications", "scoring"]);
 
 function createEmptyFoundation() {
   return {
@@ -55,6 +64,9 @@ function createEmptyFoundation() {
     groupMembers: [],
     scheduleAssignments: [],
     resources: [],
+    certifications: [],
+    courseScores: [],
+    showcaseScores: [],
   };
 }
 
@@ -62,7 +74,9 @@ const initialState = {
   users: [],
   currentUser: null,
   currentSessionUsers: [],
+  sessionToken: "",
   weeks: {},
+  weekWorkflows: {},
   weekGroups: {},
   currentWeekKey: "",
   currentDay: "",
@@ -145,6 +159,7 @@ function App() {
       JSON.stringify({
         currentUser: next.currentUser,
         currentSessionUsers: next.currentSessionUsers,
+        sessionToken: next.sessionToken,
         activeScopeUser: next.activeScopeUser,
         selectedWeekStart: next.selectedWeekStart,
       }),
@@ -166,10 +181,27 @@ function App() {
     });
   };
 
+  const clearSessionState = (message = "登录已失效，请重新登录。", isError = true) => {
+    localStorage.removeItem(SESSION_KEY);
+    api.clearSession();
+    replaceState({
+      ...cloneValue(initialState),
+      users: stateRef.current.users,
+      booting: false,
+      selectedWeekStart: stateRef.current.selectedWeekStart || adjustToWednesday(todayISO()),
+      statusMessage: message,
+      statusError: isError,
+    });
+  };
+
   const runAction = async (action, fallbackMessage = "操作失败，请稍后重试。") => {
     try {
       return await action();
     } catch (error) {
+      if (error?.status === 401) {
+        clearSessionState(error.message || "登录已失效，请重新登录。", true);
+        return null;
+      }
       setStatus(error.message || fallbackMessage, true);
       return null;
     }
@@ -345,7 +377,7 @@ function App() {
     source.editUserId = fallbackId;
     const target = sorted.find((user) => user.username === fallbackId);
     source.editForm.displayName = target?.displayName || "";
-    source.editForm.password = target?.password || "";
+    source.editForm.password = "";
   };
 
   const requireCurrentWeek = (message) => {
@@ -373,6 +405,7 @@ function App() {
     ]);
     next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
     next.weeks[weekKey] = ensureWeekStructure(weekResponse.week || createEmptyWeek(corrected), corrected);
+    next.weekWorkflows[weekKey] = normalizeWeekWorkflow(weekResponse.workflow);
     ensureWeekInState(next, weekKey, corrected);
     await hydrateHandoverReference(next, weekKey, scopeUser);
     next.currentWeekKey = weekKey;
@@ -465,38 +498,33 @@ function App() {
         const next = cloneValue(initialState);
         next.users = normalizedUsers;
         next.selectedWeekStart = trim(storedSession?.selectedWeekStart) || adjustToWednesday(todayISO());
-        if (storedSession?.currentUser) {
-          const found = normalizedUsers.find((user) => user.username === trim(storedSession.currentUser.username));
-          if (found) {
-            next.currentUser = {
-              username: found.username,
-              role: found.role,
-              level: found.level,
-              displayName: found.displayName,
-            };
-            next.currentSessionUsers = Array.isArray(storedSession.currentSessionUsers)
-              ? storedSession.currentSessionUsers
-              : (found.level === "P3" ? [found.username] : []);
-            next.activeScopeUser = found.level === "P3" ? found.username : (storedSession.activeScopeUser || "");
-          }
-        }
         syncEditForms(next);
         next.booting = false;
         replaceState(next);
-        if (next.currentUser) {
-          api.setActor(next.currentUser.username);
+
+        if (storedSession?.sessionToken) {
+          api.setSessionToken(storedSession.sessionToken);
+          const session = await api.session();
+          const snapshot = buildSessionSnapshot({
+            token: storedSession.sessionToken,
+            actor: session.actor,
+            sessionUsers: session.sessionUsers,
+            selectedWeekStart: next.selectedWeekStart,
+            activeScopeUser: storedSession.activeScopeUser,
+          });
+          applyState((draft) => {
+            draft.currentUser = snapshot.currentUser;
+            draft.currentSessionUsers = snapshot.currentSessionUsers;
+            draft.sessionToken = snapshot.token;
+            draft.activeScopeUser = snapshot.activeScopeUser;
+          });
           await loadFoundationData();
           await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。");
         } else {
-          api.setActor("");
+          api.clearSession();
         }
       } catch (error) {
-        replaceState({
-          ...cloneValue(initialState),
-          booting: false,
-          statusMessage: error.message || "系统初始化失败。",
-          statusError: true,
-        });
+        clearSessionState(error.message || "系统初始化失败。", true);
       }
     };
 
@@ -507,10 +535,25 @@ function App() {
 
   const currentUser = getCurrentUserRecord();
   const currentWeek = app.currentWeekKey ? app.weeks[app.currentWeekKey] : null;
+  const currentWeekWorkflow = app.currentWeekKey
+    ? normalizeWeekWorkflow(app.weekWorkflows[app.currentWeekKey])
+    : normalizeWeekWorkflow();
   const currentWeekGroup = currentWeek ? app.weekGroups[currentWeek.startDate] || createEmptyWeekGroup() : createEmptyWeekGroup();
   const currentDayData = currentWeek && app.currentDay ? ensureDayOnWeek(currentWeek, app.currentDay) : null;
   const foundation = app.foundation || createEmptyFoundation();
   const visibleTabs = TAB_ITEMS.filter((item) => !item.levels || item.levels.includes(currentUser?.level));
+  const weekWorkflowActions = getWeekWorkflowActions({
+    workflow: currentWeekWorkflow,
+    level: currentUser?.level,
+    canEdit: canEditCurrentScopeData(),
+  });
+  const workflowStatusLabel = {
+    draft: "草稿",
+    submitted: "已提交",
+    approved: "已通过",
+    rejected: "已驳回",
+    archived: "已归档",
+  }[currentWeekWorkflow.status] || "草稿";
 
   const sessionInfo = (() => {
     if (!currentUser) return "当前未登录。";
@@ -601,46 +644,36 @@ function App() {
 
     try {
       const { username, password, secondUsername, secondPassword } = stateRef.current.loginForm;
-      const first = await api.login({ username: trim(username), password: trim(password) });
-      let sessionUsers = [];
-
-      if (trim(secondUsername) || trim(secondPassword)) {
-        if (!trim(secondUsername) || !trim(secondPassword)) {
-          throw new Error("如需双人登录，请完整填写账号二和密码二。");
-        }
-        const second = await api.login({ username: trim(secondUsername), password: trim(secondPassword) });
-        if (first.user.username === second.user.username) {
-          throw new Error("双人登录不能重复填写同一个账号。");
-        }
-        if (first.user.level !== "P3" || second.user.level !== "P3") {
-          throw new Error("双人登录仅支持学生账号。");
-        }
-        sessionUsers = [first.user.username, second.user.username];
-      } else if (first.user.level === "P3") {
-        sessionUsers = [first.user.username];
-      }
+      const session = await api.login({
+        username: trim(username),
+        password: trim(password),
+        secondUsername: trim(secondUsername),
+        secondPassword: trim(secondPassword),
+      });
+      const snapshot = buildSessionSnapshot({
+        token: session.token,
+        actor: session.actor,
+        sessionUsers: session.sessionUsers,
+        selectedWeekStart: stateRef.current.selectedWeekStart,
+      });
 
       applyState((draft) => {
-        draft.currentUser = {
-          username: first.user.username,
-          role: first.user.role,
-          level: first.user.level,
-          displayName: first.user.displayName,
-        };
-        draft.currentSessionUsers = sessionUsers;
-        draft.activeScopeUser = first.user.level === "P3" ? first.user.username : "";
+        draft.currentUser = snapshot.currentUser;
+        draft.currentSessionUsers = snapshot.currentSessionUsers;
+        draft.sessionToken = snapshot.token;
+        draft.activeScopeUser = snapshot.activeScopeUser;
         draft.loading = false;
         draft.loginForm.password = "";
         draft.loginForm.secondPassword = "";
         draft.loginMessage = "";
       });
 
-      api.setActor(first.user.username);
+      api.setSessionToken(session.token);
       await loadFoundationData();
 
       await loadWeekForCurrentScope(
         todayISO(),
-        sessionUsers.length > 1
+        snapshot.currentSessionUsers.length > 1
           ? "双人登录成功。已自动加载本周轮值并同步到本组账号。"
           : "登录成功。已自动加载本周轮值。",
       );
@@ -652,14 +685,16 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    api.setActor("");
-    replaceState({
-      ...cloneValue(initialState),
-      users: stateRef.current.users,
-      booting: false,
-    });
+  const handleLogout = async () => {
+    try {
+      if (stateRef.current.sessionToken) {
+        api.setSessionToken(stateRef.current.sessionToken);
+        await api.logout();
+      }
+    } catch {
+      // Ignore logout transport failures and clear local session anyway.
+    }
+    clearSessionState("已退出登录。", false);
   };
 
   const handleWeekStartChange = (value) => {
@@ -1335,12 +1370,119 @@ function App() {
     await loadFoundationData("已删除资源。");
   }, "删除资源失败，请稍后重试。");
 
+  const handleWeekWorkflowAction = async (action) => runAction(async () => {
+    if (!currentWeek) throw new Error("请先加载本周后再执行流转动作。");
+
+    const payload = {
+      resourceType: "week",
+      scopeUser: resolveScopeUser(cloneValue(stateRef.current)),
+      startDate: currentWeek.startDate,
+      comment: "",
+    };
+
+    if (action === "reject") {
+      const comment = window.prompt("请输入驳回原因", "") || "";
+      if (!trim(comment)) throw new Error("驳回时必须填写原因。");
+      payload.comment = comment;
+    }
+
+    if (action === "archive") {
+      payload.comment = window.prompt("请输入归档备注（可选）", "") || "";
+    }
+
+    let response = null;
+    if (action === "submit") response = await api.submitWorkflow(payload);
+    if (action === "approve") response = await api.approveWorkflow(payload);
+    if (action === "reject") response = await api.rejectWorkflow(payload);
+    if (action === "archive") response = await api.archiveWorkflow(payload);
+    if (!response?.workflow) throw new Error("工作流更新失败。");
+
+    applyState((draft) => {
+      draft.weekWorkflows[draft.currentWeekKey] = normalizeWeekWorkflow(response.workflow);
+    });
+
+    const actionText = {
+      submit: "已提交本周记录。",
+      approve: "已通过本周记录。",
+      reject: "已驳回本周记录。",
+      archive: "已归档本周记录。",
+    };
+    setStatus(actionText[action] || "工作流已更新。");
+  }, "工作流操作失败，请稍后重试。");
+
+  const handleCreateCertification = async (payload) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以录入岗位认证。");
+    if (!payload.batchId || !payload.groupId || !trim(payload.studentUsername) || !trim(payload.roleName)) {
+      throw new Error("请完整选择批次、小组、学员和岗位。");
+    }
+    await api.createCertification(payload);
+    await loadFoundationData("已保存岗位认证。");
+  }, "岗位认证保存失败，请稍后重试。");
+
+  const handleDeleteCertification = async (certificationId) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以删除岗位认证。");
+    await api.deleteCertification(certificationId);
+    await loadFoundationData("已删除岗位认证。");
+  }, "岗位认证删除失败，请稍后重试。");
+
+  const handleCreateCourseScore = async (payload) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以录入课程总评分。");
+    if (!payload.batchId || !payload.groupId || !trim(payload.studentUsername)) {
+      throw new Error("请完整选择批次、小组和学员。");
+    }
+    await api.createCourseScore(payload);
+    await loadFoundationData("已保存课程总评分。");
+  }, "课程总评分保存失败，请稍后重试。");
+
+  const handleDeleteCourseScore = async (scoreId) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以删除课程评分。");
+    await api.deleteCourseScore(scoreId);
+    await loadFoundationData("已删除课程评分。");
+  }, "课程评分删除失败，请稍后重试。");
+
+  const handleCreateShowcaseScore = async (payload) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以录入展示赛评分。");
+    if (!payload.batchId || !payload.groupId || !trim(payload.studentUsername) || !trim(payload.judgeName)) {
+      throw new Error("请完整选择批次、小组、学员和评委。");
+    }
+    await api.createShowcaseScore(payload);
+    await loadFoundationData("已保存展示赛评分。");
+  }, "展示赛评分保存失败，请稍后重试。");
+
+  const handleDeleteShowcaseScore = async (scoreId) => runAction(async () => {
+    if (!canApprove()) throw new Error("只有 P1 / P2 账号可以删除展示赛评分。");
+    await api.deleteShowcaseScore(scoreId);
+    await loadFoundationData("已删除展示赛评分。");
+  }, "展示赛评分删除失败，请稍后重试。");
+
   const generateReportHtml = () => {
     if (!currentWeek) return "";
+    const state = cloneValue(stateRef.current);
+    const scopeUser = resolveScopeUser(state);
+    const foundationContext = resolveScopeFoundationContext({
+      foundation: state.foundation,
+      users: state.users,
+      scopeUser,
+      weekStartDate: currentWeek.startDate,
+    });
+    const scoreSummary = buildScoreSummary({
+      foundation: state.foundation,
+      scopeUser,
+      batchId: foundationContext.batchId,
+    });
+
     return buildReportHtml({
       week: cloneValue(currentWeek),
       group: cloneValue(currentWeekGroup),
-      scopeUser: resolveScopeUser(cloneValue(stateRef.current)),
+      scopeUser,
+      exportProfile: {
+        studentName: foundationContext.studentName || scopeUserRecord?.displayName || "",
+        studentUsername: foundationContext.studentUsername || scopeUser,
+        className: foundationContext.className || "",
+        batchName: foundationContext.batchName || "",
+        courseName: foundationContext.courseName || "",
+      },
+      scoreSummary,
     });
   };
 
@@ -1364,7 +1506,7 @@ function App() {
     const html = generateReportHtml();
     const scopeUser = resolveScopeUser(cloneValue(stateRef.current));
     exportReportWord(currentWeek, scopeUser, html);
-    setStatus("已导出美化版 Word 实训报告（含图片）。");
+    setStatus("已导出个人实训手册 Word（含图片）。");
   };
 
   if (app.booting) {
@@ -1590,6 +1732,43 @@ function App() {
               </p>
 
               <div className="mt-7">
+                {currentWeek ? (
+                  <section className="soft-card mb-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <p className="module-kicker">Workflow</p>
+                        <h3 className="section-title mt-2 !text-[1.4rem]">本周状态：{workflowStatusLabel}</h3>
+                        <p className="status-line mt-3">
+                          提交：{currentWeekWorkflow.submittedBy || "-"} {currentWeekWorkflow.submittedAt || ""}
+                          {currentWeekWorkflow.reviewedBy || currentWeekWorkflow.reviewedAt
+                            ? ` · 审核：${currentWeekWorkflow.reviewedBy || "-"} ${currentWeekWorkflow.reviewedAt || ""}`
+                            : ""}
+                        </p>
+                        {currentWeekWorkflow.reviewComment ? (
+                          <p className="status-line mt-3">说明：{currentWeekWorkflow.reviewComment}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {weekWorkflowActions.map((action) => (
+                          <button
+                            key={action}
+                            className={action === "reject" ? "btn-secondary" : "btn-primary"}
+                            type="button"
+                            onClick={() => handleWeekWorkflowAction(action)}
+                          >
+                            {{
+                              submit: "提交本周",
+                              approve: "审核通过",
+                              reject: "驳回",
+                              archive: "归档",
+                            }[action]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
                 {showEmptyWeekState ? (
                   <section className="soft-card">
                     <p className="module-kicker">Weekly Preparation</p>
@@ -1674,6 +1853,33 @@ function App() {
                     onFieldChange={handleReflectionFieldChange}
                     onSave={saveReflection}
                     onApprove={approveReflection}
+                  />
+                ) : null}
+
+                {app.activeTab === "certifications" ? (
+                  <CertificationTab
+                    courseBatches={foundation.courseBatches}
+                    groups={foundation.groups}
+                    students={studentUsers}
+                    certifications={foundation.certifications}
+                    editable={canApprove()}
+                    onCreateCertification={handleCreateCertification}
+                    onDeleteCertification={handleDeleteCertification}
+                  />
+                ) : null}
+
+                {app.activeTab === "scoring" ? (
+                  <ScoringTab
+                    courseBatches={foundation.courseBatches}
+                    groups={foundation.groups}
+                    students={studentUsers}
+                    courseScores={foundation.courseScores}
+                    showcaseScores={foundation.showcaseScores}
+                    editable={canApprove()}
+                    onCreateCourseScore={handleCreateCourseScore}
+                    onDeleteCourseScore={handleDeleteCourseScore}
+                    onCreateShowcaseScore={handleCreateShowcaseScore}
+                    onDeleteShowcaseScore={handleDeleteShowcaseScore}
                   />
                 ) : null}
 

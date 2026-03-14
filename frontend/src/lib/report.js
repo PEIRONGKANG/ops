@@ -1,4 +1,4 @@
-import { ensureDayOnWeek, ensureWeekStructure, escapeHtml, getWeekDates, PROCESS_ITEM_DEFINITIONS, renderApprovalText, trim } from "./reportHelpers";
+import { ensureDayOnWeek, ensureWeekStructure, escapeHtml, getWeekDates, PROCESS_ITEM_DEFINITIONS, renderApprovalText, trim } from "./reportHelpers.js";
 
 function formatRichText(value, fallback = "-") {
   const safe = escapeHtml(value);
@@ -89,7 +89,7 @@ function reportArt(kind, title = "", subtitle = "") {
       ${iconMap[kind] || iconMap.gallery}
       <text x="306" y="120" font-size="38" font-family="Microsoft YaHei, sans-serif" font-weight="700" fill="${theme.a}">${main}</text>
       <text x="306" y="170" font-size="20" font-family="Microsoft YaHei, sans-serif" fill="#5d5142">${sub}</text>
-      <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">Drink Training Report Visual</text>
+      <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">实训成果归档</text>
     </svg>
   `);
 }
@@ -160,13 +160,27 @@ function renderProcurementTable(items) {
   `;
 }
 
-export function buildReportHtml({ week, group, scopeUser }) {
+function renderScoreValue(value, fallback = "-") {
+  if (value === null || value === undefined || value === "") return fallback;
+  return escapeHtml(String(value));
+}
+
+export function buildReportHtml({ week, group, scopeUser, exportProfile = {}, scoreSummary = {} }) {
   const normalizedWeek = ensureWeekStructure(week, week?.startDate);
   const dates = getWeekDates(normalizedWeek.startDate);
   const teachingWeekText = trim(group?.teachingWeek) || "未设置";
   const studentNames = [normalizedWeek.members.a, normalizedWeek.members.b].map(trim).filter(Boolean);
   const reportOwners = studentNames.length ? studentNames.join("、") : escapeHtml(scopeUser || "本周学员");
   const coverImage = reportArt("cover", "实践周实训手册", "门店创意饮品策划与运营实践");
+  const studentName = trim(exportProfile.studentName) || trim(normalizedWeek.members.a) || trim(scopeUser) || reportOwners;
+  const studentUsername = trim(exportProfile.studentUsername) || trim(scopeUser);
+  const className = trim(exportProfile.className);
+  const batchName = trim(exportProfile.batchName);
+  const courseName = trim(exportProfile.courseName) || "门店创意饮品策划与运营实践";
+  const certificationSummary = (Array.isArray(scoreSummary.certifications) ? scoreSummary.certifications : [])
+    .map((item) => trim(item?.roleName) ? `${trim(item.roleName)}${trim(item.result) ? `（${trim(item.result)}）` : ""}` : "")
+    .filter(Boolean)
+    .join("、");
 
   const creativeDrinksHtml = normalizedWeek.creative.drinks.map((drink, index) => renderDrinkSummary(drink, index)).join("");
   const inheritedDrinksHtml = (normalizedWeek.handover.inheritedDrinks || []).map((drink, index) => renderDrinkSummary(drink, index)).join("");
@@ -286,14 +300,24 @@ export function buildReportHtml({ week, group, scopeUser }) {
     <section class="cover">
       <img src="${coverImage}" alt="AI封面视觉" />
       <div class="cover-body">
-        <div class="eyebrow">Practical Training Manual</div>
+        <div class="eyebrow">实训归档</div>
         <h1>实践周实训手册</h1>
-        <p class="lead">围绕准备期调研、两款创意饮品设计、13-23 项过程执行、交接传承与总结反思，形成一份可归档的个人实训成果文档。</p>
+        <p class="lead">用于记录个人在本轮实训中的准备、执行、交接、总结、评分与认证结果。</p>
         <div class="meta-wrap">
+          <div class="meta-card"><span>学员姓名</span><strong>${escapeHtml(studentName || "未记录")}</strong></div>
+          <div class="meta-card"><span>学号</span><strong>${escapeHtml(studentUsername || "未记录")}</strong></div>
+          <div class="meta-card"><span>班级</span><strong>${escapeHtml(className || "未关联")}</strong></div>
+          <div class="meta-card"><span>课程批次</span><strong>${escapeHtml(batchName || "未关联")}</strong></div>
           <div class="meta-card"><span>教学周次</span><strong>${escapeHtml(teachingWeekText)}</strong></div>
           <div class="meta-card"><span>轮值周期</span><strong>${escapeHtml(normalizedWeek.startDate)} 至 ${escapeHtml(normalizedWeek.endDate)}</strong></div>
-          <div class="meta-card"><span>本组成员</span><strong>${escapeHtml(reportOwners)}</strong></div>
+          <div class="meta-card"><span>课程名称</span><strong>${escapeHtml(courseName)}</strong></div>
           <div class="meta-card"><span>下一组交接人</span><strong>${escapeHtml(normalizedWeek.nextGroup || "待补充")}</strong></div>
+        </div>
+        <div class="summary-box">
+          <p><b>课程总评分：</b>${renderScoreValue(scoreSummary.courseFinalScore)}</p>
+          <p><b>展示赛均分：</b>${renderScoreValue(scoreSummary.showcaseAverageScore)}</p>
+          <p><b>岗位认证：</b>${formatRichText(certificationSummary)}</p>
+          <p><b>本组成员：</b>${escapeHtml(reportOwners)}</p>
         </div>
       </div>
     </section>
@@ -377,7 +401,7 @@ export function exportReportWord(week, scopeUser, html) {
   const blob = new Blob([html], { type: "application/msword" });
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(blob);
-  anchor.download = `实训周工作报告_${scopeUser}_${week.startDate}_to_${week.endDate}.doc`;
+  anchor.download = `个人实训手册_${scopeUser}_${week.startDate}_to_${week.endDate}.doc`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();

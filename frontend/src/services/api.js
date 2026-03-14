@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 let actorUsername = "";
+let sessionToken = "";
 
 function buildHeaders(options = {}) {
   const headers = {
@@ -9,7 +10,9 @@ function buildHeaders(options = {}) {
   if (!("Content-Type" in headers) && options.body) {
     headers["Content-Type"] = "application/json";
   }
-  if (actorUsername) {
+  if (sessionToken) {
+    headers.Authorization = `Bearer ${sessionToken}`;
+  } else if (actorUsername) {
     headers["X-Actor-Username"] = actorUsername;
   }
   return headers;
@@ -29,7 +32,9 @@ async function request(path, options = {}) {
     } catch {
       // Ignore JSON parse failures for non-JSON responses.
     }
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
   }
 
   if (response.status === 204) return null;
@@ -39,6 +44,13 @@ async function request(path, options = {}) {
 export const api = {
   setActor(username) {
     actorUsername = username || "";
+  },
+  setSessionToken(token) {
+    sessionToken = token || "";
+  },
+  clearSession() {
+    sessionToken = "";
+    actorUsername = "";
   },
   health() {
     return request("/health");
@@ -50,6 +62,14 @@ export const api = {
     return request("/login", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  session() {
+    return request("/session");
+  },
+  logout() {
+    return request("/logout", {
+      method: "POST",
     });
   },
   listAccounts() {
@@ -168,6 +188,63 @@ export const api = {
   deleteResource(resourceId) {
     return request(`/resources/${resourceId}`, {
       method: "DELETE",
+    });
+  },
+  createCertification(certification) {
+    return request("/certifications", {
+      method: "POST",
+      body: JSON.stringify(certification),
+    });
+  },
+  deleteCertification(certificationId) {
+    return request(`/certifications/${certificationId}`, {
+      method: "DELETE",
+    });
+  },
+  createCourseScore(courseScore) {
+    return request("/course-scores", {
+      method: "POST",
+      body: JSON.stringify(courseScore),
+    });
+  },
+  deleteCourseScore(scoreId) {
+    return request(`/course-scores/${scoreId}`, {
+      method: "DELETE",
+    });
+  },
+  createShowcaseScore(showcaseScore) {
+    return request("/showcase-scores", {
+      method: "POST",
+      body: JSON.stringify(showcaseScore),
+    });
+  },
+  deleteShowcaseScore(scoreId) {
+    return request(`/showcase-scores/${scoreId}`, {
+      method: "DELETE",
+    });
+  },
+  submitWorkflow(payload) {
+    return request("/workflows/submit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  approveWorkflow(payload) {
+    return request("/workflows/approve", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  rejectWorkflow(payload) {
+    return request("/workflows/reject", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  archiveWorkflow(payload) {
+    return request("/workflows/archive", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   },
 };

@@ -102,7 +102,7 @@ export function AccountsTab({
               <input className="field-input" value={editForm.displayName} onChange={(event) => onEditFormChange("displayName", event.target.value)} />
             </div>
             <div>
-              <label className="field-label">新密码</label>
+              <label className="field-label">新密码（必填）</label>
               <input className="field-input" type="password" value={editForm.password} onChange={(event) => onEditFormChange("password", event.target.value)} />
             </div>
           </div>
@@ -127,7 +127,7 @@ export function AccountsTab({
             <div key={user.username} className="status-line">
               {user.displayName}（{user.username}） - {user.level}
               {isTop
-                ? `，密码：${user.password || "-"}，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
+                ? `，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
                 : `，角色：${user.level}`}
             </div>
           ))}

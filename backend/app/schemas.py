@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 class LoginRequest(BaseModel):
     username: str
     password: str
+    secondUsername: str = ""
+    secondPassword: str = ""
 
 
 class WeekPayload(BaseModel):
@@ -75,3 +77,41 @@ class ResourcePayload(BaseModel):
     fileName: str = ""
     fileData: str = ""
     externalUrl: str = ""
+
+
+class CertificationPayload(BaseModel):
+    batchId: int
+    groupId: int
+    studentUsername: str
+    roleName: str
+    plannedDate: str = ""
+    completedDate: str = ""
+    result: str = "未开始"
+    score: str = ""
+    notes: str = ""
+
+
+class CourseScorePayload(BaseModel):
+    batchId: int
+    groupId: int
+    studentUsername: str
+    managerScore: float = 0
+    teacherScore: float = 0
+    notes: str = ""
+
+
+class ShowcaseScorePayload(BaseModel):
+    batchId: int
+    groupId: int
+    studentUsername: str
+    judgeName: str
+    score: float = 0
+    notes: str = ""
+
+
+class WorkflowActionPayload(BaseModel):
+    resourceType: str
+    scopeUser: str = ""
+    startDate: str = ""
+    recordId: Optional[int] = None
+    comment: str = ""

@@ -1,7 +1,9 @@
 import json
 import os
 import sqlite3
-from datetime import datetime
+import hashlib
+import secrets
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -69,6 +71,23 @@ def _row_to_user(row: sqlite3.Row) -> dict:
         "passwordUpdatedAt": row["password_updated_at"],
         "nameUpdatedAt": row["name_updated_at"],
     }
+
+
+def _row_to_session(row: sqlite3.Row) -> dict:
+    paired = row["paired_usernames"].split(",") if row["paired_usernames"] else []
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "pairedUsernames": [value for value in paired if value],
+        "createdAt": row["created_at"],
+        "expiresAt": row["expires_at"],
+        "lastSeenAt": row["last_seen_at"],
+        "revokedAt": row["revoked_at"],
+    }
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def _row_to_term(row: sqlite3.Row) -> dict:
@@ -164,6 +183,94 @@ def _row_to_resource(row: sqlite3.Row) -> dict:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
+
+
+def _row_to_certification(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "batchId": row["batch_id"],
+        "batchName": row["batch_name"],
+        "groupId": row["group_id"],
+        "groupName": row["group_name"],
+        "studentUsername": row["student_username"],
+        "studentName": row["student_name"],
+        "roleName": row["role_name"],
+        "plannedDate": row["planned_date"],
+        "completedDate": row["completed_date"],
+        "result": row["result"],
+        "score": row["score"],
+        "notes": row["notes"],
+        "evaluatedBy": row["evaluated_by"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def _row_to_course_score(row: sqlite3.Row) -> dict:
+    manager_score = row["manager_score"] or 0
+    teacher_score = row["teacher_score"] or 0
+    final_score = round((manager_score * 0.3) + (teacher_score * 0.7), 1)
+    return {
+        "id": row["id"],
+        "batchId": row["batch_id"],
+        "batchName": row["batch_name"],
+        "groupId": row["group_id"],
+        "groupName": row["group_name"],
+        "studentUsername": row["student_username"],
+        "studentName": row["student_name"],
+        "managerScore": manager_score,
+        "teacherScore": teacher_score,
+        "finalScore": final_score,
+        "notes": row["notes"],
+        "evaluatedBy": row["evaluated_by"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def _row_to_showcase_score(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "batchId": row["batch_id"],
+        "batchName": row["batch_name"],
+        "groupId": row["group_id"],
+        "groupName": row["group_name"],
+        "studentUsername": row["student_username"],
+        "studentName": row["student_name"],
+        "judgeName": row["judge_name"],
+        "score": row["score"],
+        "notes": row["notes"],
+        "evaluatedBy": row["evaluated_by"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def _row_to_audit_log(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "actorUsername": row["actor_username"],
+        "action": row["action"],
+        "resourceType": row["resource_type"],
+        "resourceId": row["resource_id"],
+        "targetScope": row["target_scope"],
+        "beforeStatus": row["before_status"],
+        "afterStatus": row["after_status"],
+        "detailJson": row["detail_json"],
+        "createdAt": row["created_at"],
+    }
+
+
+def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, column_definition: str) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info({0})".format(table_name)).fetchall()
+    }
+    if column_name in columns:
+        return
+    connection.execute(
+        "ALTER TABLE {0} ADD COLUMN {1} {2}".format(table_name, column_name, column_definition)
+    )
 
 
 def _seed_foundation(connection: sqlite3.Connection) -> None:
@@ -284,6 +391,17 @@ def init_db() -> None:
                 PRIMARY KEY (scope_user, start_date)
             );
 
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_hash TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                paired_usernames TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                revoked_at TEXT NOT NULL DEFAULT ''
+            );
+
             CREATE TABLE IF NOT EXISTS terms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code TEXT NOT NULL UNIQUE,
@@ -362,8 +480,78 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS certifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL REFERENCES course_batches(id) ON DELETE CASCADE,
+                group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                student_username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                role_name TEXT NOT NULL,
+                planned_date TEXT NOT NULL DEFAULT '',
+                completed_date TEXT NOT NULL DEFAULT '',
+                result TEXT NOT NULL DEFAULT '未开始',
+                score TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                evaluated_by TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (batch_id, student_username, role_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS course_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL REFERENCES course_batches(id) ON DELETE CASCADE,
+                group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                student_username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                manager_score REAL NOT NULL DEFAULT 0,
+                teacher_score REAL NOT NULL DEFAULT 0,
+                notes TEXT NOT NULL DEFAULT '',
+                evaluated_by TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (batch_id, student_username)
+            );
+
+            CREATE TABLE IF NOT EXISTS showcase_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL REFERENCES course_batches(id) ON DELETE CASCADE,
+                group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                student_username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                judge_name TEXT NOT NULL,
+                score REAL NOT NULL DEFAULT 0,
+                notes TEXT NOT NULL DEFAULT '',
+                evaluated_by TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (batch_id, student_username, judge_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor_username TEXT NOT NULL,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                target_scope TEXT NOT NULL DEFAULT '',
+                before_status TEXT NOT NULL DEFAULT '',
+                after_status TEXT NOT NULL DEFAULT '',
+                detail_json TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            );
             """
         )
+
+        workflow_columns = [
+            ("workflow_status", "TEXT NOT NULL DEFAULT 'draft'"),
+            ("submitted_at", "TEXT NOT NULL DEFAULT ''"),
+            ("submitted_by", "TEXT NOT NULL DEFAULT ''"),
+            ("reviewed_at", "TEXT NOT NULL DEFAULT ''"),
+            ("reviewed_by", "TEXT NOT NULL DEFAULT ''"),
+            ("review_comment", "TEXT NOT NULL DEFAULT ''"),
+        ]
+        for table_name in ("weeks", "certifications", "course_scores", "showcase_scores"):
+            for column_name, definition in workflow_columns:
+                _ensure_column(connection, table_name, column_name, definition)
 
         existing = {
             row["username"]
@@ -431,6 +619,89 @@ def verify_user(username: str, password: str) -> Optional[Dict[str, Any]]:
             (username, password),
         ).fetchone()
     return _row_to_user(row) if row else None
+
+
+def create_session(username: str, paired_usernames: Optional[List[str]] = None, hours_valid: int = 24) -> Dict[str, Any]:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now()
+    expires_at = now + timedelta(hours=hours_valid)
+    paired = ",".join(
+        username_value
+        for username_value in (paired_usernames or [])
+        if username_value and username_value != username
+    )
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO sessions (
+                token_hash, username, paired_usernames,
+                created_at, expires_at, last_seen_at, revoked_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, '')
+            """,
+            (
+                _hash_token(token),
+                username,
+                paired,
+                now.isoformat(timespec="seconds"),
+                expires_at.isoformat(timespec="seconds"),
+                now.isoformat(timespec="seconds"),
+            ),
+        )
+        session_id = connection.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        connection.commit()
+    session = get_session_by_token(token)
+    session["token"] = token
+    session["id"] = session_id
+    return session
+
+
+def get_session_by_token(token: str) -> Optional[Dict[str, Any]]:
+    if not token:
+        return None
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, username, paired_usernames, created_at, expires_at, last_seen_at, revoked_at
+            FROM sessions
+            WHERE token_hash = ?
+            """,
+            (_hash_token(token),),
+        ).fetchone()
+
+        if not row:
+            return None
+
+        session = _row_to_session(row)
+        if session["revokedAt"]:
+            return None
+        if session["expiresAt"] and datetime.fromisoformat(session["expiresAt"]) <= datetime.now():
+            return None
+
+        connection.execute(
+            "UPDATE sessions SET last_seen_at = ? WHERE id = ?",
+            (_now_iso(), session["id"]),
+        )
+        connection.commit()
+    return session
+
+
+def revoke_session(token: str) -> bool:
+    if not token:
+        return False
+
+    with get_connection() as connection:
+        revoked = connection.execute(
+            """
+            UPDATE sessions
+            SET revoked_at = ?
+            WHERE token_hash = ? AND revoked_at = ''
+            """,
+            (_now_iso(), _hash_token(token)),
+        ).rowcount
+        connection.commit()
+    return revoked > 0
 
 
 def create_user(payload: dict) -> dict:
@@ -509,17 +780,116 @@ def get_week(scope_user: str, start_date: str) -> Optional[Dict[str, Any]]:
 def save_week(scope_user: str, start_date: str, payload: dict) -> dict:
     encoded = json.dumps(payload, ensure_ascii=False)
     with get_connection() as connection:
-        connection.execute(
+        existing = connection.execute(
             """
-            INSERT INTO weeks (scope_user, start_date, payload, updated_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(scope_user, start_date)
-            DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+            SELECT 1
+            FROM weeks
+            WHERE scope_user = ? AND start_date = ?
             """,
-            (scope_user, start_date, encoded, _now_iso()),
-        )
+            (scope_user, start_date),
+        ).fetchone()
+
+        if existing:
+            connection.execute(
+                """
+                UPDATE weeks
+                SET payload = ?, updated_at = ?
+                WHERE scope_user = ? AND start_date = ?
+                """,
+                (encoded, _now_iso(), scope_user, start_date),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO weeks (scope_user, start_date, payload, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (scope_user, start_date, encoded, _now_iso()),
+            )
         connection.commit()
     return payload
+
+
+def get_week_entry(scope_user: str, start_date: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                scope_user,
+                start_date,
+                payload,
+                updated_at,
+                workflow_status,
+                submitted_at,
+                submitted_by,
+                reviewed_at,
+                reviewed_by,
+                review_comment
+            FROM weeks
+            WHERE scope_user = ? AND start_date = ?
+            """,
+            (scope_user, start_date),
+        ).fetchone()
+
+    if not row:
+        return None
+
+    return {
+        "scopeUser": row["scope_user"],
+        "startDate": row["start_date"],
+        "payload": json.loads(row["payload"]),
+        "updatedAt": row["updated_at"],
+        "workflow": {
+            "status": row["workflow_status"] or "draft",
+            "submittedAt": row["submitted_at"],
+            "submittedBy": row["submitted_by"],
+            "reviewedAt": row["reviewed_at"],
+            "reviewedBy": row["reviewed_by"],
+            "reviewComment": row["review_comment"],
+        },
+    }
+
+
+def update_week_workflow(
+    scope_user: str,
+    start_date: str,
+    next_status: str,
+    actor_username: str,
+    comment: str = "",
+) -> Optional[Dict[str, Any]]:
+    current = get_week_entry(scope_user, start_date)
+    if not current:
+        return None
+
+    now = _now_iso()
+    workflow = current["workflow"]
+    with get_connection() as connection:
+        if next_status == "submitted":
+            connection.execute(
+                """
+                UPDATE weeks
+                SET workflow_status = ?,
+                    submitted_at = ?,
+                    submitted_by = ?,
+                    review_comment = ?
+                WHERE scope_user = ? AND start_date = ?
+                """,
+                (next_status, now, actor_username, comment, scope_user, start_date),
+            )
+        elif next_status in {"approved", "rejected", "archived"}:
+            connection.execute(
+                """
+                UPDATE weeks
+                SET workflow_status = ?,
+                    reviewed_at = ?,
+                    reviewed_by = ?,
+                    review_comment = ?
+                WHERE scope_user = ? AND start_date = ?
+                """,
+                (next_status, now, actor_username, comment, scope_user, start_date),
+            )
+        connection.commit()
+    return get_week_entry(scope_user, start_date)
 
 
 def get_week_group(start_date: str) -> Optional[Dict[str, Any]]:
@@ -534,17 +904,85 @@ def get_week_group(start_date: str) -> Optional[Dict[str, Any]]:
 def save_week_group(start_date: str, payload: dict) -> dict:
     encoded = json.dumps(payload, ensure_ascii=False)
     with get_connection() as connection:
-        connection.execute(
+        existing = connection.execute(
             """
-            INSERT INTO week_groups (start_date, payload, updated_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(start_date)
-            DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+            SELECT 1
+            FROM week_groups
+            WHERE start_date = ?
             """,
-            (start_date, encoded, _now_iso()),
-        )
+            (start_date,),
+        ).fetchone()
+
+        if existing:
+            connection.execute(
+                """
+                UPDATE week_groups
+                SET payload = ?, updated_at = ?
+                WHERE start_date = ?
+                """,
+                (encoded, _now_iso(), start_date),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO week_groups (start_date, payload, updated_at)
+                VALUES (?, ?, ?)
+                """,
+                (start_date, encoded, _now_iso()),
+            )
         connection.commit()
     return payload
+
+
+def create_audit_log(payload: dict) -> dict:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO audit_logs (
+                actor_username, action, resource_type, resource_id,
+                target_scope, before_status, after_status, detail_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload["actorUsername"],
+                payload["action"],
+                payload["resourceType"],
+                payload["resourceId"],
+                payload.get("targetScope", ""),
+                payload.get("beforeStatus", ""),
+                payload.get("afterStatus", ""),
+                json.dumps(payload.get("detail", {}), ensure_ascii=False),
+                _now_iso(),
+            ),
+        )
+        log_id = connection.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        connection.commit()
+        row = connection.execute(
+            """
+            SELECT
+                id, actor_username, action, resource_type, resource_id,
+                target_scope, before_status, after_status, detail_json, created_at
+            FROM audit_logs
+            WHERE id = ?
+            """,
+            (log_id,),
+        ).fetchone()
+    return _row_to_audit_log(row)
+
+
+def list_audit_logs() -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                id, actor_username, action, resource_type, resource_id,
+                target_scope, before_status, after_status, detail_json, created_at
+            FROM audit_logs
+            ORDER BY id ASC
+            """
+        ).fetchall()
+    return [_row_to_audit_log(row) for row in rows]
 
 
 def list_terms() -> List[Dict[str, Any]]:
@@ -1022,6 +1460,404 @@ def delete_resource(resource_id: int) -> bool:
     return deleted > 0
 
 
+def list_certifications() -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                c.id,
+                c.batch_id,
+                b.name AS batch_name,
+                c.group_id,
+                g.name AS group_name,
+                c.student_username,
+                u.display_name AS student_name,
+                c.role_name,
+                c.planned_date,
+                c.completed_date,
+                c.result,
+                c.score,
+                c.notes,
+                c.evaluated_by,
+                c.created_at,
+                c.updated_at
+            FROM certifications c
+            JOIN course_batches b ON b.id = c.batch_id
+            JOIN groups g ON g.id = c.group_id
+            JOIN users u ON u.username = c.student_username
+            ORDER BY c.updated_at DESC, c.id DESC
+            """
+        ).fetchall()
+    return [_row_to_certification(row) for row in rows]
+
+
+def get_certification(certification_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                c.id,
+                c.batch_id,
+                b.name AS batch_name,
+                c.group_id,
+                g.name AS group_name,
+                c.student_username,
+                u.display_name AS student_name,
+                c.role_name,
+                c.planned_date,
+                c.completed_date,
+                c.result,
+                c.score,
+                c.notes,
+                c.evaluated_by,
+                c.created_at,
+                c.updated_at
+            FROM certifications c
+            JOIN course_batches b ON b.id = c.batch_id
+            JOIN groups g ON g.id = c.group_id
+            JOIN users u ON u.username = c.student_username
+            WHERE c.id = ?
+            """,
+            (certification_id,),
+        ).fetchone()
+    return _row_to_certification(row) if row else None
+
+
+def create_certification(payload: dict) -> dict:
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT id
+            FROM certifications
+            WHERE batch_id = ? AND student_username = ? AND role_name = ?
+            """,
+            (
+                payload["batchId"],
+                payload["studentUsername"],
+                payload["roleName"],
+            ),
+        ).fetchone()
+
+        if existing:
+            connection.execute(
+                """
+                UPDATE certifications
+                SET group_id = ?,
+                    planned_date = ?,
+                    completed_date = ?,
+                    result = ?,
+                    score = ?,
+                    notes = ?,
+                    evaluated_by = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    payload["groupId"],
+                    payload.get("plannedDate", ""),
+                    payload.get("completedDate", ""),
+                    payload.get("result", "未开始"),
+                    payload.get("score", ""),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    existing["id"],
+                ),
+            )
+            certification_id = existing["id"]
+        else:
+            connection.execute(
+                """
+                INSERT INTO certifications (
+                    batch_id, group_id, student_username, role_name,
+                    planned_date, completed_date, result, score, notes,
+                    evaluated_by, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["batchId"],
+                    payload["groupId"],
+                    payload["studentUsername"],
+                    payload["roleName"],
+                    payload.get("plannedDate", ""),
+                    payload.get("completedDate", ""),
+                    payload.get("result", "未开始"),
+                    payload.get("score", ""),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    _now_iso(),
+                ),
+            )
+            certification_id = connection.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        connection.commit()
+    return get_certification(certification_id)
+
+
+def delete_certification(certification_id: int) -> bool:
+    with get_connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM certifications WHERE id = ?",
+            (certification_id,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0
+
+
+def list_course_scores() -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                s.id,
+                s.batch_id,
+                b.name AS batch_name,
+                s.group_id,
+                g.name AS group_name,
+                s.student_username,
+                u.display_name AS student_name,
+                s.manager_score,
+                s.teacher_score,
+                s.notes,
+                s.evaluated_by,
+                s.created_at,
+                s.updated_at
+            FROM course_scores s
+            JOIN course_batches b ON b.id = s.batch_id
+            JOIN groups g ON g.id = s.group_id
+            JOIN users u ON u.username = s.student_username
+            ORDER BY ((s.manager_score * 0.3) + (s.teacher_score * 0.7)) DESC, s.updated_at DESC
+            """
+        ).fetchall()
+    return [_row_to_course_score(row) for row in rows]
+
+
+def get_course_score(score_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                s.id,
+                s.batch_id,
+                b.name AS batch_name,
+                s.group_id,
+                g.name AS group_name,
+                s.student_username,
+                u.display_name AS student_name,
+                s.manager_score,
+                s.teacher_score,
+                s.notes,
+                s.evaluated_by,
+                s.created_at,
+                s.updated_at
+            FROM course_scores s
+            JOIN course_batches b ON b.id = s.batch_id
+            JOIN groups g ON g.id = s.group_id
+            JOIN users u ON u.username = s.student_username
+            WHERE s.id = ?
+            """,
+            (score_id,),
+        ).fetchone()
+    return _row_to_course_score(row) if row else None
+
+
+def create_course_score(payload: dict) -> dict:
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT id
+            FROM course_scores
+            WHERE batch_id = ? AND student_username = ?
+            """,
+            (payload["batchId"], payload["studentUsername"]),
+        ).fetchone()
+
+        if existing:
+            connection.execute(
+                """
+                UPDATE course_scores
+                SET group_id = ?,
+                    manager_score = ?,
+                    teacher_score = ?,
+                    notes = ?,
+                    evaluated_by = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    payload["groupId"],
+                    payload.get("managerScore", 0),
+                    payload.get("teacherScore", 0),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    existing["id"],
+                ),
+            )
+            score_id = existing["id"]
+        else:
+            connection.execute(
+                """
+                INSERT INTO course_scores (
+                    batch_id, group_id, student_username,
+                    manager_score, teacher_score, notes,
+                    evaluated_by, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["batchId"],
+                    payload["groupId"],
+                    payload["studentUsername"],
+                    payload.get("managerScore", 0),
+                    payload.get("teacherScore", 0),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    _now_iso(),
+                ),
+            )
+            score_id = connection.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        connection.commit()
+    return get_course_score(score_id)
+
+
+def delete_course_score(score_id: int) -> bool:
+    with get_connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM course_scores WHERE id = ?",
+            (score_id,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0
+
+
+def list_showcase_scores() -> List[Dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                s.id,
+                s.batch_id,
+                b.name AS batch_name,
+                s.group_id,
+                g.name AS group_name,
+                s.student_username,
+                u.display_name AS student_name,
+                s.judge_name,
+                s.score,
+                s.notes,
+                s.evaluated_by,
+                s.created_at,
+                s.updated_at
+            FROM showcase_scores s
+            JOIN course_batches b ON b.id = s.batch_id
+            JOIN groups g ON g.id = s.group_id
+            JOIN users u ON u.username = s.student_username
+            ORDER BY s.score DESC, s.updated_at DESC
+            """
+        ).fetchall()
+    return [_row_to_showcase_score(row) for row in rows]
+
+
+def get_showcase_score(score_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                s.id,
+                s.batch_id,
+                b.name AS batch_name,
+                s.group_id,
+                g.name AS group_name,
+                s.student_username,
+                u.display_name AS student_name,
+                s.judge_name,
+                s.score,
+                s.notes,
+                s.evaluated_by,
+                s.created_at,
+                s.updated_at
+            FROM showcase_scores s
+            JOIN course_batches b ON b.id = s.batch_id
+            JOIN groups g ON g.id = s.group_id
+            JOIN users u ON u.username = s.student_username
+            WHERE s.id = ?
+            """,
+            (score_id,),
+        ).fetchone()
+    return _row_to_showcase_score(row) if row else None
+
+
+def create_showcase_score(payload: dict) -> dict:
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT id
+            FROM showcase_scores
+            WHERE batch_id = ? AND student_username = ? AND judge_name = ?
+            """,
+            (payload["batchId"], payload["studentUsername"], payload["judgeName"]),
+        ).fetchone()
+
+        if existing:
+            connection.execute(
+                """
+                UPDATE showcase_scores
+                SET group_id = ?,
+                    score = ?,
+                    notes = ?,
+                    evaluated_by = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    payload["groupId"],
+                    payload.get("score", 0),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    existing["id"],
+                ),
+            )
+            score_id = existing["id"]
+        else:
+            connection.execute(
+                """
+                INSERT INTO showcase_scores (
+                    batch_id, group_id, student_username, judge_name,
+                    score, notes, evaluated_by, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["batchId"],
+                    payload["groupId"],
+                    payload["studentUsername"],
+                    payload["judgeName"],
+                    payload.get("score", 0),
+                    payload.get("notes", ""),
+                    payload.get("evaluatedBy", ""),
+                    _now_iso(),
+                    _now_iso(),
+                ),
+            )
+            score_id = connection.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        connection.commit()
+    return get_showcase_score(score_id)
+
+
+def delete_showcase_score(score_id: int) -> bool:
+    with get_connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM showcase_scores WHERE id = ?",
+            (score_id,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0
+
+
 def get_foundation_bootstrap() -> dict:
     return {
         "terms": list_terms(),
@@ -1031,4 +1867,7 @@ def get_foundation_bootstrap() -> dict:
         "groupMembers": list_group_members(),
         "scheduleAssignments": list_schedule_assignments(),
         "resources": list_resources(),
+        "certifications": list_certifications(),
+        "courseScores": list_course_scores(),
+        "showcaseScores": list_showcase_scores(),
     }
