@@ -126,6 +126,10 @@ export function buildReportHtml({ week, group, scopeUser }) {
           <p>${formatRichText(day.attendanceNote)}</p>
         </div>
         <div class="sub-card">
+          <h4>假条上传</h4>
+          ${renderReportGallery(day.leaveImgs, "daily", "未上传假条图片。")}
+        </div>
+        <div class="sub-card">
           <h4>仪容仪表检查</h4>
           ${renderReportGallery(day.grooming, "daily", "未上传仪容仪表照片，已用 AI 检查场景图示意。")}
         </div>

@@ -18,8 +18,10 @@ export function ReflectionTab({
 
       <div className="module-banner-strip" data-tone="reflection">
         <div>
-          <p className="module-kicker !text-white/58">Weekly Reflection</p>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/84">围绕个人成长、小组优化方案与运营经理评语完成收尾，为导出实训报告提供更完整的课程成果表达。</p>
+          <p className="module-kicker">Weekly Reflection</p>
+          <p className="mt-3 max-w-2xl text-sm leading-7">
+            围绕个人成长、小组优化方案与运营经理评语完成收尾，为导出实训报告提供更完整的课程成果表达。
+          </p>
         </div>
       </div>
 

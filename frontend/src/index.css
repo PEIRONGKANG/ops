@@ -838,13 +838,13 @@ img {
   border-radius: 1rem;
   background: var(--surface-indigo);
   padding: 1.25rem;
-  color: var(--indigo-strong);
+  color: var(--ink);
 }
 
 .module-banner-strip[data-tone="reflection"] {
   border-color: #a7f3d0;
   background: var(--surface-emerald);
-  color: var(--emerald-strong);
+  color: var(--ink);
 }
 
 .module-banner-strip p {
@@ -852,6 +852,10 @@ img {
   max-width: 44rem;
   font-size: 0.95rem;
   line-height: 1.7;
+}
+
+.module-banner-strip .module-kicker {
+  color: var(--ink);
 }
 
 .module-shell {

@@ -147,6 +147,7 @@ export function ensureDayOnWeek(week, day) {
       checkIn: "",
       checkOut: "",
       attendanceNote: "",
+      leaveImgs: [],
       notes: "",
       grooming: [],
       openingPublic: [],
@@ -200,6 +201,7 @@ export function ensureDayOnWeek(week, day) {
   const studentConfirmations = week.daily[day].studentConfirmations || {};
   if (!approvals.checkIn && approvals.attendance) approvals.checkIn = { ...approvals.attendance };
   if (!approvals.checkOut && approvals.attendance) approvals.checkOut = { ...approvals.attendance };
+  week.daily[day].leaveImgs = Array.isArray(week.daily[day].leaveImgs) ? week.daily[day].leaveImgs : [];
 
   week.daily[day].managerNotes = {
     checkIn: managerNotes.checkIn || "",

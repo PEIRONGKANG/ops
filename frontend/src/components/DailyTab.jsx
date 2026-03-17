@@ -3,8 +3,8 @@ import { FilePickerButton, ImagePreviewGrid } from "./MediaBlocks";
 function StatusBlock({ title, managerStatus, studentStatus }) {
   return (
     <div className="mt-3 space-y-2">
-      <p className="status-line">{title}：{managerStatus}</p>
-      <p className="status-line">P3回签：{studentStatus}</p>
+      <p className="status-line">{title}{managerStatus}</p>
+      <p className="status-line">P3 回签：{studentStatus}</p>
     </div>
   );
 }
@@ -43,28 +43,37 @@ function ReviewBox({
         ) : null}
         {showStudentButton ? (
           <button className="btn-secondary" type="button" onClick={onStudentConfirm} disabled={studentButtonDisabled}>
-            P3确认通过
+            P3 确认通过
           </button>
         ) : null}
       </div>
-      <StatusBlock title="P2确认状态" managerStatus={managerStatus} studentStatus={studentStatus} />
+      <StatusBlock title="P2 确认状态：" managerStatus={managerStatus} studentStatus={studentStatus} />
     </div>
   );
 }
 
-function PhotoCard({
-  title,
-  images,
-  children,
-  reviewBox,
-}) {
+function ImageSection({ title, images, onClear, showClearAction }) {
   return (
-    <div className="soft-card">
-      <h3 className="panel-title">{title}</h3>
-      {children}
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="field-label !mb-0">{title}</p>
+        {showClearAction && images.length ? (
+          <button className="btn-warn" type="button" onClick={onClear}>
+            删除图片
+          </button>
+        ) : null}
+      </div>
       <ImagePreviewGrid images={images} />
-      {reviewBox}
     </div>
+  );
+}
+
+function TextClearButton({ onClick, visible, label }) {
+  if (!visible) return null;
+  return (
+    <button className="btn-warn" type="button" onClick={onClick}>
+      {label}
+    </button>
   );
 }
 
@@ -77,17 +86,21 @@ export function DailyTab({
   editable,
   reviewerMode,
   studentReviewMode,
+  canDeleteContent,
   managerSubmitDisabled,
   studentConfirmDisabled,
   onDateChange,
   onFieldChange,
+  onClearField,
   onManagerNoteChange,
   onAddImages,
+  onClearImages,
   onSave,
   onManagerSubmit,
   onStudentConfirm,
 }) {
   const showStudentSave = editable;
+  const showDeleteHint = editable && canDeleteContent;
 
   return (
     <section className="module-shell">
@@ -95,7 +108,7 @@ export function DailyTab({
         <p className="module-kicker">Daily Operations & Execution</p>
         <h2 className="section-title mt-2">每日打卡与运营执行</h2>
       </div>
-      <img src="/assets/hygiene-ai.svg" alt="AI卫生检查图" className="module-banner" />
+      <img src="/assets/hygiene-ai.svg" alt="AI 卫生检查图" className="module-banner" />
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="soft-card">
@@ -110,11 +123,29 @@ export function DailyTab({
         </div>
         <div className="soft-card">
           <label className="field-label">签到时间</label>
-          <input className="field-input" type="time" value={data.checkIn} onChange={(event) => onFieldChange("checkIn", event.target.value)} readOnly={!editable} />
+          <input
+            className="field-input"
+            type="time"
+            value={data.checkIn}
+            onChange={(event) => onFieldChange("checkIn", event.target.value)}
+            readOnly={!editable}
+          />
+          <div className="mt-3 flex flex-wrap gap-3">
+            <TextClearButton visible={showDeleteHint && Boolean(data.checkIn)} onClick={() => onClearField("checkIn")} label="清空签到时间" />
+          </div>
         </div>
         <div className="soft-card">
           <label className="field-label">签退时间</label>
-          <input className="field-input" type="time" value={data.checkOut} onChange={(event) => onFieldChange("checkOut", event.target.value)} readOnly={!editable} />
+          <input
+            className="field-input"
+            type="time"
+            value={data.checkOut}
+            onChange={(event) => onFieldChange("checkOut", event.target.value)}
+            readOnly={!editable}
+          />
+          <div className="mt-3 flex flex-wrap gap-3">
+            <TextClearButton visible={showDeleteHint && Boolean(data.checkOut)} onClick={() => onClearField("checkOut")} label="清空签退时间" />
+          </div>
         </div>
       </div>
 
@@ -127,9 +158,28 @@ export function DailyTab({
           placeholder="迟到早退说明、请假情况、导师签字信息"
           readOnly={!editable}
         />
+        <div className="mt-3 flex flex-wrap gap-3">
+          {editable ? (
+            <FilePickerButton buttonText="上传请假条图片" disabled={!editable} onSelect={(files) => onAddImages("leave", files)} />
+          ) : null}
+          <TextClearButton visible={showDeleteHint && Boolean(data.attendanceNote)} onClick={() => onClearField("attendanceNote")} label="清空文字" />
+          {showDeleteHint && data.leaveImgs.length ? (
+            <button className="btn-warn" type="button" onClick={() => onClearImages("leave")}>
+              删除请假条图片
+            </button>
+          ) : null}
+        </div>
+        <ImageSection
+          title="请假条上传"
+          images={data.leaveImgs}
+          showClearAction={false}
+        />
+        {showDeleteHint ? (
+          <p className="status-line mt-4">P3 修改或删除内容后，请点击“保存当日记录”，再重新提交给 P2 运营经理审核。</p>
+        ) : null}
         <div className="grid gap-4 xl:grid-cols-2">
           <ReviewBox
-            label="P2签到确认说明"
+            label="P2 签到确认说明"
             noteValue={data.managerNotes.checkIn}
             notePlaceholder="填写签到真实性、考勤核验情况与确认意见"
             noteEditable={reviewerMode}
@@ -145,7 +195,7 @@ export function DailyTab({
             onStudentConfirm={() => onStudentConfirm("checkIn")}
           />
           <ReviewBox
-            label="P2签退确认说明"
+            label="P2 签退确认说明"
             noteValue={data.managerNotes.checkOut}
             notePlaceholder="填写签退真实性、离岗情况与确认意见"
             noteEditable={reviewerMode}
@@ -164,96 +214,114 @@ export function DailyTab({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <PhotoCard
-          title="仪容仪表检查照片"
-          images={data.grooming}
-          reviewBox={(
-            <ReviewBox
-              label="P2仪容仪表确认说明"
-              noteValue={data.managerNotes.grooming}
-              notePlaceholder="填写仪容仪表核验结果"
-              noteEditable={reviewerMode}
-              managerStatus={approvals.grooming}
-              studentStatus={studentConfirmations.grooming}
-              managerButtonLabel="提交仪容确认"
-              managerButtonDisabled={managerSubmitDisabled.grooming}
-              studentButtonDisabled={studentConfirmDisabled.grooming}
-              showManagerButton={reviewerMode}
-              showStudentButton={studentReviewMode}
-              onNoteChange={(value) => onManagerNoteChange("grooming", value)}
-              onManagerSubmit={() => onManagerSubmit("grooming")}
-              onStudentConfirm={() => onStudentConfirm("grooming")}
-            />
-          )}
-        >
+        <div className="soft-card">
+          <h3 className="panel-title">仪容仪表检查照片</h3>
           {editable ? (
             <div className="mt-3 flex flex-wrap gap-3">
               <FilePickerButton buttonText="添加照片" disabled={!editable} onSelect={(files) => onAddImages("groom", files)} />
+              {showDeleteHint && data.grooming.length ? (
+                <button className="btn-warn" type="button" onClick={() => onClearImages("groom")}>
+                  删除图片
+                </button>
+              ) : null}
             </div>
           ) : null}
-        </PhotoCard>
+          <ImageSection title="已上传照片" images={data.grooming} showClearAction={false} />
+          <ReviewBox
+            label="P2 仪容仪表确认说明"
+            noteValue={data.managerNotes.grooming}
+            notePlaceholder="填写仪容仪表核验结果"
+            noteEditable={reviewerMode}
+            managerStatus={approvals.grooming}
+            studentStatus={studentConfirmations.grooming}
+            managerButtonLabel="提交仪容确认"
+            managerButtonDisabled={managerSubmitDisabled.grooming}
+            studentButtonDisabled={studentConfirmDisabled.grooming}
+            showManagerButton={reviewerMode}
+            showStudentButton={studentReviewMode}
+            onNoteChange={(value) => onManagerNoteChange("grooming", value)}
+            onManagerSubmit={() => onManagerSubmit("grooming")}
+            onStudentConfirm={() => onStudentConfirm("grooming")}
+          />
+        </div>
 
-        <PhotoCard
-          title="上班前卫生（公区/吧台）"
-          images={[...data.openingPublic, ...data.openingBar]}
-          reviewBox={(
-            <ReviewBox
-              label="P2上班前卫生确认说明"
-              noteValue={data.managerNotes.opening}
-              notePlaceholder="填写公区、吧台卫生核验结果与整改意见"
-              noteEditable={reviewerMode}
-              managerStatus={approvals.opening}
-              studentStatus={studentConfirmations.opening}
-              managerButtonLabel="提交开店卫生确认"
-              managerButtonDisabled={managerSubmitDisabled.opening}
-              studentButtonDisabled={studentConfirmDisabled.opening}
-              showManagerButton={reviewerMode}
-              showStudentButton={studentReviewMode}
-              onNoteChange={(value) => onManagerNoteChange("opening", value)}
-              onManagerSubmit={() => onManagerSubmit("opening")}
-              onStudentConfirm={() => onStudentConfirm("opening")}
-            />
-          )}
-        >
+        <div className="soft-card">
+          <h3 className="panel-title">上班前卫生（公区 / 吧台）</h3>
           {editable ? (
             <div className="mt-3 flex flex-wrap gap-3">
               <FilePickerButton buttonText="添加公区照片" disabled={!editable} onSelect={(files) => onAddImages("openingPublic", files)} />
               <FilePickerButton buttonText="添加吧台照片" disabled={!editable} onSelect={(files) => onAddImages("openingBar", files)} />
             </div>
           ) : null}
-        </PhotoCard>
+          <ImageSection
+            title="公区照片"
+            images={data.openingPublic}
+            onClear={() => onClearImages("openingPublic")}
+            showClearAction={showDeleteHint}
+          />
+          <ImageSection
+            title="吧台照片"
+            images={data.openingBar}
+            onClear={() => onClearImages("openingBar")}
+            showClearAction={showDeleteHint}
+          />
+          <ReviewBox
+            label="P2 上班前卫生确认说明"
+            noteValue={data.managerNotes.opening}
+            notePlaceholder="填写公区、吧台卫生核验结果与整改意见"
+            noteEditable={reviewerMode}
+            managerStatus={approvals.opening}
+            studentStatus={studentConfirmations.opening}
+            managerButtonLabel="提交开店卫生确认"
+            managerButtonDisabled={managerSubmitDisabled.opening}
+            studentButtonDisabled={studentConfirmDisabled.opening}
+            showManagerButton={reviewerMode}
+            showStudentButton={studentReviewMode}
+            onNoteChange={(value) => onManagerNoteChange("opening", value)}
+            onManagerSubmit={() => onManagerSubmit("opening")}
+            onStudentConfirm={() => onStudentConfirm("opening")}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <PhotoCard
-          title="下班后卫生（公区/吧台）"
-          images={[...data.closingPublic, ...data.closingBar]}
-          reviewBox={(
-            <ReviewBox
-              label="P2下班后卫生确认说明"
-              noteValue={data.managerNotes.closing}
-              notePlaceholder="填写闭店卫生核验结果与整改意见"
-              noteEditable={reviewerMode}
-              managerStatus={approvals.closing}
-              studentStatus={studentConfirmations.closing}
-              managerButtonLabel="提交闭店卫生确认"
-              managerButtonDisabled={managerSubmitDisabled.closing}
-              studentButtonDisabled={studentConfirmDisabled.closing}
-              showManagerButton={reviewerMode}
-              showStudentButton={studentReviewMode}
-              onNoteChange={(value) => onManagerNoteChange("closing", value)}
-              onManagerSubmit={() => onManagerSubmit("closing")}
-              onStudentConfirm={() => onStudentConfirm("closing")}
-            />
-          )}
-        >
+        <div className="soft-card">
+          <h3 className="panel-title">下班后卫生（公区 / 吧台）</h3>
           {editable ? (
             <div className="mt-3 flex flex-wrap gap-3">
               <FilePickerButton buttonText="添加公区照片" disabled={!editable} onSelect={(files) => onAddImages("closingPublic", files)} />
               <FilePickerButton buttonText="添加吧台照片" disabled={!editable} onSelect={(files) => onAddImages("closingBar", files)} />
             </div>
           ) : null}
-        </PhotoCard>
+          <ImageSection
+            title="公区照片"
+            images={data.closingPublic}
+            onClear={() => onClearImages("closingPublic")}
+            showClearAction={showDeleteHint}
+          />
+          <ImageSection
+            title="吧台照片"
+            images={data.closingBar}
+            onClear={() => onClearImages("closingBar")}
+            showClearAction={showDeleteHint}
+          />
+          <ReviewBox
+            label="P2 下班后卫生确认说明"
+            noteValue={data.managerNotes.closing}
+            notePlaceholder="填写闭店卫生核验结果与整改意见"
+            noteEditable={reviewerMode}
+            managerStatus={approvals.closing}
+            studentStatus={studentConfirmations.closing}
+            managerButtonLabel="提交闭店卫生确认"
+            managerButtonDisabled={managerSubmitDisabled.closing}
+            studentButtonDisabled={studentConfirmDisabled.closing}
+            showManagerButton={reviewerMode}
+            showStudentButton={studentReviewMode}
+            onNoteChange={(value) => onManagerNoteChange("closing", value)}
+            onManagerSubmit={() => onManagerSubmit("closing")}
+            onStudentConfirm={() => onStudentConfirm("closing")}
+          />
+        </div>
 
         <div className="soft-card">
           <h3 className="panel-title">财务与库存盘点（含损耗、库存照片）</h3>
@@ -276,10 +344,16 @@ export function DailyTab({
             <div>
               <label className="field-label">损耗说明</label>
               <textarea className="field-textarea" value={data.lossDesc} onChange={(event) => onFieldChange("lossDesc", event.target.value)} placeholder="原因、品项、处置" readOnly={!editable} />
+              <div className="mt-3 flex flex-wrap gap-3">
+                <TextClearButton visible={showDeleteHint && Boolean(data.lossDesc)} onClick={() => onClearField("lossDesc")} label="清空损耗说明" />
+              </div>
             </div>
             <div>
               <label className="field-label">库存盘点说明</label>
               <textarea className="field-textarea" value={data.inventoryDesc} onChange={(event) => onFieldChange("inventoryDesc", event.target.value)} placeholder="关键库存余量、缺货预警" readOnly={!editable} />
+              <div className="mt-3 flex flex-wrap gap-3">
+                <TextClearButton visible={showDeleteHint && Boolean(data.inventoryDesc)} onClick={() => onClearField("inventoryDesc")} label="清空库存说明" />
+              </div>
             </div>
           </div>
 
@@ -290,10 +364,21 @@ export function DailyTab({
             </div>
           ) : null}
 
-          <ImagePreviewGrid images={[...data.lossImgs, ...data.inventoryImgs]} />
+          <ImageSection
+            title="损耗照片"
+            images={data.lossImgs}
+            onClear={() => onClearImages("loss")}
+            showClearAction={showDeleteHint}
+          />
+          <ImageSection
+            title="库存照片"
+            images={data.inventoryImgs}
+            onClear={() => onClearImages("inventory")}
+            showClearAction={showDeleteHint}
+          />
 
           <ReviewBox
-            label="P2财务与库存确认说明"
+            label="P2 财务与库存确认说明"
             noteValue={data.managerNotes.finance}
             notePlaceholder="填写盘点结论、损耗核验结果与异常处理意见"
             noteEditable={reviewerMode}
@@ -313,15 +398,27 @@ export function DailyTab({
 
       <div className="soft-card">
         <h3 className="panel-title">学生购买创意饮品货品签收</h3>
-        <textarea className="field-textarea" value={data.receiptDesc} onChange={(event) => onFieldChange("receiptDesc", event.target.value)} placeholder="签收品项、数量、签收人、时间" readOnly={!editable} />
-        {editable ? (
-          <div className="mt-3 flex flex-wrap gap-3">
+        <textarea
+          className="field-textarea"
+          value={data.receiptDesc}
+          onChange={(event) => onFieldChange("receiptDesc", event.target.value)}
+          placeholder="签收品项、数量、签收人、时间"
+          readOnly={!editable}
+        />
+        <div className="mt-3 flex flex-wrap gap-3">
+          {editable ? (
             <FilePickerButton buttonText="添加签收照片" disabled={!editable} onSelect={(files) => onAddImages("receipt", files)} />
-          </div>
-        ) : null}
-        <ImagePreviewGrid images={data.receiptImgs} />
+          ) : null}
+          <TextClearButton visible={showDeleteHint && Boolean(data.receiptDesc)} onClick={() => onClearField("receiptDesc")} label="清空文字" />
+          {showDeleteHint && data.receiptImgs.length ? (
+            <button className="btn-warn" type="button" onClick={() => onClearImages("receipt")}>
+              删除图片
+            </button>
+          ) : null}
+        </div>
+        <ImageSection title="签收照片" images={data.receiptImgs} showClearAction={false} />
         <ReviewBox
-          label="P2签收确认说明"
+          label="P2 签收确认说明"
           noteValue={data.managerNotes.receipt}
           notePlaceholder="填写签收核验情况与确认意见"
           noteEditable={reviewerMode}
@@ -341,12 +438,15 @@ export function DailyTab({
       <div className="soft-card">
         <label className="field-label">当日补充说明</label>
         <textarea className="field-textarea" value={data.notes} onChange={(event) => onFieldChange("notes", event.target.value)} placeholder="客诉、异常、改进事项" readOnly={!editable} />
+        <div className="mt-3 flex flex-wrap gap-3">
+          <TextClearButton visible={showDeleteHint && Boolean(data.notes)} onClick={() => onClearField("notes")} label="清空文字" />
+        </div>
         <ReviewBox
-          label="P2当日补充说明确认"
+          label="P2 当日补充说明确认"
           noteValue={data.managerNotes.notes}
           notePlaceholder="填写对当日补充说明的核验意见"
           noteEditable={reviewerMode}
-          managerStatus={approvals.notes || "待P2确认"}
+          managerStatus={approvals.notes}
           studentStatus={studentConfirmations.notes}
           managerButtonLabel="提交补充说明确认"
           managerButtonDisabled={managerSubmitDisabled.notes}

@@ -152,6 +152,31 @@ cd frontend
 ..\.tools\node-v24.13.0-win-x64\npm.cmd run smoke
 ```
 
+公网完整业务回归：
+
+```powershell
+cd frontend
+..\.tools\node-v24.13.0-win-x64\npm.cmd run regression:public
+```
+
+一条命令发布到公网并自动回归：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_public.ps1
+```
+
+这条命令默认会：
+- 对 `frontend` 执行 `lint` 和 `build`
+- 使用 `scripts/deploy_ubuntu.ps1` 发布到 `111.229.16.93:8000`
+- 发布完成后自动跑一轮公网完整业务回归
+
+如需跳过某一步，可选参数：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_public.ps1 -SkipLint
+powershell -ExecutionPolicy Bypass -File .\scripts\release_public.ps1 -SkipRegression
+```
+
 ## 已验证项目
 
 已在本机通过：

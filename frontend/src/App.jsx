@@ -119,6 +119,38 @@ function getDailyApprovalDefaults() {
   };
 }
 
+const DAILY_FIELD_RESET_MAP = {
+  checkIn: ["checkIn"],
+  checkOut: ["checkOut"],
+  attendanceNote: ["checkIn", "checkOut"],
+  sales: ["finance"],
+  cost: ["finance"],
+  lossAmount: ["finance"],
+  lossDesc: ["finance"],
+  inventoryDesc: ["finance"],
+  receiptDesc: ["receipt"],
+  notes: ["notes"],
+};
+
+const DAILY_IMAGE_CONFIG = {
+  groom: { key: "grooming", reviewKinds: ["grooming"] },
+  openingPublic: { key: "openingPublic", reviewKinds: ["opening"] },
+  openingBar: { key: "openingBar", reviewKinds: ["opening"] },
+  closingPublic: { key: "closingPublic", reviewKinds: ["closing"] },
+  closingBar: { key: "closingBar", reviewKinds: ["closing"] },
+  loss: { key: "lossImgs", reviewKinds: ["finance"] },
+  inventory: { key: "inventoryImgs", reviewKinds: ["finance"] },
+  receipt: { key: "receiptImgs", reviewKinds: ["receipt"] },
+  leave: { key: "leaveImgs", reviewKinds: ["checkIn", "checkOut"] },
+};
+
+function resetStampedApproval(target) {
+  if (!target) return;
+  target.by = "";
+  target.time = "";
+  target.comment = "";
+}
+
 function App() {
   const [app, setApp] = useState(initialState);
   const stateRef = useRef(initialState);
@@ -208,6 +240,20 @@ function App() {
   const canStudentConfirmDaily = (source = stateRef.current) => {
     const user = getCurrentUserRecord(source);
     return !!user && (user.level === "P1" || user.level === "P3");
+  };
+
+  const shouldResetDailyReviewState = (source = stateRef.current) => {
+    const user = getCurrentUserRecord(source);
+    return !!user && user.level === "P3";
+  };
+
+  const resetDailyReviewState = (record, reviewKinds = []) => {
+    reviewKinds.forEach((kind) => {
+      if (!kind) return;
+      record.managerNotes[kind] = "";
+      resetStampedApproval(record.approvals[kind]);
+      resetStampedApproval(record.studentConfirmations[kind]);
+    });
   };
 
   const canViewAllScopes = (source = stateRef.current) => {
@@ -528,8 +574,14 @@ function App() {
 
   const dailyManagerSubmitDisabled = currentDayData
     ? {
-      checkIn: !canReviewDaily() || !trim(currentDayData.checkIn) || !trim(currentDayData.managerNotes.checkIn),
-      checkOut: !canReviewDaily() || !trim(currentDayData.checkOut) || !trim(currentDayData.managerNotes.checkOut),
+      checkIn: !canReviewDaily() || !(
+        hasText(currentDayData.checkIn, currentDayData.attendanceNote)
+        || hasImages(currentDayData.leaveImgs)
+      ) || !trim(currentDayData.managerNotes.checkIn),
+      checkOut: !canReviewDaily() || !(
+        hasText(currentDayData.checkOut, currentDayData.attendanceNote)
+        || hasImages(currentDayData.leaveImgs)
+      ) || !trim(currentDayData.managerNotes.checkOut),
       grooming: !canReviewDaily() || !hasImages(currentDayData.grooming) || !trim(currentDayData.managerNotes.grooming),
       opening: !canReviewDaily() || !(hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar)) || !trim(currentDayData.managerNotes.opening),
       closing: !canReviewDaily() || !(hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar)) || !trim(currentDayData.managerNotes.closing),
@@ -845,7 +897,11 @@ function App() {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
       if (!week || !draft.currentDay) return;
-      ensureDayOnWeek(week, draft.currentDay)[field] = value;
+      const record = ensureDayOnWeek(week, draft.currentDay);
+      record[field] = value;
+      if (shouldResetDailyReviewState(draft)) {
+        resetDailyReviewState(record, DAILY_FIELD_RESET_MAP[field] || []);
+      }
     });
   };
 
@@ -893,6 +949,10 @@ function App() {
     await withScopedWeeks((week) => {
       week.daily[stateRef.current.currentDay] = cloneValue(sourceDay);
     });
+    if (shouldResetDailyReviewState()) {
+      setStatus(`已保存：${stateRef.current.currentDay} 当日记录，需重新提交给 P2 审核。`);
+      return;
+    }
     setStatus(`已保存：${stateRef.current.currentDay} 当日记录。`);
   };
 
@@ -945,30 +1005,38 @@ function App() {
     const week = next.weeks[next.currentWeekKey];
     if (!week) return;
     const target = ensureDayOnWeek(week, day);
+    const config = DAILY_IMAGE_CONFIG[kind];
+    if (!config) return;
 
-    if (kind === "groom") {
-      target.grooming = target.grooming.concat(urls);
+    target[config.key] = target[config.key].concat(urls);
+    if (shouldResetDailyReviewState(next)) {
+      resetDailyReviewState(target, config.reviewKinds);
     }
-    if (kind === "openingPublic") {
-      target.openingPublic = target.openingPublic.concat(urls);
-    }
-    if (kind === "openingBar") {
-      target.openingBar = target.openingBar.concat(urls);
-    }
-    if (kind === "closingPublic") {
-      target.closingPublic = target.closingPublic.concat(urls);
-    }
-    if (kind === "closingBar") {
-      target.closingBar = target.closingBar.concat(urls);
-    }
-    if (kind === "loss") {
-      target.lossImgs = target.lossImgs.concat(urls);
-    }
-    if (kind === "inventory") {
-      target.inventoryImgs = target.inventoryImgs.concat(urls);
-    }
-    if (kind === "receipt") {
-      target.receiptImgs = target.receiptImgs.concat(urls);
+
+    replaceState(next);
+    await saveDaily();
+  };
+
+  const clearDailyField = (field) => {
+    handleDailyFieldChange(field, "");
+    setStatus("已清空当前内容，保存后需重新提交给 P2 审核。");
+  };
+
+  const clearDailyImages = async (kind) => {
+    const day = stateRef.current.currentDay;
+    if (!day) return;
+    const config = DAILY_IMAGE_CONFIG[kind];
+    if (!config) return;
+
+    const next = cloneValue(stateRef.current);
+    const week = next.weeks[next.currentWeekKey];
+    if (!week) return;
+    const target = ensureDayOnWeek(week, day);
+    if (!hasImages(target[config.key])) return;
+
+    target[config.key] = [];
+    if (shouldResetDailyReviewState(next)) {
+      resetDailyReviewState(target, config.reviewKinds);
     }
 
     replaceState(next);
@@ -1336,8 +1404,8 @@ function App() {
   const formatCurrency = (value) => `¥${Number(value || 0).toFixed(2)}`;
   const checklistCompletion = currentDayData
     ? [
-      Boolean(trim(currentDayData.checkIn)),
-      Boolean(trim(currentDayData.checkOut)),
+      Boolean(trim(currentDayData.checkIn) || trim(currentDayData.attendanceNote) || hasImages(currentDayData.leaveImgs)),
+      Boolean(trim(currentDayData.checkOut) || trim(currentDayData.attendanceNote) || hasImages(currentDayData.leaveImgs)),
       hasImages(currentDayData.grooming),
       hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar),
       hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar),
@@ -1476,12 +1544,15 @@ function App() {
           editable={canEditDailyContent()}
           reviewerMode={canReviewDaily()}
           studentReviewMode={canStudentConfirmDaily()}
+          canDeleteContent={currentUser?.level === "P3"}
           managerSubmitDisabled={dailyManagerSubmitDisabled}
           studentConfirmDisabled={dailyStudentConfirmDisabled}
           onDateChange={handleDailyDateChange}
           onFieldChange={handleDailyFieldChange}
+          onClearField={clearDailyField}
           onManagerNoteChange={handleDailyManagerNoteChange}
           onAddImages={addDailyImages}
+          onClearImages={clearDailyImages}
           onSave={saveDaily}
           onManagerSubmit={submitDailyManagerConfirmation}
           onStudentConfirm={confirmDailyByStudent}
@@ -1913,12 +1984,15 @@ function App() {
                     editable={canEditDailyContent()}
                     reviewerMode={canReviewDaily()}
                     studentReviewMode={canStudentConfirmDaily()}
+                    canDeleteContent={currentUser?.level === "P3"}
                     managerSubmitDisabled={dailyManagerSubmitDisabled}
                     studentConfirmDisabled={dailyStudentConfirmDisabled}
                     onDateChange={handleDailyDateChange}
                     onFieldChange={handleDailyFieldChange}
+                    onClearField={clearDailyField}
                     onManagerNoteChange={handleDailyManagerNoteChange}
                     onAddImages={addDailyImages}
+                    onClearImages={clearDailyImages}
                     onSave={saveDaily}
                     onManagerSubmit={submitDailyManagerConfirmation}
                     onStudentConfirm={confirmDailyByStudent}

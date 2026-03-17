@@ -19,8 +19,10 @@ export function HandoverTab({
 
       <div className="module-banner-strip">
         <div>
-          <p className="module-kicker !text-white/58">Handover Continuity</p>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/84">将本周运营情况、遗留问题、下一组提醒和现场交接凭证统一沉淀，保证轮值切换流畅且可追溯。</p>
+          <p className="module-kicker">Handover Continuity</p>
+          <p className="mt-3 max-w-2xl text-sm leading-7">
+            将本周运营情况、遗留问题、下一组提醒和现场交接凭证统一沉淀，保证轮值切换流畅且可追溯。
+          </p>
         </div>
       </div>
 
