@@ -132,6 +132,16 @@ export function ensureDayOnWeek(week, day) {
       inventoryImgs: [],
       receiptDesc: "",
       receiptImgs: [],
+      managerNotes: {
+        checkIn: "",
+        checkOut: "",
+        grooming: "",
+        opening: "",
+        closing: "",
+        finance: "",
+        receipt: "",
+        notes: "",
+      },
       approvals: {
         checkIn: emptyApproval(),
         checkOut: emptyApproval(),
@@ -140,13 +150,37 @@ export function ensureDayOnWeek(week, day) {
         finance: emptyApproval(),
         receipt: emptyApproval(),
         closing: emptyApproval(),
+        notes: emptyApproval(),
+      },
+      studentConfirmations: {
+        checkIn: emptyApproval(),
+        checkOut: emptyApproval(),
+        grooming: emptyApproval(),
+        opening: emptyApproval(),
+        finance: emptyApproval(),
+        receipt: emptyApproval(),
+        closing: emptyApproval(),
+        notes: emptyApproval(),
       },
     };
   }
 
+  const managerNotes = week.daily[day].managerNotes || {};
   const approvals = week.daily[day].approvals || {};
+  const studentConfirmations = week.daily[day].studentConfirmations || {};
   if (!approvals.checkIn && approvals.attendance) approvals.checkIn = { ...approvals.attendance };
   if (!approvals.checkOut && approvals.attendance) approvals.checkOut = { ...approvals.attendance };
+
+  week.daily[day].managerNotes = {
+    checkIn: managerNotes.checkIn || "",
+    checkOut: managerNotes.checkOut || "",
+    grooming: managerNotes.grooming || "",
+    opening: managerNotes.opening || "",
+    closing: managerNotes.closing || "",
+    finance: managerNotes.finance || "",
+    receipt: managerNotes.receipt || "",
+    notes: managerNotes.notes || "",
+  };
 
   week.daily[day].approvals = {
     checkIn: approvals.checkIn || emptyApproval(),
@@ -156,6 +190,18 @@ export function ensureDayOnWeek(week, day) {
     finance: approvals.finance || emptyApproval(),
     receipt: approvals.receipt || emptyApproval(),
     closing: approvals.closing || emptyApproval(),
+    notes: approvals.notes || emptyApproval(),
+  };
+
+  week.daily[day].studentConfirmations = {
+    checkIn: studentConfirmations.checkIn || emptyApproval(),
+    checkOut: studentConfirmations.checkOut || emptyApproval(),
+    grooming: studentConfirmations.grooming || emptyApproval(),
+    opening: studentConfirmations.opening || emptyApproval(),
+    finance: studentConfirmations.finance || emptyApproval(),
+    receipt: studentConfirmations.receipt || emptyApproval(),
+    closing: studentConfirmations.closing || emptyApproval(),
+    notes: studentConfirmations.notes || emptyApproval(),
   };
 
   return week.daily[day];

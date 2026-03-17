@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AccountsTab } from "./components/AccountsTab";
 import { CreativeTab } from "./components/CreativeTab";
+import { DashboardShell } from "./components/DashboardShell";
 import { DailyTab } from "./components/DailyTab";
 import { HandoverTab } from "./components/HandoverTab";
 import { LoginPanel } from "./components/LoginPanel";
@@ -37,7 +38,7 @@ import { api } from "./services/api";
 
 
 const SESSION_KEY = "ops_training_ops_react_session_v1";
-const DAY_LABELS = ["周三", "周四", "周五", "周六", "周日", "周一", "周二", "次周三(交接)"];
+const DAY_LABELS = ["周三", "周四", "周五", "周六", "周日", "周一", "周二", "次周三（交接）"];
 
 const initialState = {
   users: [],
@@ -105,6 +106,7 @@ function getDailyApprovalDefaults() {
     closing: true,
     finance: true,
     receipt: true,
+    notes: true,
   };
 }
 
@@ -180,6 +182,21 @@ function App() {
   };
 
   const canEditCurrentScopeData = (source = stateRef.current) => {
+    const user = getCurrentUserRecord(source);
+    return !!user && (user.level === "P1" || user.level === "P3");
+  };
+
+  const canEditDailyContent = (source = stateRef.current) => {
+    const user = getCurrentUserRecord(source);
+    return !!user && (user.level === "P1" || user.level === "P3");
+  };
+
+  const canReviewDaily = (source = stateRef.current) => {
+    const user = getCurrentUserRecord(source);
+    return !!user && (user.level === "P1" || user.level === "P2");
+  };
+
+  const canStudentConfirmDaily = (source = stateRef.current) => {
     const user = getCurrentUserRecord(source);
     return !!user && (user.level === "P1" || user.level === "P3");
   };
@@ -312,6 +329,15 @@ function App() {
     return true;
   };
 
+  const stampStudentConfirmation = (source, target) => {
+    if (!canStudentConfirmDaily(source)) return false;
+    const actor = getCurrentUserRecord(source);
+    target.by = actor?.displayName || actor?.username || "";
+    target.time = new Date().toLocaleString();
+    target.comment = "";
+    return true;
+  };
+
   const syncEditForms = (source) => {
     const sorted = source.users.slice().sort((a, b) => a.username.localeCompare(b.username));
     const fallbackId = sorted.some((user) => user.username === source.editUserId)
@@ -422,6 +448,20 @@ function App() {
     return `单人登录：${labels[0] || `${currentUser.displayName}（${currentUser.username}）`}。本次录入同步到当前账号。`;
   })();
 
+  const dashboardSessionInfo = (() => {
+    if (!currentUser) return "当前未登录。";
+    if (currentUser.level !== "P3") return "当前为管理账号单独登录。";
+    const sessionUsers = getCurrentSessionUsers();
+    const labels = sessionUsers.map((username) => {
+      const user = app.users.find((item) => item.username === username);
+      return user ? `${user.displayName || user.username}（${user.username}）` : username;
+    });
+    if (labels.length > 1) {
+      return `双人协同登录：${labels.join("、")}。本次录入会同步到这两个学生账号。`;
+    }
+    return `单人登录：${labels[0] || `${currentUser.displayName || currentUser.username}（${currentUser.username}）`}。本次录入同步到当前账号。`;
+  })();
+
   const dailyDateOptions = currentWeek
     ? getWeekDates(currentWeek.startDate).map((value, index) => ({
       value,
@@ -432,19 +472,33 @@ function App() {
   const creativeApproveDisabled = !canApprove() || !currentWeek
     || !(hasText(currentWeek.creative.marketing, currentWeek.creative.recipe, currentWeek.creative.procurement) || hasImages(currentWeek.creative.posters));
 
-  const dailyApproveDisabled = currentDayData
+  const dailyManagerSubmitDisabled = currentDayData
     ? {
-      checkIn: !canApprove() || !trim(currentDayData.checkIn),
-      checkOut: !canApprove() || !trim(currentDayData.checkOut),
-      grooming: !canApprove() || !hasImages(currentDayData.grooming),
-      opening: !canApprove() || !(hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar)),
-      closing: !canApprove() || !(hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar)),
-      finance: !canApprove() || !(
+      checkIn: !canReviewDaily() || !trim(currentDayData.checkIn) || !trim(currentDayData.managerNotes.checkIn),
+      checkOut: !canReviewDaily() || !trim(currentDayData.checkOut) || !trim(currentDayData.managerNotes.checkOut),
+      grooming: !canReviewDaily() || !hasImages(currentDayData.grooming) || !trim(currentDayData.managerNotes.grooming),
+      opening: !canReviewDaily() || !(hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar)) || !trim(currentDayData.managerNotes.opening),
+      closing: !canReviewDaily() || !(hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar)) || !trim(currentDayData.managerNotes.closing),
+      finance: !canReviewDaily() || !trim(currentDayData.managerNotes.finance) || !(
         hasText(currentDayData.sales, currentDayData.cost, currentDayData.lossAmount, currentDayData.lossDesc, currentDayData.inventoryDesc)
         || hasImages(currentDayData.lossImgs)
         || hasImages(currentDayData.inventoryImgs)
       ),
-      receipt: !canApprove() || !(hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs)),
+      receipt: !canReviewDaily() || !trim(currentDayData.managerNotes.receipt) || !(hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs)),
+      notes: !canReviewDaily() || !trim(currentDayData.managerNotes.notes),
+    }
+    : getDailyApprovalDefaults();
+
+  const dailyStudentConfirmDisabled = currentDayData
+    ? {
+      checkIn: !canStudentConfirmDaily() || !trim(currentDayData.approvals.checkIn.by) || !!trim(currentDayData.studentConfirmations.checkIn.by),
+      checkOut: !canStudentConfirmDaily() || !trim(currentDayData.approvals.checkOut.by) || !!trim(currentDayData.studentConfirmations.checkOut.by),
+      grooming: !canStudentConfirmDaily() || !trim(currentDayData.approvals.grooming.by) || !!trim(currentDayData.studentConfirmations.grooming.by),
+      opening: !canStudentConfirmDaily() || !trim(currentDayData.approvals.opening.by) || !!trim(currentDayData.studentConfirmations.opening.by),
+      closing: !canStudentConfirmDaily() || !trim(currentDayData.approvals.closing.by) || !!trim(currentDayData.studentConfirmations.closing.by),
+      finance: !canStudentConfirmDaily() || !trim(currentDayData.approvals.finance.by) || !!trim(currentDayData.studentConfirmations.finance.by),
+      receipt: !canStudentConfirmDaily() || !trim(currentDayData.approvals.receipt.by) || !!trim(currentDayData.studentConfirmations.receipt.by),
+      notes: !canStudentConfirmDaily() || !trim(currentDayData.approvals.notes.by) || !!trim(currentDayData.studentConfirmations.notes.by),
     }
     : getDailyApprovalDefaults();
 
@@ -624,6 +678,14 @@ function App() {
     });
   };
 
+  const handleDailyManagerNoteChange = (field, value) => {
+    applyState((draft) => {
+      const week = draft.weeks[draft.currentWeekKey];
+      if (!week || !draft.currentDay) return;
+      ensureDayOnWeek(week, draft.currentDay).managerNotes[field] = value;
+    });
+  };
+
   const handleHandoverFieldChange = (field, value) => {
     applyState((draft) => {
       const week = draft.weeks[draft.currentWeekKey];
@@ -765,7 +827,9 @@ function App() {
     if (approved) setStatus("已确认：周三策划提交。");
   };
 
-  const approveDaily = async (kind) => {
+  const dailyApproveDisabled = dailyManagerSubmitDisabled;
+
+  const _approveDaily = async (kind) => {
     const day = stateRef.current.currentDay;
     if (!day) {
       setStatus("请先选择日期后再执行经理确认。", true);
@@ -809,6 +873,66 @@ function App() {
         receipt: "货品签收",
       };
       setStatus(`已确认：${labels[kind]}。`);
+    }
+  };
+
+  const submitDailyManagerConfirmation = async (kind) => {
+    const day = stateRef.current.currentDay;
+    if (!day) {
+      setStatus("请先选择日期后再执行 P2 确认。", true);
+      return;
+    }
+    if (dailyManagerSubmitDisabled[kind]) {
+      setStatus("请先补全该项 P2 确认说明后再提交。", true);
+      return;
+    }
+    let approved = false;
+    await withScopedWeeks((week, _username, source) => {
+      const record = ensureDayOnWeek(week, day);
+      const targetMap = {
+        checkIn: record.approvals.checkIn,
+        checkOut: record.approvals.checkOut,
+        grooming: record.approvals.grooming,
+        opening: record.approvals.opening,
+        closing: record.approvals.closing,
+        finance: record.approvals.finance,
+        receipt: record.approvals.receipt,
+        notes: record.approvals.notes,
+      };
+      approved = stampApproval(source, targetMap[kind] || emptyApproval()) || approved;
+    });
+    if (approved) {
+      setStatus("已提交 P2 确认，等待 P3 回签。");
+    }
+  };
+
+  const confirmDailyByStudent = async (kind) => {
+    const day = stateRef.current.currentDay;
+    if (!day) {
+      setStatus("请先选择日期后再执行 P3 回签。", true);
+      return;
+    }
+    if (dailyStudentConfirmDisabled[kind]) {
+      setStatus("当前项目尚未完成 P2 确认，或已经完成 P3 回签。", true);
+      return;
+    }
+    let confirmed = false;
+    await withScopedWeeks((week, _username, source) => {
+      const record = ensureDayOnWeek(week, day);
+      const targetMap = {
+        checkIn: record.studentConfirmations.checkIn,
+        checkOut: record.studentConfirmations.checkOut,
+        grooming: record.studentConfirmations.grooming,
+        opening: record.studentConfirmations.opening,
+        closing: record.studentConfirmations.closing,
+        finance: record.studentConfirmations.finance,
+        receipt: record.studentConfirmations.receipt,
+        notes: record.studentConfirmations.notes,
+      };
+      confirmed = stampStudentConfirmation(source, targetMap[kind] || emptyApproval()) || confirmed;
+    });
+    if (confirmed) {
+      setStatus("已完成 P3 回签确认。");
     }
   };
 
@@ -1019,6 +1143,287 @@ function App() {
     : "";
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
   const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
+  const dashboardTabItems = [
+    { key: "creative", label: "创意策划" },
+    { key: "daily", label: "日常运营" },
+    { key: "handover", label: "班次交接" },
+    { key: "reflection", label: "总结复盘" },
+    { key: "accounts", label: "账号管理" },
+  ];
+  const activeDashboardTabLabel = dashboardTabItems.find((item) => item.key === app.activeTab)?.label || "运营工作台";
+  const dashboardPublicNavItems = ["首页", "清单", "财务", "库存", "手册"];
+  const pageTitle = app.currentUser ? "实训基地概览" : "饮品实训基地周运营系统";
+  const pageSubtitle = app.currentUser
+    ? `当前查看 ${scopeUserRecord ? `${scopeUserRecord.displayName || scopeUserRecord.username} 的轮值进度` : "本周运营数据"}。保持原有业务逻辑不变，只更新为 OpsMaster 风格工作台。`
+    : "围绕学生轮值、日常运营、经理审核与周报导出的完整实训流程，提供更清晰的运营看板与执行入口。";
+  const dashboardDate = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(new Date());
+  const formatCurrency = (value) => `¥${Number(value || 0).toFixed(2)}`;
+  const checklistCompletion = currentDayData
+    ? [
+      Boolean(trim(currentDayData.checkIn)),
+      Boolean(trim(currentDayData.checkOut)),
+      hasImages(currentDayData.grooming),
+      hasImages(currentDayData.openingPublic) || hasImages(currentDayData.openingBar),
+      hasImages(currentDayData.closingPublic) || hasImages(currentDayData.closingBar),
+      hasText(currentDayData.sales, currentDayData.cost, currentDayData.lossAmount, currentDayData.lossDesc, currentDayData.inventoryDesc)
+        || hasImages(currentDayData.lossImgs)
+        || hasImages(currentDayData.inventoryImgs),
+      hasText(currentDayData.receiptDesc) || hasImages(currentDayData.receiptImgs),
+      Boolean(trim(currentDayData.notes)),
+    ]
+    : Array.from({ length: 8 }, () => false);
+  const completedCount = checklistCompletion.filter(Boolean).length;
+  const totalCount = checklistCompletion.length || 8;
+  const progressPercent = Math.round((completedCount / totalCount) * 100);
+  const dashboardStats = app.currentUser
+    ? [
+      {
+        label: "今日任务进度",
+        value: `${progressPercent}%`,
+        meta: `${completedCount}/${totalCount} 已完成`,
+        tone: "slate",
+      },
+      {
+        label: "今日营业额",
+        value: formatCurrency(currentDayData?.sales),
+        meta: currentDayData ? `采购成本 ${formatCurrency(currentDayData.cost)}` : "待录入财务数据",
+        tone: "emerald",
+      },
+      {
+        label: "损耗预警",
+        value: formatCurrency(currentDayData?.lossAmount),
+        meta: currentDayData?.lossDesc ? "已填写损耗说明" : "暂未记录异常损耗",
+        tone: "indigo",
+      },
+    ]
+    : [
+      { label: "双人协同", value: "2 人登录", meta: "同组学生一次登录同步周记录", tone: "emerald" },
+      { label: "经理审核", value: "逐项确认", meta: "签到、卫生、财务与交接均可留痕", tone: "slate" },
+      { label: "报告导出", value: "Word 周报", meta: "支持预览、打印与导出归档", tone: "indigo" },
+    ];
+  const reminderItems = [
+    { label: "检查学生仪容底线", tab: "daily", alert: true },
+    { label: "抽查产品配方与掌握情况", tab: "creative", alert: false },
+    { label: "审核昨日日报数据", tab: "daily", alert: false },
+    { label: "确认本周原材料到货", tab: "daily", alert: true },
+    { label: "评估学生实训表现", tab: "reflection", alert: false },
+  ];
+  const todoItems = [
+    {
+      title: currentWeek ? "继续填写本周日报" : "加载本周轮值",
+      meta: currentWeek ? `${app.currentDay || currentWeek.startDate} 可继续录入` : `${app.selectedWeekStart} 起始`,
+      tab: "daily",
+      tone: "emerald",
+      onClick: currentWeek ? undefined : handleLoadWeek,
+    },
+    {
+      title: currentWeek ? "检查创意策划与物料" : "准备创意策划内容",
+      meta: currentWeek ? renderApprovalText(currentWeek.creative.approval) : "营销、配方与采购内容待提交",
+      tab: "creative",
+      tone: "indigo",
+    },
+    {
+      title: currentWeek ? "预览本周实训报告" : "等待生成周报",
+      meta: currentWeek ? "可打开预览或导出 Word" : "加载周次后启用报告能力",
+      tab: "reflection",
+      tone: "slate",
+      onClick: currentWeek ? handlePreviewReport : handleLoadWeek,
+    },
+  ];
+  const activityItems = [
+    { label: "当前会话", value: dashboardSessionInfo },
+    { label: "教学周次", value: currentWeekGroup?.teachingWeek || "尚未设置" },
+    { label: "轮值周期", value: currentWeek ? `${currentWeek.startDate} - ${currentWeek.endDate}` : "尚未加载本周" },
+  ];
+  const moduleContent = (
+    <>
+      {showEmptyWeekState ? (
+        <section className="soft-card">
+          <p className="module-kicker">Weekly Preparation</p>
+          <h2 className="section-title mt-2">请先加载本周</h2>
+          <p className="status-line mt-4">左侧选择轮值起始日期后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
+        </section>
+      ) : null}
+
+      {app.activeTab === "creative" && currentWeek ? (
+        <CreativeTab
+          data={currentWeek.creative}
+          approvalText={renderApprovalText(currentWeek.creative.approval)}
+          editable={canEditCurrentScopeData()}
+          approveDisabled={creativeApproveDisabled}
+          onFieldChange={handleCreativeFieldChange}
+          onSave={saveCreative}
+          onAddPoster={addCreativePoster}
+          onClearPoster={clearCreativePoster}
+          onApprove={approveCreative}
+        />
+      ) : null}
+
+      {app.activeTab === "daily" && currentWeek && currentDayData ? (
+        <DailyTab
+          dailyDateOptions={dailyDateOptions}
+          currentDay={app.currentDay}
+          data={currentDayData}
+          approvals={{
+            checkIn: renderApprovalText(currentDayData.approvals.checkIn),
+            checkOut: renderApprovalText(currentDayData.approvals.checkOut),
+            grooming: renderApprovalText(currentDayData.approvals.grooming),
+            opening: renderApprovalText(currentDayData.approvals.opening),
+            closing: renderApprovalText(currentDayData.approvals.closing),
+            finance: renderApprovalText(currentDayData.approvals.finance),
+            receipt: renderApprovalText(currentDayData.approvals.receipt),
+            notes: renderApprovalText(currentDayData.approvals.notes),
+          }}
+          studentConfirmations={{
+            checkIn: renderApprovalText(currentDayData.studentConfirmations.checkIn),
+            checkOut: renderApprovalText(currentDayData.studentConfirmations.checkOut),
+            grooming: renderApprovalText(currentDayData.studentConfirmations.grooming),
+            opening: renderApprovalText(currentDayData.studentConfirmations.opening),
+            closing: renderApprovalText(currentDayData.studentConfirmations.closing),
+            finance: renderApprovalText(currentDayData.studentConfirmations.finance),
+            receipt: renderApprovalText(currentDayData.studentConfirmations.receipt),
+            notes: renderApprovalText(currentDayData.studentConfirmations.notes),
+          }}
+          editable={canEditDailyContent()}
+          reviewerMode={canReviewDaily()}
+          studentReviewMode={canStudentConfirmDaily()}
+          managerSubmitDisabled={dailyManagerSubmitDisabled}
+          studentConfirmDisabled={dailyStudentConfirmDisabled}
+          onDateChange={handleDailyDateChange}
+          onFieldChange={handleDailyFieldChange}
+          onManagerNoteChange={handleDailyManagerNoteChange}
+          onAddImages={addDailyImages}
+          onSave={saveDaily}
+          onManagerSubmit={submitDailyManagerConfirmation}
+          onStudentConfirm={confirmDailyByStudent}
+        />
+      ) : null}
+
+      {app.activeTab === "handover" && currentWeek ? (
+        <HandoverTab
+          data={currentWeek.handover}
+          statusText={renderApprovalText(currentWeek.handover.approval)}
+          editable={canEditCurrentScopeData()}
+          approveDisabled={handoverApproveDisabled}
+          onFieldChange={handleHandoverFieldChange}
+          onAddImages={addHandoverImages}
+          onSave={saveHandover}
+          onApprove={approveHandover}
+        />
+      ) : null}
+
+      {app.activeTab === "reflection" && currentWeek ? (
+        <ReflectionTab
+          data={currentWeek.reflection}
+          statusText={renderApprovalText(currentWeek.reflection.approval)}
+          editable={canEditCurrentScopeData()}
+          canApprove={canApprove()}
+          approveDisabled={reflectionApproveDisabled}
+          saveLabel={reflectionSaveLabel}
+          onFieldChange={handleReflectionFieldChange}
+          onSave={saveReflection}
+          onApprove={approveReflection}
+        />
+      ) : null}
+
+      {app.activeTab === "accounts" ? (
+        <AccountsTab
+          users={app.users}
+          currentUser={currentUser}
+          isTop={canManageAccounts()}
+          passwordForm={app.passwordForm}
+          newUserForm={app.newUserForm}
+          editUserId={app.editUserId}
+          editForm={app.editForm}
+          onPasswordChange={(value) => applyState((draft) => { draft.passwordForm.newPassword = value; })}
+          onSubmitPassword={handlePasswordSubmit}
+          onNewUserChange={handleNewUserChange}
+          onCreateUser={handleCreateUser}
+          onEditUserSelect={handleEditUserSelect}
+          onEditFormChange={handleEditFormChange}
+          onSaveUserEdit={handleSaveUserEdit}
+          onDeleteUser={handleDeleteUser}
+          canDeleteSelected={canManageAccounts() && Boolean(app.editUserId) && app.editUserId !== currentUser?.username}
+          deleteHint={deleteHint}
+        />
+      ) : null}
+    </>
+  );
+  const loginProps = {
+    loginForm: app.loginForm,
+    loginMessage: app.loginMessage,
+    loading: app.loading,
+    onChange: handleLoginFormChange,
+    onSubmit: handleLogin,
+  };
+  const sidebarProps = {
+    currentUser,
+    roleLabel: currentUser ? ({
+      P1: "教学主管",
+      P2: "运营经理",
+      P3: "轮值学员",
+    }[currentUser.level] || currentUser.level) : "",
+    sessionInfo: dashboardSessionInfo,
+    canViewAllScopes: canViewAllScopes(),
+    studentUsers,
+    activeScopeUser: resolvedScopeUser,
+    weekStart: app.selectedWeekStart,
+    weekEnd: currentWeek?.endDate || "",
+    teachingWeekOptions: buildTeachingWeekOptions(),
+    teachingWeek: currentWeekGroup?.teachingWeek || "",
+    groupHint: describeTeachingWeek(currentWeekGroup),
+    memberA: currentWeek?.members.a || currentWeekGroup.a || "",
+    memberB: currentWeek?.members.b || currentWeekGroup.b || "",
+    nextGroup: currentWeek?.nextGroup || currentWeekGroup.nextGroup || "",
+    hasWeek: Boolean(currentWeek),
+    canSaveGroup: canEditCurrentScopeData() && Boolean(currentWeek),
+    canExportReport: Boolean(currentWeek),
+    onScopeChange: handleScopeChange,
+    onWeekStartChange: handleWeekStartChange,
+    onLoadWeek: handleLoadWeek,
+    onLogout: handleLogout,
+    onTeachingWeekChange: handleTeachingWeekChange,
+    onGroupChange: handleGroupChange,
+    onSaveGroup: handleSaveGroup,
+    onExportWord: handleExportWord,
+    onPreviewReport: handlePreviewReport,
+    statusMessage: app.statusMessage,
+    statusError: app.statusError,
+    editable: canEditCurrentScopeData(),
+  };
+  const useOpsMasterShell = import.meta.env.VITE_LEGACY_SHELL !== "1";
+
+  if (useOpsMasterShell) {
+    return (
+      <DashboardShell
+        loggedIn={Boolean(app.currentUser)}
+        dashboardDate={dashboardDate}
+        statusLabel={currentWeek ? "运营中" : "待准备"}
+        pageTitle={pageTitle}
+        pageSubtitle={pageSubtitle}
+        dashboardStats={dashboardStats}
+        reminderItems={reminderItems}
+        todoItems={todoItems}
+        activityItems={activityItems}
+        publicNavItems={dashboardPublicNavItems}
+        tabItems={dashboardTabItems}
+        activeTab={app.activeTab}
+        activeTabLabel={activeDashboardTabLabel}
+        onTabChange={handleTabChange}
+        sidebarProps={sidebarProps}
+        moduleContent={moduleContent}
+        onLoadWeek={handleLoadWeek}
+        onPreviewReport={handlePreviewReport}
+        canPreviewReport={Boolean(currentWeek)}
+        loginProps={loginProps}
+      />
+    );
+  }
   const publicNavItems = ["系统总览", "轮值实训", "运营执行", "经理审核", "报告导出"];
   const heroStats = app.currentUser
     ? [
@@ -1258,14 +1663,30 @@ function App() {
                       closing: renderApprovalText(currentDayData.approvals.closing),
                       finance: renderApprovalText(currentDayData.approvals.finance),
                       receipt: renderApprovalText(currentDayData.approvals.receipt),
+                      notes: renderApprovalText(currentDayData.approvals.notes),
                     }}
-                    editable={canEditCurrentScopeData()}
-                    approveDisabled={dailyApproveDisabled}
+                    studentConfirmations={{
+                      checkIn: renderApprovalText(currentDayData.studentConfirmations.checkIn),
+                      checkOut: renderApprovalText(currentDayData.studentConfirmations.checkOut),
+                      grooming: renderApprovalText(currentDayData.studentConfirmations.grooming),
+                      opening: renderApprovalText(currentDayData.studentConfirmations.opening),
+                      closing: renderApprovalText(currentDayData.studentConfirmations.closing),
+                      finance: renderApprovalText(currentDayData.studentConfirmations.finance),
+                      receipt: renderApprovalText(currentDayData.studentConfirmations.receipt),
+                      notes: renderApprovalText(currentDayData.studentConfirmations.notes),
+                    }}
+                    editable={canEditDailyContent()}
+                    reviewerMode={canReviewDaily()}
+                    studentReviewMode={canStudentConfirmDaily()}
+                    managerSubmitDisabled={dailyManagerSubmitDisabled}
+                    studentConfirmDisabled={dailyStudentConfirmDisabled}
                     onDateChange={handleDailyDateChange}
                     onFieldChange={handleDailyFieldChange}
+                    onManagerNoteChange={handleDailyManagerNoteChange}
                     onAddImages={addDailyImages}
                     onSave={saveDaily}
-                    onApprove={approveDaily}
+                    onManagerSubmit={submitDailyManagerConfirmation}
+                    onStudentConfirm={confirmDailyByStudent}
                   />
                 ) : null}
 

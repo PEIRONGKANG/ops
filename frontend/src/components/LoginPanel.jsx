@@ -16,7 +16,7 @@ export function LoginPanel({
   return (
     <section className="login-card no-print" onKeyDown={handleKeyDown}>
       <p className="panel-eyebrow">Member Sign In</p>
-      <h2 className="section-title mt-3">登录</h2>
+      <h2 className="section-title mt-3">登录系统</h2>
       <p className="panel-lead">支持学生单人登录、同组双人协同登录，也支持运营经理与 P1 管理账号进入系统。</p>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -26,7 +26,7 @@ export function LoginPanel({
             className="field-input"
             value={loginForm.username}
             onChange={(event) => onChange("username", event.target.value)}
-            placeholder="请输入账号，如：2401270101"
+            placeholder="请输入账号，例如 2401270101"
           />
         </div>
         <div>

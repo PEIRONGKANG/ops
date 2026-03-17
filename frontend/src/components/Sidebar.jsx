@@ -32,13 +32,13 @@ export function Sidebar({
   return (
     <aside className="panel-card sidebar-shell no-print h-fit">
       <div className="sidebar-hero">
-        <p className="panel-eyebrow !text-white/52">Current Session</p>
-        <h3 className="mt-2">当前会话</h3>
+        <p className="panel-eyebrow">Current Session</p>
+        <h3>当前状态</h3>
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="tag-pill">
             {currentUser ? `${currentUser.displayName} (${currentUser.username})` : "未登录"}
           </span>
-          <span className="tag-pill">{roleLabel || "角色"}</span>
+          <span className="tag-pill">{roleLabel || "角色未识别"}</span>
         </div>
         <p className="status-line mt-4 border-white/10 bg-white/8 text-white/82">{sessionInfo}</p>
       </div>
@@ -50,7 +50,7 @@ export function Sidebar({
             <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={!studentUsers.length}>
               {studentUsers.map((user) => (
                 <option key={user.username} value={user.username}>
-                  {user.displayName}（{user.username}）
+                  {`${user.displayName}（${user.username}）`}
                 </option>
               ))}
             </select>
@@ -59,11 +59,11 @@ export function Sidebar({
 
         <div className={`grid gap-3 ${canViewAllScopes ? "mt-4" : ""}`}>
           <div>
-            <label className="field-label">轮值起始日（周三）</label>
+            <label className="field-label">轮值开始（周三）</label>
             <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} />
           </div>
           <div>
-            <label className="field-label">轮值结束日</label>
+            <label className="field-label">轮值结束</label>
             <input className="field-input" value={weekEnd} readOnly />
           </div>
         </div>
@@ -84,7 +84,7 @@ export function Sidebar({
           <h3 className="panel-title mt-2">分组信息</h3>
         </div>
         <div>
-          <label className="field-label">教学周次（按提供的分组名单）</label>
+          <label className="field-label">教学周次（按轮值表）</label>
           <select className="field-input" value={teachingWeek} onChange={(event) => onTeachingWeekChange(event.target.value)} disabled={!editable || !hasWeek}>
             {teachingWeekOptions.map((item) => (
               <option key={item.value || "manual"} value={item.value}>
@@ -119,12 +119,12 @@ export function Sidebar({
         <p className="panel-eyebrow">Reports</p>
         <h3 className="panel-title mt-2">导出与预览</h3>
         <div className="mt-4 flex flex-wrap gap-3">
-        <button className="btn-primary" type="button" onClick={onExportWord} disabled={!canExportReport}>
-          导出周报 Word
-        </button>
-        <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={!canExportReport}>
-          预览/打印周报
-        </button>
+          <button className="btn-primary" type="button" onClick={onExportWord} disabled={!canExportReport}>
+            导出周报 Word
+          </button>
+          <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={!canExportReport}>
+            预览/打印周报
+          </button>
         </div>
       </div>
 

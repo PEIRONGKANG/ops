@@ -2,17 +2,17 @@ import { useRef, useState } from "react";
 
 export function ImagePreviewGrid({ images }) {
   if (!images?.length) {
-    return <p className="text-sm text-stone-500">暂无图片</p>;
+    return <p className="media-empty">暂无图片</p>;
   }
 
   return (
-    <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+    <div className="media-preview-grid">
       {images.map((src, index) => (
         <img
           key={`${src.slice(0, 24)}-${index}`}
           src={src}
           alt="上传预览"
-          className="h-32 w-full rounded-[22px] border border-[#d8cec3] bg-[#f3eee7] object-cover shadow-[0_10px_24px_rgba(18,14,11,0.08)]"
+          className="media-preview-item"
         />
       ))}
     </div>

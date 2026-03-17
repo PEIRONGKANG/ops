@@ -23,46 +23,39 @@ function reportArt(kind, title = "", subtitle = "") {
   const theme = themes[kind] || themes.gallery;
   const iconMap = {
     cover: `
-      <circle cx="498" cy="88" r="42" fill="${theme.b}" opacity=".95"/>
-      <path d="M434 154c18-40 58-67 104-67 17 0 35 4 48 12-10 43-49 75-96 75-22 0-40-7-56-20z" fill="${theme.c}" opacity=".92"/>
-      <rect x="120" y="72" rx="28" ry="28" width="126" height="128" fill="rgba(255,255,255,.85)" stroke="${theme.a}" stroke-width="4"/>
-      <path d="M148 113c5-14 18-24 34-24h4c16 0 29 10 34 24l11 38c4 14-6 28-20 28h-58c-15 0-25-14-21-28z" fill="${theme.a}"/>
-      <path d="M165 112c0-10 8-18 18-18h26c10 0 18 8 18 18v11h-62z" fill="${theme.c}"/>
-      <path d="M245 116c18 0 31 13 31 29 0 16-13 29-31 29" fill="none" stroke="${theme.a}" stroke-width="10" stroke-linecap="round"/>
+      <rect x="118" y="74" rx="30" ry="30" width="132" height="130" fill="rgba(255,255,255,.88)" stroke="${theme.a}" stroke-width="4"/>
+      <path d="M145 118c6-16 20-27 39-27h4c18 0 32 11 38 27l12 40c4 15-7 30-22 30h-62c-16 0-27-15-22-30z" fill="${theme.a}"/>
+      <path d="M164 116c0-11 9-19 19-19h30c11 0 20 8 20 19v12h-69z" fill="${theme.c}"/>
+      <path d="M248 120c18 0 32 13 32 30 0 17-14 30-32 30" fill="none" stroke="${theme.a}" stroke-width="10" stroke-linecap="round"/>
     `,
     creative: `
-      <rect x="405" y="58" width="126" height="108" rx="24" fill="rgba(255,255,255,.86)" stroke="${theme.a}" stroke-width="4"/>
-      <path d="M432 112c9-18 23-28 42-28 21 0 36 10 46 28l9 24c6 16-6 30-23 30h-63c-17 0-28-16-22-31z" fill="${theme.c}"/>
-      <path d="M455 92c6 5 10 12 11 20 8-7 18-10 29-9-5 4-9 10-10 16 9 1 17 5 24 12-11 1-20 5-29 12-5-9-13-16-25-21z" fill="${theme.b}" opacity=".9"/>
       <circle cx="148" cy="112" r="52" fill="rgba(255,255,255,.75)"/>
       <path d="M120 136c23-33 44-50 68-55-6 18-16 34-32 49 10 2 18 8 26 16-24 0-44-4-62-10z" fill="${theme.a}" opacity=".88"/>
+      <rect x="176" y="84" width="86" height="74" rx="20" fill="rgba(255,255,255,.88)" stroke="${theme.a}" stroke-width="4"/>
+      <path d="M193 118c7-14 18-22 33-22 16 0 28 8 35 22l7 18c5 13-5 23-18 23h-49c-14 0-22-12-17-24z" fill="${theme.c}"/>
+      <path d="M209 102c4 4 7 10 8 15 6-5 13-8 22-7-4 4-7 8-8 13 7 1 13 4 19 9-9 1-16 4-22 10-4-8-10-13-19-18z" fill="${theme.b}" opacity=".92"/>
     `,
     daily: `
-      <rect x="400" y="54" width="134" height="118" rx="22" fill="rgba(255,255,255,.9)" stroke="${theme.a}" stroke-width="4"/>
-      <path d="M433 88h66" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
-      <path d="M433 118h46" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
-      <path d="M433 148h58" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
-      <path d="M414 90l8 9 15-18" fill="none" stroke="${theme.c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M414 120l8 9 15-18" fill="none" stroke="${theme.c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="154" cy="112" r="54" fill="rgba(255,255,255,.78)"/>
       <path d="M124 142h61c9 0 15-8 13-16l-8-34c-4-18-19-31-38-31s-34 13-38 31l-5 22c-3 15 8 28 23 28z" fill="${theme.c}"/>
       <path d="M117 162h89" stroke="${theme.a}" stroke-width="10" stroke-linecap="round"/>
+      <rect x="176" y="78" width="92" height="82" rx="18" fill="rgba(255,255,255,.84)" stroke="${theme.a}" stroke-width="4"/>
+      <path d="M199 106h44M199 130h44M199 154h30" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
+      <path d="M184 108l8 9 14-18" fill="none" stroke="${theme.c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     `,
     handover: `
       <rect x="88" y="56" width="138" height="124" rx="18" fill="rgba(255,255,255,.88)" stroke="${theme.a}" stroke-width="4"/>
       <path d="M118 92h79M118 120h79M118 148h54" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
-      <path d="M282 116h116" stroke="${theme.c}" stroke-width="12" stroke-linecap="round"/>
-      <path d="M378 88l40 28-40 28" fill="none" stroke="${theme.c}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="430" y="72" width="90" height="90" rx="22" fill="rgba(255,255,255,.84)" stroke="${theme.a}" stroke-width="4"/>
-      <path d="M453 138h44M453 116h44M453 94h28" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
+      <path d="M238 118h40" stroke="${theme.c}" stroke-width="10" stroke-linecap="round"/>
+      <path d="M266 98l26 20-26 20" fill="none" stroke="${theme.c}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
     `,
     reflection: `
       <circle cx="148" cy="112" r="56" fill="rgba(255,255,255,.82)"/>
       <path d="M132 78h32v31c0 10-7 18-16 18s-16-8-16-18z" fill="${theme.a}"/>
       <path d="M120 80h12v18c0 8-5 14-12 14M176 80h-12v18c0 8 5 14 12 14" fill="none" stroke="${theme.a}" stroke-width="8" stroke-linecap="round"/>
       <path d="M130 142h36M120 162h56" stroke="${theme.c}" stroke-width="10" stroke-linecap="round"/>
-      <rect x="394" y="58" width="138" height="112" rx="20" fill="rgba(255,255,255,.88)" stroke="${theme.a}" stroke-width="4"/>
-      <path d="M424 92h79M424 121h79M424 150h58" stroke="${theme.c}" stroke-width="8" stroke-linecap="round"/>
+      <rect x="186" y="82" width="82" height="68" rx="18" fill="rgba(255,255,255,.86)" stroke="${theme.a}" stroke-width="4"/>
+      <path d="M206 106h40M206 128h40M206 150h28" stroke="${theme.c}" stroke-width="8" stroke-linecap="round"/>
     `,
     gallery: `
       <rect x="88" y="60" width="140" height="112" rx="18" fill="rgba(255,255,255,.84)" stroke="${theme.a}" stroke-width="4"/>
@@ -83,13 +76,14 @@ function reportArt(kind, title = "", subtitle = "") {
         </linearGradient>
       </defs>
       <rect width="960" height="320" rx="34" fill="url(#bg)"/>
-      <circle cx="822" cy="58" r="92" fill="${theme.b}" opacity=".22"/>
-      <circle cx="104" cy="264" r="84" fill="${theme.c}" opacity=".18"/>
+      <circle cx="820" cy="54" r="92" fill="${theme.b}" opacity=".16"/>
+      <circle cx="104" cy="264" r="84" fill="${theme.c}" opacity=".12"/>
       <rect x="28" y="26" width="904" height="268" rx="28" fill="none" stroke="${theme.a}" stroke-opacity=".18" stroke-width="2"/>
       ${iconMap[kind] || iconMap.gallery}
-      <text x="306" y="120" font-size="38" font-family="Microsoft YaHei, sans-serif" font-weight="700" fill="${theme.a}">${main}</text>
-      <text x="306" y="170" font-size="20" font-family="Microsoft YaHei, sans-serif" fill="#5d5142">${sub}</text>
-      <text x="306" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">Drink Training Report Visual</text>
+      <rect x="292" y="74" width="394" height="156" rx="20" fill="rgba(255,255,255,.72)"/>
+      <text x="304" y="118" font-size="38" font-family="Microsoft YaHei, sans-serif" font-weight="700" fill="${theme.a}">${main}</text>
+      <text x="304" y="168" font-size="20" font-family="Microsoft YaHei, sans-serif" fill="#5d5142">${sub}</text>
+      <text x="304" y="214" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#8a765f">Drink Training Report Visual</text>
     </svg>
   `);
 }
