@@ -191,6 +191,14 @@ async function typeAndBlur(locator, value) {
   }
 }
 
+async function waitForInputValue(locator, expectedValue) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if ((await locator.inputValue().catch(() => "")) === expectedValue) return;
+    await page.waitForTimeout(200);
+  }
+  assert.fail(`输入框值未更新为预期内容：${expectedValue}`);
+}
+
 async function enterPortalIfNeeded() {
   const enterButton = page.locator(".portal-enter-button");
   if (await enterButton.count()) {
@@ -319,13 +327,18 @@ async function createRegressionAccountsViaUI() {
   const createCard = accountsSection.locator(".soft-card").nth(1);
   const createInputs = createCard.locator("input");
   const createLevel = createCard.locator("select");
+  const createButton = createCard.getByRole("button", { name: "新增账号" });
 
   const createAccount = async ({ username, displayName, password, level }) => {
     await typeAndBlur(createInputs.nth(0), username);
+    await waitForInputValue(createInputs.nth(0), username);
     await typeAndBlur(createInputs.nth(1), displayName);
+    await waitForInputValue(createInputs.nth(1), displayName);
     await typeAndBlur(createInputs.nth(2), password);
+    await waitForInputValue(createInputs.nth(2), password);
     await createLevel.selectOption(level);
-    await createCard.getByRole("button", { name: "新增账号" }).click();
+    await waitForButtonEnabled(createButton, `新增账号按钮未变为可点击：${username}`);
+    await createButton.click();
     await waitForAccount(username, (user) => user.displayName === displayName && user.level === level);
   };
 
