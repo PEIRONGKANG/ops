@@ -74,7 +74,12 @@ function addDays(isoDate, days) {
 async function waitForWeekLoaded(expectedStart = weekStart) {
   const expectedEnd = addDays(expectedStart, 7);
   const sidebar = page.locator(".sidebar-shell");
-  await expectVisible(sidebar.locator(`input[value="${expectedEnd}"]`).first(), `周次 ${expectedStart} 未加载完成。`);
+  const endInput = sidebar.locator("input").nth(1);
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if ((await endInput.inputValue().catch(() => "")) === expectedEnd) return;
+    await page.waitForTimeout(500);
+  }
+  assert.fail(`周次 ${expectedStart} 未加载完成。`);
 }
 
 async function apiRequest(endpoint, options = {}) {
@@ -618,6 +623,11 @@ async function reviewAsManager() {
   const creativeApproveButton = creativeSection.getByRole("button", { name: "运营经理确认本模块" });
   await waitForButtonEnabled(creativeApproveButton, "经理视图未加载出可确认的创意模块数据。");
   await creativeApproveButton.click();
+  await waitForWeekCondition(
+    studentA.username,
+    (item) => Boolean(item.creative.approval.by),
+    "创意模块经理确认未写入周记录。",
+  );
 
   await openSidebarTab(1);
   const dailySection = sectionByHeading("每日打卡与运营执行");
@@ -648,16 +658,45 @@ async function reviewAsManager() {
   for (const name of submitButtons) {
     await dailySection.getByRole("button", { name }).click();
   }
+  await waitForWeekCondition(
+    studentA.username,
+    (item) => {
+      const firstKey = Object.keys(item.daily)[0];
+      if (!firstKey) return false;
+      const firstDay = item.daily[firstKey];
+      return Boolean(
+        firstDay.approvals.checkIn.by
+        && firstDay.approvals.checkOut.by
+        && firstDay.approvals.grooming.by
+        && firstDay.approvals.opening.by
+        && firstDay.approvals.closing.by
+        && firstDay.approvals.finance.by
+        && firstDay.approvals.receipt.by
+        && firstDay.approvals.notes.by,
+      );
+    },
+    "日运营经理审核未完整写入周记录。",
+  );
 
   await openSidebarTab(2);
   const handoverSection = sectionByHeading("次周周三交接班");
   await handoverSection.getByRole("button", { name: "经理确认交接" }).click();
+  await waitForWeekCondition(
+    studentA.username,
+    (item) => Boolean(item.handover.approval.by),
+    "交接模块经理确认未写入周记录。",
+  );
 
   await openSidebarTab(3);
   const reflectionSection = sectionByHeading("总结与反思（周结束）");
   await typeAndBlur(reflectionSection.locator("textarea").nth(3), `经理评语：本周执行完整，回归链路通过。${runLabel}`);
   await reflectionSection.getByRole("button", { name: "保存经理评语" }).click();
   await reflectionSection.getByRole("button", { name: "经理最终确认" }).click();
+  await waitForWeekCondition(
+    studentA.username,
+    (item) => Boolean(item.reflection.approval.by),
+    "总结模块经理最终确认未写入周记录。",
+  );
 
   const week = await waitForWeekCondition(
     studentA.username,
