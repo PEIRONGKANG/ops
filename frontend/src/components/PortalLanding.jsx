@@ -33,7 +33,7 @@ export function PortalLanding({ onEnter }) {
         <div className="portal-media-overlay" />
 
         <div className="portal-entry-copy">
-          <p className="portal-entry-kicker">Travelologist Coffe OPS System</p>
+          <p className="portal-entry-kicker">Travelologist Coffee OPS System</p>
           <h1 className="portal-entry-title">
             饮品生产性实训基地
             <br />
