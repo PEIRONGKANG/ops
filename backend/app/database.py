@@ -3,6 +3,7 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -69,6 +70,34 @@ def _row_to_user(row: sqlite3.Row) -> dict:
     }
 
 
+def _row_to_notice_receipt(row: sqlite3.Row) -> dict:
+    return {
+        "username": row["username"],
+        "displayName": row["display_name"],
+        "level": row["level"],
+        "receivedAt": row["received_at"],
+    }
+
+
+def _row_to_teacher_notice(row: sqlite3.Row, receipts: list[dict] | None = None) -> dict:
+    try:
+        images = json.loads(row["images"] or "[]")
+    except json.JSONDecodeError:
+        images = []
+
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "message": row["message"],
+        "images": images if isinstance(images, list) else [],
+        "authorUsername": row["author_username"],
+        "authorDisplayName": row["author_display_name"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+        "receipts": receipts or [],
+    }
+
+
 def init_db() -> None:
     with get_connection() as connection:
         connection.executescript(
@@ -96,6 +125,26 @@ def init_db() -> None:
                 payload TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 PRIMARY KEY (scope_user, start_date)
+            );
+
+            CREATE TABLE IF NOT EXISTS teacher_notices (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL DEFAULT '',
+                message TEXT NOT NULL DEFAULT '',
+                images TEXT NOT NULL DEFAULT '[]',
+                author_username TEXT NOT NULL DEFAULT '',
+                author_display_name TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS teacher_notice_receipts (
+                notice_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
+                level TEXT NOT NULL DEFAULT '',
+                received_at TEXT NOT NULL,
+                PRIMARY KEY (notice_id, username)
             );
             """
         )
@@ -279,3 +328,131 @@ def save_week_group(start_date: str, payload: dict) -> dict:
         )
         connection.commit()
     return payload
+
+
+def get_teacher_notice(notice_id: str) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, title, message, images, author_username, author_display_name,
+                   created_at, updated_at
+            FROM teacher_notices
+            WHERE id = ?
+            """,
+            (notice_id,),
+        ).fetchone()
+        if not row:
+            return None
+        receipt_rows = connection.execute(
+            """
+            SELECT username, display_name, level, received_at
+            FROM teacher_notice_receipts
+            WHERE notice_id = ?
+            ORDER BY received_at DESC, username
+            """,
+            (notice_id,),
+        ).fetchall()
+    return _row_to_teacher_notice(
+        row,
+        [_row_to_notice_receipt(receipt) for receipt in receipt_rows],
+    )
+
+
+def list_teacher_notices() -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, title, message, images, author_username, author_display_name,
+                   created_at, updated_at
+            FROM teacher_notices
+            ORDER BY created_at DESC, id DESC
+            """
+        ).fetchall()
+        notice_ids = [row["id"] for row in rows]
+        receipt_map = {notice_id: [] for notice_id in notice_ids}
+
+        if notice_ids:
+            placeholders = ", ".join("?" for _ in notice_ids)
+            receipt_rows = connection.execute(
+                f"""
+                SELECT notice_id, username, display_name, level, received_at
+                FROM teacher_notice_receipts
+                WHERE notice_id IN ({placeholders})
+                ORDER BY received_at DESC, username
+                """,
+                notice_ids,
+            ).fetchall()
+            for row in receipt_rows:
+                receipt_map.setdefault(row["notice_id"], []).append(_row_to_notice_receipt(row))
+
+    return [_row_to_teacher_notice(row, receipt_map.get(row["id"], [])) for row in rows]
+
+
+def create_teacher_notice(payload: dict) -> dict:
+    notice_id = payload.get("id") or uuid4().hex
+    images = [image for image in payload.get("images", []) if image]
+    timestamp = _now_iso()
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO teacher_notices (
+                id, title, message, images, author_username,
+                author_display_name, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                notice_id,
+                payload.get("title", ""),
+                payload.get("message", ""),
+                json.dumps(images, ensure_ascii=False),
+                payload.get("authorUsername", ""),
+                payload.get("authorDisplayName", ""),
+                payload.get("createdAt") or timestamp,
+                payload.get("updatedAt") or timestamp,
+            ),
+        )
+        connection.commit()
+    return get_teacher_notice(notice_id)
+
+
+def save_teacher_notice_receipts(notice_id: str, receipts: list[dict]) -> dict | None:
+    if not receipts:
+        return get_teacher_notice(notice_id)
+
+    with get_connection() as connection:
+        for receipt in receipts:
+            connection.execute(
+                """
+                INSERT INTO teacher_notice_receipts (
+                    notice_id, username, display_name, level, received_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(notice_id, username)
+                DO UPDATE SET
+                    display_name = excluded.display_name,
+                    level = excluded.level,
+                    received_at = excluded.received_at
+                """,
+                (
+                    notice_id,
+                    receipt.get("username", ""),
+                    receipt.get("displayName", ""),
+                    receipt.get("level", ""),
+                    receipt.get("receivedAt") or _now_iso(),
+                ),
+            )
+        connection.commit()
+    return get_teacher_notice(notice_id)
+
+
+def delete_teacher_notice(notice_id: str) -> bool:
+    with get_connection() as connection:
+        connection.execute(
+            "DELETE FROM teacher_notice_receipts WHERE notice_id = ?",
+            (notice_id,),
+        )
+        deleted = connection.execute(
+            "DELETE FROM teacher_notices WHERE id = ?",
+            (notice_id,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0

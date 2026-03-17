@@ -6,18 +6,30 @@ from fastapi.responses import FileResponse
 
 from .database import (
     create_user,
+    create_teacher_notice,
     delete_user,
+    delete_teacher_notice,
     get_user,
+    get_teacher_notice,
     get_week,
     get_week_group,
     init_db,
     list_users,
+    list_teacher_notices,
     save_week,
     save_week_group,
+    save_teacher_notice_receipts,
     update_user,
     verify_user,
 )
-from .schemas import LoginRequest, UserPayload, WeekGroupPayload, WeekPayload
+from .schemas import (
+    LoginRequest,
+    TeacherNoticePayload,
+    TeacherNoticeReceiptPayload,
+    UserPayload,
+    WeekGroupPayload,
+    WeekPayload,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -46,7 +58,7 @@ def health() -> dict:
 
 @app.get("/api/bootstrap")
 def bootstrap() -> dict:
-    return {"users": list_users()}
+    return {"users": list_users(), "teacherNotices": list_teacher_notices()}
 
 
 @app.post("/api/login")
@@ -60,6 +72,37 @@ def login(payload: LoginRequest) -> dict:
 @app.get("/api/accounts")
 def accounts() -> dict:
     return {"users": list_users()}
+
+
+@app.get("/api/teacher-notices")
+def teacher_notices() -> dict:
+    return {"notices": list_teacher_notices()}
+
+
+@app.post("/api/teacher-notices")
+def post_teacher_notice(payload: TeacherNoticePayload) -> dict:
+    return {"notice": create_teacher_notice(payload.model_dump())}
+
+
+@app.delete("/api/teacher-notices/{notice_id}", status_code=204)
+def remove_teacher_notice(notice_id: str) -> Response:
+    if not get_teacher_notice(notice_id):
+        raise HTTPException(status_code=404, detail="留言不存在。")
+    if not delete_teacher_notice(notice_id):
+        raise HTTPException(status_code=500, detail="删除留言失败。")
+    return Response(status_code=204)
+
+
+@app.post("/api/teacher-notices/{notice_id}/receipts")
+def receive_teacher_notice(notice_id: str, payload: TeacherNoticeReceiptPayload) -> dict:
+    if not get_teacher_notice(notice_id):
+        raise HTTPException(status_code=404, detail="留言不存在。")
+    return {
+        "notice": save_teacher_notice_receipts(
+            notice_id,
+            [item.model_dump() for item in payload.receipts],
+        )
+    }
 
 
 @app.post("/api/accounts")

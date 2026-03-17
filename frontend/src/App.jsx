@@ -25,6 +25,7 @@ import {
   getWeekDates,
   levelLabel,
   makeWeekKey,
+  normalizeTeacherNotice,
   normalizeUser,
   renderApprovalText,
   roleFromLevel,
@@ -74,6 +75,14 @@ const initialState = {
     displayName: "",
     password: "",
   },
+  teacherNotices: [],
+  teacherNoticeForm: {
+    title: "",
+    message: "",
+    images: [],
+  },
+  teacherNoticeSaving: false,
+  teacherNoticeBusyId: "",
 };
 
 function cloneValue(value) {
@@ -358,6 +367,50 @@ function App() {
     return week;
   };
 
+  const getTeacherNoticeReceiptTargets = (source = stateRef.current) => {
+    const user = getCurrentUserRecord(source);
+    if (!user) return [];
+
+    if (user.level === "P3") {
+      const sessionUsers = getCurrentSessionUsers(source);
+      const usernames = sessionUsers.length ? sessionUsers : [user.username];
+      return usernames.map((username) => {
+        const record = source.users.find((item) => item.username === username);
+        return {
+          username: record?.username || username,
+          displayName: record?.displayName || username,
+          level: record?.level || user.level,
+        };
+      });
+    }
+
+    return [{
+      username: user.username,
+      displayName: user.displayName || user.username,
+      level: user.level,
+    }];
+  };
+
+  const hasTeacherNoticeBeenAcknowledged = (notice, source = stateRef.current) => {
+    const targets = getTeacherNoticeReceiptTargets(source).map((item) => item.username);
+    if (!targets.length) return false;
+    return targets.every((username) => notice.receipts?.some((receipt) => receipt.username === username));
+  };
+
+  const applyTeacherNoticeResult = (source, notice, prepend = false) => {
+    const normalized = normalizeTeacherNotice(notice);
+    const index = source.teacherNotices.findIndex((item) => item.id === normalized.id);
+    if (index >= 0) {
+      source.teacherNotices[index] = normalized;
+      return;
+    }
+    if (prepend) {
+      source.teacherNotices.unshift(normalized);
+      return;
+    }
+    source.teacherNotices.push(normalized);
+  };
+
   const loadWeekForCurrentScope = async (startRaw, statusMessage) => {
     const next = cloneValue(stateRef.current);
     const corrected = adjustToWednesday(startRaw || next.selectedWeekStart || todayISO());
@@ -387,11 +440,12 @@ function App() {
   useEffect(() => {
     const boot = async () => {
       try {
-        const { users } = await api.bootstrap();
+        const { users, teacherNotices = [] } = await api.bootstrap();
         const normalizedUsers = users.map(normalizeUser);
         const storedSession = loadStoredSession();
         const next = cloneValue(initialState);
         next.users = normalizedUsers;
+        next.teacherNotices = teacherNotices.map(normalizeTeacherNotice);
         next.selectedWeekStart = trim(storedSession?.selectedWeekStart) || adjustToWednesday(todayISO());
         if (storedSession?.currentUser) {
           const found = normalizedUsers.find((user) => user.username === trim(storedSession.currentUser.username));
@@ -523,6 +577,122 @@ function App() {
     });
   };
 
+  const handleTeacherNoticeImagesAdd = async (files) => {
+    const images = await filesToDataUrls(files);
+    applyState((draft) => {
+      draft.teacherNoticeForm.images = draft.teacherNoticeForm.images.concat(images.filter(Boolean));
+    });
+  };
+
+  const handleTeacherNoticeImageRemove = (index) => {
+    applyState((draft) => {
+      draft.teacherNoticeForm.images = draft.teacherNoticeForm.images.filter((_, imageIndex) => imageIndex !== index);
+    });
+  };
+
+  const handleTeacherNoticeCreate = async (draftOverride = {}) => runAction(async () => {
+    const actor = currentUser || getCurrentUserRecord();
+    if (!actor || actor.level !== "P1") {
+      throw new Error("只有 P1 教师可以发布留言。");
+    }
+
+    const title = trim(draftOverride.title || app.teacherNoticeForm.title);
+    const message = trim(draftOverride.message || app.teacherNoticeForm.message);
+    const images = app.teacherNoticeForm.images.filter(Boolean);
+    if (!title && !message && !images.length) {
+      throw new Error("请至少填写标题、正文或上传一张图片。");
+    }
+
+    applyState((draft) => {
+      draft.teacherNoticeSaving = true;
+    });
+
+    try {
+      const { notice } = await api.createTeacherNotice({
+        title,
+        message,
+        images,
+        authorUsername: actor.username,
+        authorDisplayName: actor.displayName || actor.username,
+      });
+
+      applyState((draft) => {
+        applyTeacherNoticeResult(draft, notice, true);
+        draft.teacherNoticeForm = { title: "", message: "", images: [] };
+        draft.teacherNoticeSaving = false;
+      });
+      setStatus("带教留言已发布，登录前后都能查看。");
+      return true;
+    } catch (error) {
+      applyState((draft) => {
+        draft.teacherNoticeSaving = false;
+      });
+      throw error;
+    }
+  }, "发布留言失败，请稍后重试。");
+
+  const handleTeacherNoticeDelete = async (noticeId) => runAction(async () => {
+    if (!window.confirm("确认删除这条带教留言吗？删除后所有人都将不可见。")) {
+      return;
+    }
+
+    applyState((draft) => {
+      draft.teacherNoticeBusyId = noticeId;
+    });
+
+    try {
+      await api.deleteTeacherNotice(noticeId);
+      applyState((draft) => {
+        draft.teacherNotices = draft.teacherNotices.filter((notice) => notice.id !== noticeId);
+        draft.teacherNoticeBusyId = "";
+      });
+      setStatus("带教留言已删除。");
+    } catch (error) {
+      applyState((draft) => {
+        draft.teacherNoticeBusyId = "";
+      });
+      throw error;
+    }
+  }, "删除留言失败，请稍后重试。");
+
+  const handleTeacherNoticeAcknowledge = async (noticeId) => runAction(async () => {
+    const notice = stateRef.current.teacherNotices.find((item) => item.id === noticeId);
+    if (!notice) {
+      throw new Error("当前留言不存在，可能已被删除。");
+    }
+
+    const targets = getTeacherNoticeReceiptTargets();
+    if (!targets.length) {
+      throw new Error("请先登录后再确认收到。");
+    }
+
+    const missingReceipts = targets.filter(
+      (target) => !notice.receipts?.some((receipt) => receipt.username === target.username),
+    );
+    if (!missingReceipts.length) {
+      setStatus("这条留言已经确认收到。");
+      return;
+    }
+
+    applyState((draft) => {
+      draft.teacherNoticeBusyId = noticeId;
+    });
+
+    try {
+      const { notice: updatedNotice } = await api.acknowledgeTeacherNotice(noticeId, missingReceipts);
+      applyState((draft) => {
+        applyTeacherNoticeResult(draft, updatedNotice);
+        draft.teacherNoticeBusyId = "";
+      });
+      setStatus(missingReceipts.length > 1 ? "本组已确认收到这条带教留言。" : "已确认收到这条带教留言。");
+    } catch (error) {
+      applyState((draft) => {
+        draft.teacherNoticeBusyId = "";
+      });
+      throw error;
+    }
+  }, "确认收到失败，请稍后重试。");
+
   const handleLogin = async () => {
     const next = cloneValue(stateRef.current);
     next.loading = true;
@@ -584,6 +754,7 @@ function App() {
     replaceState({
       ...cloneValue(initialState),
       users: stateRef.current.users,
+      teacherNotices: stateRef.current.teacherNotices,
       booting: false,
     });
   };
@@ -1206,13 +1377,26 @@ function App() {
       { label: "经理审核", value: "逐项确认", meta: "签到、卫生、财务与交接均可留痕", tone: "slate" },
       { label: "报告导出", value: "Word 周报", meta: "支持预览、打印与导出归档", tone: "indigo" },
     ];
-  const reminderItems = [
-    { label: "检查学生仪容底线", tab: "daily", alert: true },
-    { label: "抽查产品配方与掌握情况", tab: "creative", alert: false },
-    { label: "审核昨日日报数据", tab: "daily", alert: false },
-    { label: "确认本周原材料到货", tab: "daily", alert: true },
-    { label: "评估学生实训表现", tab: "reflection", alert: false },
-  ];
+  const teacherNoticeReceiptTargets = getTeacherNoticeReceiptTargets();
+  const acknowledgedNoticeIds = app.currentUser
+    ? app.teacherNotices
+      .filter((notice) => hasTeacherNoticeBeenAcknowledged(notice))
+      .map((notice) => notice.id)
+    : [];
+  const noticeBoardProps = {
+    notices: app.teacherNotices,
+    canCompose: currentUser?.level === "P1",
+    composeForm: app.teacherNoticeForm,
+    composePending: app.teacherNoticeSaving,
+    activeActionId: app.teacherNoticeBusyId,
+    acknowledgedNoticeIds,
+    acknowledgementLabel: teacherNoticeReceiptTargets.length > 1 ? "本组信息收到" : "信息收到",
+    onComposeImagesAdd: handleTeacherNoticeImagesAdd,
+    onComposeImageRemove: handleTeacherNoticeImageRemove,
+    onComposeSubmit: handleTeacherNoticeCreate,
+    onAcknowledge: handleTeacherNoticeAcknowledge,
+    onDeleteNotice: handleTeacherNoticeDelete,
+  };
   const todoItems = [
     {
       title: currentWeek ? "继续填写本周日报" : "加载本周轮值",
@@ -1396,6 +1580,57 @@ function App() {
     statusError: app.statusError,
     editable: canEditCurrentScopeData(),
   };
+/*
+  return (
+    <DashboardShell
+      loggedIn={Boolean(app.currentUser)}
+      dashboardDate={dashboardDate}
+      statusLabel={currentWeek ? "杩愯惀涓? : "寰呭噯澶?"}
+      pageTitle={pageTitle}
+      pageSubtitle={pageSubtitle}
+      dashboardStats={dashboardStats}
+      noticeBoardProps={noticeBoardProps}
+      todoItems={todoItems}
+      activityItems={activityItems}
+      publicNavItems={dashboardPublicNavItems}
+      tabItems={dashboardTabItems}
+      activeTab={app.activeTab}
+      activeTabLabel={activeDashboardTabLabel}
+      onTabChange={handleTabChange}
+      sidebarProps={sidebarProps}
+      moduleContent={moduleContent}
+      onLoadWeek={handleLoadWeek}
+      onPreviewReport={handlePreviewReport}
+      canPreviewReport={Boolean(currentWeek)}
+      loginProps={loginProps}
+    />
+  );
+*/
+  return (
+    <DashboardShell
+      loggedIn={Boolean(app.currentUser)}
+      dashboardDate={dashboardDate}
+      statusLabel={currentWeek ? "运营中" : "待准备"}
+      pageTitle={pageTitle}
+      pageSubtitle={pageSubtitle}
+      dashboardStats={dashboardStats}
+      noticeBoardProps={noticeBoardProps}
+      todoItems={todoItems}
+      activityItems={activityItems}
+      publicNavItems={dashboardPublicNavItems}
+      tabItems={dashboardTabItems}
+      activeTab={app.activeTab}
+      activeTabLabel={activeDashboardTabLabel}
+      onTabChange={handleTabChange}
+      sidebarProps={sidebarProps}
+      moduleContent={moduleContent}
+      onLoadWeek={handleLoadWeek}
+      onPreviewReport={handlePreviewReport}
+      canPreviewReport={Boolean(currentWeek)}
+      loginProps={loginProps}
+    />
+  );
+  // eslint-disable-next-line no-unreachable
   const useOpsMasterShell = import.meta.env.VITE_LEGACY_SHELL !== "1";
 
   if (useOpsMasterShell) {
@@ -1407,7 +1642,7 @@ function App() {
         pageTitle={pageTitle}
         pageSubtitle={pageSubtitle}
         dashboardStats={dashboardStats}
-        reminderItems={reminderItems}
+        noticeBoardProps={noticeBoardProps}
         todoItems={todoItems}
         activityItems={activityItems}
         publicNavItems={dashboardPublicNavItems}

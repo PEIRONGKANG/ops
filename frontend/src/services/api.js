@@ -40,6 +40,26 @@ export const api = {
   listAccounts() {
     return request("/accounts");
   },
+  listTeacherNotices() {
+    return request("/teacher-notices");
+  },
+  createTeacherNotice(notice) {
+    return request("/teacher-notices", {
+      method: "POST",
+      body: JSON.stringify(notice),
+    });
+  },
+  deleteTeacherNotice(noticeId) {
+    return request(`/teacher-notices/${encodeURIComponent(noticeId)}`, {
+      method: "DELETE",
+    });
+  },
+  acknowledgeTeacherNotice(noticeId, receipts) {
+    return request(`/teacher-notices/${encodeURIComponent(noticeId)}/receipts`, {
+      method: "POST",
+      body: JSON.stringify({ receipts }),
+    });
+  },
   createAccount(user) {
     return request("/accounts", {
       method: "POST",

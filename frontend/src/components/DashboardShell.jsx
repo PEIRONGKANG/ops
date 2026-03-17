@@ -1,6 +1,7 @@
 import { LoginPanel } from "./LoginPanel";
 import { Sidebar } from "./Sidebar";
 import { TabNav } from "./TabNav";
+import { TeacherNoticeBoard } from "./TeacherNoticeBoard";
 
 function DashboardStats({ items }) {
   return (
@@ -26,7 +27,7 @@ export function DashboardShell({
   pageTitle,
   pageSubtitle,
   dashboardStats,
-  reminderItems,
+  noticeBoardProps,
   todoItems,
   activityItems,
   publicNavItems,
@@ -76,25 +77,7 @@ export function DashboardShell({
           </section>
 
           <section className="ops-public-grid">
-            <article className="ops-panel ops-reminder-panel">
-              <div className="ops-panel-head">
-                <div>
-                  <p className="ops-kicker">Teacher Focus</p>
-                  <h3>带教教师工作提醒</h3>
-                </div>
-                <span className="ops-chip">Teacher Focus</span>
-              </div>
-              <div className="ops-reminder-grid">
-                {reminderItems.map((item) => (
-                  <div key={item.label} className="ops-reminder-item">
-                    <span className="ops-reminder-checkbox" />
-                    <span>{item.label}</span>
-                    {item.alert ? <i className="ops-reminder-alert" aria-hidden="true" /> : null}
-                  </div>
-                ))}
-              </div>
-            </article>
-
+            <TeacherNoticeBoard {...noticeBoardProps} loggedIn={false} />
             <LoginPanel {...loginProps} />
           </section>
         </main>
@@ -142,29 +125,7 @@ export function DashboardShell({
             <DashboardStats items={dashboardStats} />
           </section>
 
-          <section className="ops-panel ops-reminder-panel">
-            <div className="ops-panel-head">
-              <div>
-                <p className="ops-kicker">Teacher Focus</p>
-                <h3>带教教师工作提醒</h3>
-              </div>
-              <span className="ops-chip">Teacher Focus</span>
-            </div>
-            <div className="ops-reminder-grid">
-              {reminderItems.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="ops-reminder-item"
-                  onClick={() => onTabChange(item.tab)}
-                >
-                  <span className="ops-reminder-checkbox" />
-                  <span>{item.label}</span>
-                  {item.alert ? <i className="ops-reminder-alert" aria-hidden="true" /> : null}
-                </button>
-              ))}
-            </div>
-          </section>
+          <TeacherNoticeBoard {...noticeBoardProps} loggedIn />
 
           <section className="ops-content-grid">
             <article className="ops-panel">

@@ -31,6 +31,36 @@ export function normalizeUser(userLike = {}) {
   };
 }
 
+export function formatDateTime(value) {
+  const raw = trim(value);
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleString("zh-CN");
+}
+
+export function normalizeTeacherNotice(noticeLike = {}) {
+  const receipts = Array.isArray(noticeLike.receipts) ? noticeLike.receipts : [];
+  return {
+    id: trim(noticeLike.id),
+    title: trim(noticeLike.title),
+    message: trim(noticeLike.message),
+    images: Array.isArray(noticeLike.images) ? noticeLike.images.filter(Boolean) : [],
+    authorUsername: trim(noticeLike.authorUsername),
+    authorDisplayName: trim(noticeLike.authorDisplayName) || trim(noticeLike.authorUsername),
+    createdAt: formatDateTime(noticeLike.createdAt),
+    updatedAt: formatDateTime(noticeLike.updatedAt),
+    receipts: receipts
+      .map((receipt) => ({
+        username: trim(receipt?.username),
+        displayName: trim(receipt?.displayName) || trim(receipt?.username),
+        level: trim(receipt?.level),
+        receivedAt: formatDateTime(receipt?.receivedAt),
+      }))
+      .filter((receipt) => receipt.username),
+  };
+}
+
 export function levelLabel(level) {
   if (level === "P1") return "P1 最高权限";
   if (level === "P2") return "P2 运营经理";
