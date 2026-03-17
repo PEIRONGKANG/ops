@@ -64,6 +64,19 @@ function buildFutureWednesday() {
   return date.toISOString().slice(0, 10);
 }
 
+function addDays(isoDate, days) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+async function waitForWeekLoaded(expectedStart = weekStart) {
+  const expectedEnd = addDays(expectedStart, 7);
+  const sidebar = page.locator(".sidebar-shell");
+  await expectVisible(sidebar.locator(`input[value="${expectedEnd}"]`).first(), `周次 ${expectedStart} 未加载完成。`);
+}
+
 async function apiRequest(endpoint, options = {}) {
   const response = await fetch(new URL(endpoint.replace(/^\//, ""), apiBase), {
     headers: {
@@ -153,11 +166,23 @@ async function expectTextVisible(text, message) {
 }
 
 async function typeAndBlur(locator, value) {
-  await locator.fill(value);
-  try {
-    await locator.evaluate((node) => node.blur());
-  } catch {
-    // React may replace the node during updates.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await locator.evaluate((node, nextValue) => {
+        const prototype = node instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement.prototype
+          : HTMLInputElement.prototype;
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+        descriptor?.set?.call(node, nextValue);
+        node.dispatchEvent(new Event("input", { bubbles: true }));
+        node.dispatchEvent(new Event("change", { bubbles: true }));
+        node.blur();
+      }, value);
+      return;
+    } catch (error) {
+      if (attempt === 4) throw error;
+      await page.waitForTimeout(300);
+    }
   }
 }
 
@@ -200,14 +225,31 @@ async function logout() {
 }
 
 async function openSidebarTab(index) {
-  const buttons = page.locator(".tab-button:visible");
-  const count = await buttons.count();
-  assert(count > index, `Tab index ${index} out of range. Visible tabs: ${count}`);
-  await buttons.nth(index).click();
+  const config = [
+    { label: "创意策划", heading: "创意饮品策划提交（周三）" },
+    { label: "日常运营", heading: "每日打卡与运营执行" },
+    { label: "班次交接", heading: "次周周三交接班" },
+    { label: "总结复盘", heading: "总结与反思（周结束）" },
+    { label: "账号管理", heading: "账号管理" },
+  ][index];
+  assert(config, `Unknown tab index: ${index}`);
+  const workbench = page.locator(".ops-workbench");
+  const button = workbench.locator(".ops-inline-tabs").getByRole("button", { name: config.label, exact: true }).first();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await button.click({ force: true });
+    try {
+      await expectVisible(workbench.locator(".ops-panel-head h3").filter({ hasText: config.label }).first(), `切换到“${config.label}”后未显示对应模块。`);
+      await expectVisible(sectionByHeading(config.heading), `切换到“${config.label}”后未显示对应模块。`);
+      return;
+    } catch (error) {
+      if (attempt === 4) throw error;
+      await page.waitForTimeout(500);
+    }
+  }
 }
 
 function sectionByHeading(name) {
-  return page.locator("section").filter({ has: page.getByRole("heading", { name, exact: true }) }).first();
+  return page.locator(".ops-workbench-body section").filter({ has: page.getByRole("heading", { name, exact: true }) }).first();
 }
 
 async function setHiddenFileInput(scope, index = 0) {
@@ -224,9 +266,9 @@ async function waitForPreviewCount(scope, expected) {
 }
 
 async function waitForButtonEnabled(locator, message) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     if (await locator.isEnabled()) return;
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
   }
   assert.fail(message);
 }
@@ -297,6 +339,11 @@ async function createRegressionAccountsViaUI() {
     (user) => user.displayName === `${managerAccount.displayName}（已校验）` && user.password === managerAccount.updatedPassword,
   );
 
+  reviewerAccount = {
+    username: managerAccount.username,
+    password: managerAccount.updatedPassword,
+    level: "P2",
+  };
   accountsCreated = true;
 }
 
@@ -304,6 +351,7 @@ async function prepareWeekForStudents() {
   const sidebar = page.locator(".sidebar-shell");
   await sidebar.locator('input[type="date"]').fill(weekStart);
   await sidebar.getByRole("button", { name: "加载/创建本周" }).click();
+  await waitForWeekLoaded();
   await sidebar.locator("select").nth(0).waitFor({ state: "visible", timeout: 20000 });
   await sidebar.locator("select").nth(0).selectOption("第17周");
   await typeAndBlur(sidebar.locator("input").nth(2), `${studentA.displayName} / ${studentA.username}`);
@@ -316,6 +364,7 @@ async function loadRegressionWeekForCurrentSession() {
   const sidebar = page.locator(".sidebar-shell");
   await sidebar.locator('input[type="date"]').fill(weekStart);
   await sidebar.getByRole("button", { name: "加载/创建本周" }).click();
+  await waitForWeekLoaded();
 }
 
 async function completeCreativeTab() {
@@ -498,6 +547,7 @@ async function reviewUpdatedDailyAsManager() {
   await sidebar.locator("select").first().selectOption(studentA.username);
   await page.waitForTimeout(1500);
   await sidebar.getByRole("button", { name: "加载/创建本周" }).click();
+  await waitForWeekLoaded();
 
   await openSidebarTab(1);
   const dailySection = sectionByHeading("每日打卡与运营执行");
@@ -561,6 +611,7 @@ async function reviewAsManager() {
   await sidebar.locator("select").first().selectOption(studentA.username);
   await page.waitForTimeout(1500);
   await sidebar.getByRole("button", { name: "加载/创建本周" }).click();
+  await waitForWeekLoaded();
 
   await openSidebarTab(0);
   const creativeSection = sectionByHeading("创意饮品策划提交（周三）");
