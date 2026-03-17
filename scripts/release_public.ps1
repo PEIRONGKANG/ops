@@ -28,6 +28,8 @@ if (-not (Test-Path $npmCmd)) {
   throw "Missing npm.cmd at $npmCmd"
 }
 
+$env:Path = "$NodeDir;$env:Path"
+
 if (-not (Test-Path $PemPath)) {
   throw "Missing PEM file at $PemPath"
 }
