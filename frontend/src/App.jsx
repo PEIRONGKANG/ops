@@ -51,6 +51,7 @@ const initialState = {
   currentDay: "",
   selectedWeekStart: adjustToWednesday(todayISO()),
   activeScopeUser: "",
+  scopeUserPinned: false,
   activeTab: "creative",
   loginForm: {
     username: "",
@@ -104,6 +105,53 @@ function hasText(...values) {
 
 function hasImages(images) {
   return Array.isArray(images) && images.length > 0;
+}
+
+function hasApprovalStamp(approval) {
+  return Boolean(trim(approval?.by) || trim(approval?.time) || trim(approval?.comment));
+}
+
+function hasDailyRecordPayload(record) {
+  if (!record) return false;
+  return hasText(
+    record.checkIn,
+    record.checkOut,
+    record.attendanceNote,
+    record.notes,
+    record.sales,
+    record.cost,
+    record.lossAmount,
+    record.lossDesc,
+    record.inventoryDesc,
+    record.receiptDesc,
+    ...Object.values(record.managerNotes || {}),
+  )
+    || [
+      record.leaveImgs,
+      record.grooming,
+      record.openingPublic,
+      record.openingBar,
+      record.closingPublic,
+      record.closingBar,
+      record.lossImgs,
+      record.inventoryImgs,
+      record.receiptImgs,
+    ].some(hasImages)
+    || Object.values(record.approvals || {}).some(hasApprovalStamp)
+    || Object.values(record.studentConfirmations || {}).some(hasApprovalStamp);
+}
+
+function pickPreferredDailyDate(week, preferredDay = "") {
+  const dates = getWeekDates(week.startDate);
+  if (dates.includes(preferredDay) && hasDailyRecordPayload(week.daily?.[preferredDay])) {
+    return preferredDay;
+  }
+  const latestWithPayload = dates
+    .slice()
+    .reverse()
+    .find((day) => hasDailyRecordPayload(week.daily?.[day]));
+  if (latestWithPayload) return latestWithPayload;
+  return dates.includes(preferredDay) ? preferredDay : dates[0];
 }
 
 function getDailyApprovalDefaults() {
@@ -167,6 +215,7 @@ function App() {
         currentUser: next.currentUser,
         currentSessionUsers: next.currentSessionUsers,
         activeScopeUser: next.activeScopeUser,
+        scopeUserPinned: next.scopeUserPinned,
         selectedWeekStart: next.selectedWeekStart,
       }),
     );
@@ -261,15 +310,32 @@ function App() {
     return !!user && (user.level === "P1" || user.level === "P2");
   };
 
-  const resolveScopeUser = (source = stateRef.current) => {
+  const getGroupedScopeUsers = (source, startDate) => {
+    if (!trim(startDate)) return [];
+    return [getWeekGroupRecord(source, startDate).a, getWeekGroupRecord(source, startDate).b]
+      .map((item) => findStudentByToken(source.users, item))
+      .filter(Boolean)
+      .map((item) => item.username);
+  };
+
+  const resolveScopeUser = (source = stateRef.current, preferredStartDate = source.selectedWeekStart) => {
     const user = getCurrentUserRecord(source);
     if (!user) return "";
     if (!canViewAllScopes(source)) return user.username;
-    if (source.activeScopeUser && source.users.some((item) => item.username === source.activeScopeUser && item.level === "P3")) {
+    const groupedUsers = getGroupedScopeUsers(source, preferredStartDate);
+    const hasValidScopeUser = source.activeScopeUser
+      && source.users.some((item) => item.username === source.activeScopeUser && item.level === "P3");
+    if (hasValidScopeUser && (source.scopeUserPinned || !groupedUsers.length || groupedUsers.includes(source.activeScopeUser))) {
+      return source.activeScopeUser;
+    }
+    if (groupedUsers.length) {
+      source.activeScopeUser = groupedUsers[0];
+      source.scopeUserPinned = false;
       return source.activeScopeUser;
     }
     const firstStudent = getStudentUsers(source.users)[0];
     source.activeScopeUser = firstStudent ? firstStudent.username : user.username;
+    source.scopeUserPinned = false;
     return source.activeScopeUser;
   };
 
@@ -325,12 +391,16 @@ function App() {
       const sessionUsers = getCurrentSessionUsers(source);
       return sessionUsers.length ? sessionUsers : [current.username];
     }
-    const groupedUsers = [week.members?.a, week.members?.b]
-      .map((item) => findStudentByToken(source.users, item))
-      .filter(Boolean)
-      .map((item) => item.username);
+    const groupedUsers = [
+      ...[week.members?.a, week.members?.b]
+        .map((item) => findStudentByToken(source.users, item))
+        .filter(Boolean)
+        .map((item) => item.username),
+      ...getGroupedScopeUsers(source, week.startDate),
+    ]
+      .filter(Boolean);
     if (groupedUsers.length) return Array.from(new Set(groupedUsers));
-    const scope = resolveScopeUser(source);
+    const scope = resolveScopeUser(source, week.startDate);
     return scope ? [scope] : [];
   };
 
@@ -460,23 +530,20 @@ function App() {
   const loadWeekForCurrentScope = async (startRaw, statusMessage) => {
     const next = cloneValue(stateRef.current);
     const corrected = adjustToWednesday(startRaw || next.selectedWeekStart || todayISO());
-    const scopeUser = resolveScopeUser(next);
+    next.selectedWeekStart = corrected;
+    const groupResponse = await api.fetchWeekGroup(corrected);
+    next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
+    const scopeUser = resolveScopeUser(next, corrected);
     if (!scopeUser) {
       throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
     }
 
-    next.selectedWeekStart = corrected;
     const weekKey = makeWeekKey(corrected, scopeUser);
-    const [weekResponse, groupResponse] = await Promise.all([
-      api.fetchWeek(scopeUser, corrected),
-      api.fetchWeekGroup(corrected),
-    ]);
-    next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
+    const weekResponse = await api.fetchWeek(scopeUser, corrected);
     next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
     ensureWeekInState(next, weekKey, corrected);
     next.currentWeekKey = weekKey;
-    const dateList = getWeekDates(corrected);
-    next.currentDay = dateList.includes(next.currentDay) ? next.currentDay : dateList[0];
+    next.currentDay = pickPreferredDailyDate(next.weeks[weekKey], next.currentDay);
     ensureDayOnWeek(next.weeks[weekKey], next.currentDay);
     next.statusMessage = statusMessage || "已加载所选周次。";
     next.statusError = false;
@@ -506,6 +573,7 @@ function App() {
               ? storedSession.currentSessionUsers
               : (found.level === "P3" ? [found.username] : []);
             next.activeScopeUser = found.level === "P3" ? found.username : (storedSession.activeScopeUser || "");
+            next.scopeUserPinned = found.level === "P3" ? true : Boolean(storedSession.scopeUserPinned);
           }
         }
         syncEditForms(next);
@@ -781,6 +849,7 @@ function App() {
         };
         draft.currentSessionUsers = sessionUsers;
         draft.activeScopeUser = first.user.level === "P3" ? first.user.username : "";
+        draft.scopeUserPinned = first.user.level === "P3";
         draft.loading = false;
         draft.loginForm.password = "";
         draft.loginForm.secondPassword = "";
@@ -829,6 +898,7 @@ function App() {
   const handleScopeChange = async (scopeUser) => runAction(async () => {
     applyState((draft) => {
       draft.activeScopeUser = scopeUser;
+      draft.scopeUserPinned = true;
     });
     await loadWeekForCurrentScope(stateRef.current.selectedWeekStart || todayISO(), `已切换查看：${scopeUser}`);
   }, "切换查看对象失败，请稍后重试。");
