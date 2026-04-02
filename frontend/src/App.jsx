@@ -63,6 +63,7 @@ const initialState = {
   statusMessage: "准备就绪。",
   statusError: false,
   loading: false,
+  weekLoading: false,
   booting: true,
   passwordForm: { newPassword: "" },
   newUserForm: {
@@ -528,26 +529,41 @@ function App() {
   };
 
   const loadWeekForCurrentScope = async (startRaw, statusMessage) => {
-    const next = cloneValue(stateRef.current);
-    const corrected = adjustToWednesday(startRaw || next.selectedWeekStart || todayISO());
-    next.selectedWeekStart = corrected;
-    const groupResponse = await api.fetchWeekGroup(corrected);
-    next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
-    const scopeUser = resolveScopeUser(next, corrected);
-    if (!scopeUser) {
-      throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
-    }
+    const pending = cloneValue(stateRef.current);
+    const corrected = adjustToWednesday(startRaw || pending.selectedWeekStart || todayISO());
+    pending.selectedWeekStart = corrected;
+    pending.weekLoading = true;
+    pending.currentWeekKey = "";
+    pending.currentDay = "";
+    pending.statusMessage = "正在加载本周数据。若本周上传了较多图片，首次打开可能需要 10 到 30 秒。";
+    pending.statusError = false;
+    replaceState(pending);
+    try {
+      const next = cloneValue(stateRef.current);
+      const groupResponse = await api.fetchWeekGroup(corrected);
+      next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
+      const scopeUser = resolveScopeUser(next, corrected);
+      if (!scopeUser) {
+        throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
+      }
 
-    const weekKey = makeWeekKey(corrected, scopeUser);
-    const weekResponse = await api.fetchWeek(scopeUser, corrected);
-    next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
-    ensureWeekInState(next, weekKey, corrected);
-    next.currentWeekKey = weekKey;
-    next.currentDay = pickPreferredDailyDate(next.weeks[weekKey], next.currentDay);
-    ensureDayOnWeek(next.weeks[weekKey], next.currentDay);
-    next.statusMessage = statusMessage || "已加载所选周次。";
-    next.statusError = false;
-    replaceState(next);
+      const weekKey = makeWeekKey(corrected, scopeUser);
+      const weekResponse = await api.fetchWeek(scopeUser, corrected);
+      next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
+      ensureWeekInState(next, weekKey, corrected);
+      next.currentWeekKey = weekKey;
+      next.currentDay = pickPreferredDailyDate(next.weeks[weekKey], next.currentDay);
+      ensureDayOnWeek(next.weeks[weekKey], next.currentDay);
+      next.weekLoading = false;
+      next.statusMessage = statusMessage || "已加载所选周次。";
+      next.statusError = false;
+      replaceState(next);
+    } catch (error) {
+      const failed = cloneValue(stateRef.current);
+      failed.weekLoading = false;
+      replaceState(failed);
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -850,7 +866,6 @@ function App() {
         draft.currentSessionUsers = sessionUsers;
         draft.activeScopeUser = first.user.level === "P3" ? first.user.username : "";
         draft.scopeUserPinned = first.user.level === "P3";
-        draft.loading = false;
         draft.loginForm.password = "";
         draft.loginForm.secondPassword = "";
         draft.loginMessage = "";
@@ -862,9 +877,19 @@ function App() {
           ? "双人登录成功。已自动加载本周轮值并同步到本组账号。"
           : "登录成功。已自动加载本周轮值。",
       );
+      applyState((draft) => {
+        draft.loading = false;
+      });
     } catch (error) {
       applyState((draft) => {
         draft.loading = false;
+        draft.weekLoading = false;
+        if (draft.currentUser) {
+          draft.statusMessage = error.message || "加载本周失败。";
+          draft.statusError = true;
+          draft.loginMessage = "";
+          return;
+        }
         draft.loginMessage = error.message || "登录失败。";
       });
     }
@@ -1445,7 +1470,8 @@ function App() {
     );
   }
 
-  const showEmptyWeekState = app.activeTab !== "accounts" && !currentWeek;
+  const showWeekLoadingState = app.activeTab !== "accounts" && app.weekLoading && !currentWeek;
+  const showEmptyWeekState = app.activeTab !== "accounts" && !app.weekLoading && !currentWeek;
   const studentUsers = getStudentUsers(app.users);
   const resolvedScopeUser = currentUser
     ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
@@ -1564,6 +1590,14 @@ function App() {
   ];
   const moduleContent = (
     <>
+      {showWeekLoadingState ? (
+        <section className="soft-card">
+          <p className="module-kicker">Week Loading</p>
+          <h2 className="section-title mt-2">正在加载本周</h2>
+          <p className="status-line mt-4">系统正在读取当前周次与已上传图片，加载完成后会自动进入工作台，请稍候。</p>
+        </section>
+      ) : null}
+
       {showEmptyWeekState ? (
         <section className="soft-card">
           <p className="module-kicker">Weekly Preparation</p>
@@ -1708,6 +1742,7 @@ function App() {
     hasWeek: Boolean(currentWeek),
     canSaveGroup: canEditCurrentScopeData() && Boolean(currentWeek),
     canExportReport: Boolean(currentWeek),
+    busy: app.weekLoading || app.loading,
     onScopeChange: handleScopeChange,
     onWeekStartChange: handleWeekStartChange,
     onLoadWeek: handleLoadWeek,
@@ -1751,7 +1786,7 @@ function App() {
     <DashboardShell
       loggedIn={Boolean(app.currentUser)}
       dashboardDate={dashboardDate}
-      statusLabel={currentWeek ? "运营中" : "待准备"}
+      statusLabel={app.weekLoading || app.loading ? "加载中" : currentWeek ? "运营中" : "待准备"}
       pageTitle={pageTitle}
       pageSubtitle={pageSubtitle}
       dashboardStats={dashboardStats}
@@ -1768,6 +1803,7 @@ function App() {
       onLoadWeek={handleLoadWeek}
       onPreviewReport={handlePreviewReport}
       canPreviewReport={Boolean(currentWeek)}
+      busy={app.weekLoading || app.loading}
       loginProps={loginProps}
     />
   );

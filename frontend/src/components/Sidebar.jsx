@@ -16,6 +16,7 @@ export function Sidebar({
   hasWeek,
   canSaveGroup,
   canExportReport,
+  busy,
   onScopeChange,
   onWeekStartChange,
   onLoadWeek,
@@ -47,7 +48,7 @@ export function Sidebar({
         {canViewAllScopes ? (
           <div>
             <label className="field-label">查看学员数据</label>
-            <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={!studentUsers.length}>
+            <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={busy || !studentUsers.length}>
               {studentUsers.map((user) => (
                 <option key={user.username} value={user.username}>
                   {`${user.displayName}（${user.username}）`}
@@ -60,7 +61,7 @@ export function Sidebar({
         <div className={`grid gap-3 ${canViewAllScopes ? "mt-4" : ""}`}>
           <div>
             <label className="field-label">轮值开始（周三）</label>
-            <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} />
+            <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} disabled={busy} />
           </div>
           <div>
             <label className="field-label">轮值结束</label>
@@ -69,7 +70,7 @@ export function Sidebar({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="btn-primary" type="button" onClick={onLoadWeek}>
+          <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>
             加载/创建本周
           </button>
           <button className="btn-secondary" type="button" onClick={onLogout}>
@@ -85,7 +86,7 @@ export function Sidebar({
         </div>
         <div>
           <label className="field-label">教学周次（按轮值表）</label>
-          <select className="field-input" value={teachingWeek} onChange={(event) => onTeachingWeekChange(event.target.value)} disabled={!editable || !hasWeek}>
+          <select className="field-input" value={teachingWeek} onChange={(event) => onTeachingWeekChange(event.target.value)} disabled={busy || !editable || !hasWeek}>
             {teachingWeekOptions.map((item) => (
               <option key={item.value || "manual"} value={item.value}>
                 {item.text}
@@ -110,7 +111,7 @@ export function Sidebar({
           <input className="field-input" value={nextGroup} onChange={(event) => onGroupChange("nextGroup", event.target.value)} placeholder="下一位同学" readOnly={!editable || !hasWeek} />
         </div>
 
-        <button className="btn-good w-full" type="button" onClick={onSaveGroup} disabled={!canSaveGroup}>
+        <button className="btn-good w-full" type="button" onClick={onSaveGroup} disabled={busy || !canSaveGroup}>
           保存分组
         </button>
       </div>
@@ -119,10 +120,10 @@ export function Sidebar({
         <p className="panel-eyebrow">Reports</p>
         <h3 className="panel-title mt-2">导出与预览</h3>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="btn-primary" type="button" onClick={onExportWord} disabled={!canExportReport}>
+          <button className="btn-primary" type="button" onClick={onExportWord} disabled={busy || !canExportReport}>
             导出周报 Word
           </button>
-          <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={!canExportReport}>
+          <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canExportReport}>
             预览/打印周报
           </button>
         </div>

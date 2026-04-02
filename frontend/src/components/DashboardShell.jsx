@@ -40,6 +40,7 @@ export function DashboardShell({
   onLoadWeek,
   onPreviewReport,
   canPreviewReport,
+  busy,
   loginProps,
 }) {
   if (!loggedIn) {
@@ -166,7 +167,7 @@ export function DashboardShell({
                   <p className="ops-kicker">Activity</p>
                   <h3>运营动态</h3>
                 </div>
-                <button className="ops-link-button" type="button" onClick={onLoadWeek}>
+                <button className="ops-link-button" type="button" onClick={onLoadWeek} disabled={busy}>
                   + 加载本周
                 </button>
               </div>
@@ -189,10 +190,10 @@ export function DashboardShell({
                 <h3>{activeTabLabel}</h3>
               </div>
               <div className="ops-action-row no-print">
-                <button className="btn-primary" type="button" onClick={onLoadWeek}>
+                <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>
                   加载/创建本周
                 </button>
-                <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={!canPreviewReport}>
+                <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>
                   预览周报
                 </button>
               </div>
