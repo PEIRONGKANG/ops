@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 import { AccountsTab } from "./components/AccountsTab";
 import { CreativeTab } from "./components/CreativeTab";
@@ -25,12 +25,14 @@ import {
   getWeekDates,
   levelLabel,
   makeWeekKey,
+  fmt,
   normalizeTeacherNotice,
   normalizeUser,
   renderApprovalText,
   roleFromLevel,
   describeTeachingWeek,
   syncWeekGroupForWeek,
+  toDate,
   todayISO,
   trim,
 } from "./lib/core";
@@ -64,6 +66,7 @@ const initialState = {
   statusError: false,
   loading: false,
   weekLoading: false,
+  weekMediaLoading: false,
   booting: true,
   passwordForm: { newPassword: "" },
   newUserForm: {
@@ -110,6 +113,21 @@ function hasImages(images) {
 
 function hasApprovalStamp(approval) {
   return Boolean(trim(approval?.by) || trim(approval?.time) || trim(approval?.comment));
+}
+
+function hasDeferredMedia(week) {
+  return Boolean(week?._mediaDeferred);
+}
+
+function parseTeachingWeekOrder(value) {
+  const match = String(value || "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+function shiftWeekStart(startDate, weekDelta) {
+  const date = toDate(startDate);
+  date.setDate(date.getDate() + (weekDelta * 7));
+  return adjustToWednesday(fmt(date));
 }
 
 function hasDailyRecordPayload(record) {
@@ -295,11 +313,13 @@ function App() {
 
   const canEditCurrentScopeData = (source = stateRef.current) => {
     const user = getCurrentUserRecord(source);
+    if (source.weekMediaLoading) return false;
     return !!user && (user.level === "P1" || user.level === "P3");
   };
 
   const canEditDailyContent = (source = stateRef.current) => {
     const user = getCurrentUserRecord(source);
+    if (source.weekMediaLoading) return false;
     return !!user && (user.level === "P1" || user.level === "P3");
   };
 
@@ -369,6 +389,20 @@ function App() {
       source.weekGroups[startDate].teachingWeek = "";
     }
     return source.weekGroups[startDate];
+  };
+
+  const resolveWeekStartByTeachingWeek = (source, targetTeachingWeek) => {
+    const targetOrder = parseTeachingWeekOrder(targetTeachingWeek);
+    if (!targetOrder) return source.selectedWeekStart;
+
+    const knownEntry = Object.entries(source.weekGroups).find(([, group]) => trim(group?.teachingWeek) === trim(targetTeachingWeek));
+    if (knownEntry?.[0]) {
+      return adjustToWednesday(knownEntry[0]);
+    }
+
+    const currentOrder = parseTeachingWeekOrder(getWeekGroupRecord(source, source.selectedWeekStart).teachingWeek);
+    if (!currentOrder) return source.selectedWeekStart;
+    return shiftWeekStart(source.selectedWeekStart, targetOrder - currentOrder);
   };
 
   const applyWeekGroupToLoadedWeeks = (source, startDate) => {
@@ -552,10 +586,13 @@ function App() {
   const loadWeekForCurrentScope = async (startRaw, statusMessage, options = {}) => {
     const pending = cloneValue(stateRef.current);
     const corrected = adjustToWednesday(startRaw || pending.selectedWeekStart || todayISO());
+    const previousWeekKey = pending.currentWeekKey;
     pending.selectedWeekStart = corrected;
     pending.weekLoading = true;
-    pending.currentWeekKey = "";
-    pending.currentDay = "";
+    pending.weekMediaLoading = false;
+    if (!previousWeekKey) {
+      pending.currentDay = "";
+    }
     pending.statusMessage = "正在加载本周数据。若本周上传了较多图片，首次打开可能需要 10 到 30 秒。";
     pending.statusError = false;
     replaceState(pending);
@@ -565,21 +602,14 @@ function App() {
       next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
       let scopeUser = "";
       let selectedWeek = null;
+      let groupedFallbackUsers = [];
+      const preferSummary = options.preferSummary ?? canViewAllScopes(next);
 
       if (options.forceGroupedScope && canViewAllScopes(next)) {
         const groupedUsers = getGroupedScopeUsers(next, corrected);
-        const groupedCandidates = [];
-        for (const username of groupedUsers) {
-          const weekKey = makeWeekKey(corrected, username);
-          const weekResponse = await api.fetchWeek(username, corrected);
-          const week = weekResponse.week || createEmptyWeek(corrected);
-          next.weeks[weekKey] = week;
-          groupedCandidates.push({ username, week });
-        }
-        const preferredCandidate = groupedCandidates.find((candidate) => hasWeekPayload(candidate.week)) || groupedCandidates[0];
-        if (preferredCandidate) {
-          scopeUser = preferredCandidate.username;
-          selectedWeek = preferredCandidate.week;
+        if (groupedUsers.length) {
+          scopeUser = groupedUsers[0];
+          groupedFallbackUsers = groupedUsers.slice(1);
           next.activeScopeUser = scopeUser;
           next.scopeUserPinned = false;
         }
@@ -592,23 +622,63 @@ function App() {
         throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
       }
 
-      const weekKey = makeWeekKey(corrected, scopeUser);
       if (!selectedWeek) {
-        const weekResponse = await api.fetchWeek(scopeUser, corrected);
+        const weekResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: !preferSummary });
         selectedWeek = weekResponse.week || createEmptyWeek(corrected);
       }
-      next.weeks[weekKey] = selectedWeek;
-      ensureWeekInState(next, weekKey, corrected);
-      next.currentWeekKey = weekKey;
-      next.currentDay = pickPreferredDailyDate(next.weeks[weekKey], next.currentDay);
-      ensureDayOnWeek(next.weeks[weekKey], next.currentDay);
+
+      if (!hasWeekPayload(selectedWeek) && groupedFallbackUsers.length) {
+        for (const fallbackUser of groupedFallbackUsers) {
+          const fallbackKey = makeWeekKey(corrected, fallbackUser);
+          const fallbackResponse = await api.fetchWeek(fallbackUser, corrected, { includeMedia: !preferSummary });
+          const fallbackWeek = fallbackResponse.week || createEmptyWeek(corrected);
+          next.weeks[fallbackKey] = fallbackWeek;
+          if (!hasWeekPayload(fallbackWeek)) continue;
+          scopeUser = fallbackUser;
+          selectedWeek = fallbackWeek;
+          next.activeScopeUser = scopeUser;
+          break;
+        }
+      }
+
+      const activeWeekKey = makeWeekKey(corrected, scopeUser);
+      next.weeks[activeWeekKey] = selectedWeek;
+      ensureWeekInState(next, activeWeekKey, corrected);
+      next.currentWeekKey = activeWeekKey;
+      const forceWeekStartDay = options.defaultToWeekStart !== false;
+      next.currentDay = forceWeekStartDay
+        ? corrected
+        : pickPreferredDailyDate(next.weeks[activeWeekKey], next.currentDay);
+      ensureDayOnWeek(next.weeks[activeWeekKey], next.currentDay);
       next.weekLoading = false;
-      next.statusMessage = statusMessage || "已加载所选周次。";
+      next.weekMediaLoading = hasDeferredMedia(selectedWeek);
+      next.statusMessage = next.weekMediaLoading
+        ? "已加载当周核心数据，图片正在后台补充。"
+        : (statusMessage || "已加载所选周次。");
       next.statusError = false;
       replaceState(next);
+
+      if (!next.weekMediaLoading) return;
+
+      const fullWeekResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: true });
+      const fullWeek = fullWeekResponse.week || createEmptyWeek(corrected);
+      applyState((draft) => {
+        if (trim(draft.currentWeekKey) !== trim(activeWeekKey)) return;
+        draft.weeks[activeWeekKey] = fullWeek;
+        ensureWeekInState(draft, activeWeekKey, corrected);
+        const forceWeekStartDay = options.defaultToWeekStart !== false;
+        draft.currentDay = forceWeekStartDay
+          ? corrected
+          : pickPreferredDailyDate(draft.weeks[activeWeekKey], draft.currentDay);
+        ensureDayOnWeek(draft.weeks[activeWeekKey], draft.currentDay);
+        draft.weekMediaLoading = false;
+        draft.statusMessage = statusMessage || "已加载所选周次（含图片）。";
+        draft.statusError = false;
+      });
     } catch (error) {
       const failed = cloneValue(stateRef.current);
       failed.weekLoading = false;
+      failed.weekMediaLoading = false;
       replaceState(failed);
       throw error;
     }
@@ -663,7 +733,11 @@ function App() {
 
   const currentUser = getCurrentUserRecord();
   const currentWeek = app.currentWeekKey ? app.weeks[app.currentWeekKey] : null;
-  const currentWeekGroup = currentWeek ? app.weekGroups[currentWeek.startDate] || createEmptyWeekGroup() : createEmptyWeekGroup();
+  const selectedSidebarWeekStart = adjustToWednesday(app.selectedWeekStart || todayISO());
+  const currentWeekGroup = app.weekGroups[selectedSidebarWeekStart] || createEmptyWeekGroup();
+  const displayedWeekEnd = currentWeek && trim(currentWeek.startDate) === trim(selectedSidebarWeekStart)
+    ? currentWeek.endDate
+    : getWeekDates(selectedSidebarWeekStart)[7];
   const currentDayData = currentWeek && app.currentDay ? ensureDayOnWeek(currentWeek, app.currentDay) : null;
 
   const sessionInfo = (() => {
@@ -954,22 +1028,35 @@ function App() {
     });
   };
 
-  const handleWeekStartChange = (value) => {
+  const handleWeekStartChange = async (value) => {
+    const corrected = adjustToWednesday(value || todayISO());
+    const before = cloneValue(stateRef.current);
     applyState((draft) => {
-      draft.selectedWeekStart = value;
+      draft.selectedWeekStart = corrected;
+      if (canViewAllScopes(draft)) {
+        draft.activeScopeUser = "";
+        draft.scopeUserPinned = false;
+      }
     });
+    if (!before.currentUser) return;
+    await runAction(async () => {
+      await loadWeekForCurrentScope(
+        corrected,
+        value !== corrected
+          ? `已自动调整到最近周三：${corrected}，并联动带入当周学生数据。`
+          : `已切换到 ${corrected}，并自动匹配当周分组与学员数据。`,
+        { forceGroupedScope: canViewAllScopes(before), defaultToWeekStart: true },
+      );
+    }, "周次切换失败，请稍后重试。");
   };
 
   const handleLoadWeek = async () => runAction(async () => {
     const raw = stateRef.current.selectedWeekStart || todayISO();
     const corrected = adjustToWednesday(raw);
-    const currentLoadedStart = stateRef.current.currentWeekKey
-      ? stateRef.current.weeks[stateRef.current.currentWeekKey]?.startDate || ""
-      : "";
     await loadWeekForCurrentScope(
       corrected,
       raw !== corrected ? `已自动调整到最近周三：${corrected}` : "已加载所选周次。",
-      { forceGroupedScope: canViewAllScopes() && trim(corrected) !== trim(currentLoadedStart) },
+      { forceGroupedScope: canViewAllScopes(), defaultToWeekStart: true },
     );
   }, "加载周次失败，请稍后重试。");
 
@@ -978,7 +1065,11 @@ function App() {
       draft.activeScopeUser = scopeUser;
       draft.scopeUserPinned = true;
     });
-    await loadWeekForCurrentScope(stateRef.current.selectedWeekStart || todayISO(), `已切换查看：${scopeUser}`);
+    await loadWeekForCurrentScope(
+      stateRef.current.selectedWeekStart || todayISO(),
+      `已切换查看：${scopeUser}`,
+      { defaultToWeekStart: false },
+    );
   }, "切换查看对象失败，请稍后重试。");
 
   const handleTabChange = (tab) => {
@@ -989,13 +1080,22 @@ function App() {
 
   const handleTeachingWeekChange = async (value) => runAction(async () => {
     const next = cloneValue(stateRef.current);
-    const week = next.weeks[next.currentWeekKey];
-    if (!week) throw new Error("请先加载本周后再设置教学周次。");
-    const shared = getWeekGroupRecord(next, week.startDate);
+    const targetWeekStart = resolveWeekStartByTeachingWeek(next, value);
+    const shared = getWeekGroupRecord(next, targetWeekStart);
     applyTeachingWeekPreset(shared, value);
-    applyWeekGroupToLoadedWeeks(next, week.startDate);
+    applyWeekGroupToLoadedWeeks(next, targetWeekStart);
+    next.selectedWeekStart = targetWeekStart;
+    if (canViewAllScopes(next)) {
+      next.activeScopeUser = "";
+      next.scopeUserPinned = false;
+    }
     replaceState(next);
-    await persistGroupAndWeeks(next, week.startDate);
+    await persistGroupAndWeeks(next, targetWeekStart);
+    await loadWeekForCurrentScope(
+      targetWeekStart,
+      `已切换到 ${value || "手动分组"}，并自动带入当周第一天数据。`,
+      { forceGroupedScope: canViewAllScopes(next), defaultToWeekStart: true },
+    );
     const preset = getTeachingWeekPreset(value);
     if (preset?.a || preset?.b) setStatus(`已套用 ${preset.label} 分组名单。`);
     else if (preset?.note) setStatus(`已记录 ${preset.label} 安排：${preset.note}。`);
@@ -1004,24 +1104,26 @@ function App() {
 
   const handleGroupChange = (field, value) => {
     applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      const shared = getWeekGroupRecord(draft, week.startDate);
+      const startDate = adjustToWednesday(draft.selectedWeekStart || todayISO());
+      const shared = getWeekGroupRecord(draft, startDate);
       if (field === "memberA") shared.a = value;
       if (field === "memberB") shared.b = value;
       if (field === "nextGroup") shared.nextGroup = value;
-      applyWeekGroupToLoadedWeeks(draft, week.startDate);
+      applyWeekGroupToLoadedWeeks(draft, startDate);
     });
   };
 
   const handleSaveGroup = async () => runAction(async () => {
     const next = cloneValue(stateRef.current);
-    const week = next.weeks[next.currentWeekKey];
-    if (!week) throw new Error("请先加载本周后再保存分组。");
-    applyWeekGroupToLoadedWeeks(next, week.startDate);
+    const startDate = adjustToWednesday(next.selectedWeekStart || todayISO());
+    applyWeekGroupToLoadedWeeks(next, startDate);
     replaceState(next);
-    await persistGroupAndWeeks(next, week.startDate);
-    setStatus("分组信息已按本周保存，本周无需重复填写。");
+    await persistGroupAndWeeks(next, startDate);
+    await loadWeekForCurrentScope(
+      startDate,
+      "分组信息已保存，并自动带入当周学生第一天数据。",
+      { forceGroupedScope: canViewAllScopes(next), defaultToWeekStart: true },
+    );
   }, "分组信息保存失败，请稍后重试。");
 
   const handleCreativeFieldChange = (field, value) => {
@@ -1809,17 +1911,17 @@ function App() {
     studentUsers: prioritizedStudentUsers,
     activeScopeUser: resolvedScopeUser,
     weekStart: app.selectedWeekStart,
-    weekEnd: currentWeek?.endDate || "",
+    weekEnd: displayedWeekEnd,
     teachingWeekOptions: buildTeachingWeekOptions(),
     teachingWeek: currentWeekGroup?.teachingWeek || "",
     groupHint: describeTeachingWeek(currentWeekGroup),
-    memberA: currentWeek?.members.a || currentWeekGroup.a || "",
-    memberB: currentWeek?.members.b || currentWeekGroup.b || "",
-    nextGroup: currentWeek?.nextGroup || currentWeekGroup.nextGroup || "",
+    memberA: currentWeekGroup.a || currentWeek?.members.a || "",
+    memberB: currentWeekGroup.b || currentWeek?.members.b || "",
+    nextGroup: currentWeekGroup.nextGroup || currentWeek?.nextGroup || "",
     hasWeek: Boolean(currentWeek),
     canSaveGroup: canEditCurrentScopeData() && Boolean(currentWeek),
     canExportReport: Boolean(currentWeek),
-    busy: app.weekLoading || app.loading,
+    busy: app.weekLoading || app.loading || app.weekMediaLoading,
     onScopeChange: handleScopeChange,
     onWeekStartChange: handleWeekStartChange,
     onLoadWeek: handleLoadWeek,
@@ -1863,7 +1965,7 @@ function App() {
     <DashboardShell
       loggedIn={Boolean(app.currentUser)}
       dashboardDate={dashboardDate}
-      statusLabel={app.weekLoading || app.loading ? "加载中" : currentWeek ? "运营中" : "待准备"}
+      statusLabel={app.weekLoading || app.loading || app.weekMediaLoading ? "加载中" : currentWeek ? "运营中" : "待准备"}
       pageTitle={pageTitle}
       pageSubtitle={pageSubtitle}
       dashboardStats={dashboardStats}
@@ -1880,7 +1982,7 @@ function App() {
       onLoadWeek={handleLoadWeek}
       onPreviewReport={handlePreviewReport}
       canPreviewReport={Boolean(currentWeek)}
-      busy={app.weekLoading || app.loading}
+      busy={app.weekLoading || app.loading || app.weekMediaLoading}
       loginProps={loginProps}
     />
   );

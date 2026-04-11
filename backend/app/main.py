@@ -13,6 +13,7 @@ from .database import (
     get_user,
     get_teacher_notice,
     get_week,
+    get_week_summary,
     get_week_group,
     init_db,
     list_users,
@@ -143,8 +144,10 @@ def upsert_week_group(start_date: str, payload: WeekGroupPayload) -> dict:
 
 
 @app.get("/api/weeks/{scope_user}/{start_date}")
-def fetch_week(scope_user: str, start_date: str) -> dict:
-    return {"week": get_week(scope_user, start_date)}
+def fetch_week(scope_user: str, start_date: str, include_media: bool = True) -> dict:
+    if include_media:
+        return {"week": get_week(scope_user, start_date)}
+    return {"week": get_week_summary(scope_user, start_date)}
 
 
 @app.put("/api/weeks/{scope_user}/{start_date}")

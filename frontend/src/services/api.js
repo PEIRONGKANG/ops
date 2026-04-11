@@ -77,8 +77,13 @@ export const api = {
       method: "DELETE",
     });
   },
-  fetchWeek(scopeUser, startDate) {
-    return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}`);
+  fetchWeek(scopeUser, startDate, options = {}) {
+    const params = new URLSearchParams();
+    if (options.includeMedia === false) {
+      params.set("include_media", "false");
+    }
+    const query = params.toString();
+    return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}${query ? `?${query}` : ""}`);
   },
   saveWeek(scopeUser, startDate, week) {
     return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}`, {

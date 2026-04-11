@@ -1,21 +1,34 @@
 import { useRef, useState } from "react";
 
+const IMAGE_PLACEHOLDER = "__OPS_IMAGE_PENDING__";
+
 export function ImagePreviewGrid({ images }) {
-  if (!images?.length) {
+  const sourceList = Array.isArray(images) ? images : [];
+  const pendingCount = sourceList.filter((src) => src === IMAGE_PLACEHOLDER).length;
+  const visibleImages = sourceList.filter((src) => src && src !== IMAGE_PLACEHOLDER);
+
+  if (!visibleImages.length && !pendingCount) {
     return <p className="media-empty">暂无图片</p>;
   }
 
   return (
-    <div className="media-preview-grid">
-      {images.map((src, index) => (
-        <img
-          key={`${src.slice(0, 24)}-${index}`}
-          src={src}
-          alt="上传预览"
-          className="media-preview-item"
-        />
-      ))}
-    </div>
+    <>
+      {pendingCount ? (
+        <p className="media-empty media-loading-tip">
+          图片加载中：{pendingCount} 张
+        </p>
+      ) : null}
+      <div className="media-preview-grid">
+        {visibleImages.map((src, index) => (
+          <img
+            key={`${src.slice(0, 24)}-${index}`}
+            src={src}
+            alt="上传预览"
+            className="media-preview-item"
+          />
+        ))}
+      </div>
+    </>
   );
 }
 

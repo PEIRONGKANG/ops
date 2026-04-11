@@ -922,6 +922,11 @@ img {
   font-size: 0.9rem;
 }
 
+.media-loading-tip {
+  color: #0f766e;
+  font-weight: 600;
+}
+
 .media-preview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import sqlite3
@@ -9,6 +10,7 @@ from uuid import uuid4
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "backend" / "data"
 DB_PATH = Path(os.environ.get("OPS_TRAINING_DB_PATH", DATA_DIR / "ops_training.db"))
+IMAGE_PLACEHOLDER = "__OPS_IMAGE_PENDING__"
 
 
 DEFAULT_USERS = [
@@ -287,6 +289,46 @@ def get_week(scope_user: str, start_date: str) -> dict | None:
             (scope_user, start_date),
         ).fetchone()
     return json.loads(row["payload"]) if row else None
+
+
+def get_week_summary(scope_user: str, start_date: str) -> dict | None:
+    week = get_week(scope_user, start_date)
+    if not week:
+        return None
+
+    summary = copy.deepcopy(week)
+    media_found = False
+
+    def scrub_images(image_list: list | None) -> list:
+        nonlocal media_found
+        values = image_list if isinstance(image_list, list) else []
+        if values:
+            media_found = True
+        return [IMAGE_PLACEHOLDER] * len(values)
+
+    summary.setdefault("creative", {})
+    summary["creative"]["posters"] = scrub_images(summary["creative"].get("posters"))
+
+    summary.setdefault("handover", {})
+    summary["handover"]["photos"] = scrub_images(summary["handover"].get("photos"))
+
+    daily = summary.get("daily", {})
+    if isinstance(daily, dict):
+        for record in daily.values():
+            if not isinstance(record, dict):
+                continue
+            record["leaveImgs"] = scrub_images(record.get("leaveImgs"))
+            record["grooming"] = scrub_images(record.get("grooming"))
+            record["openingPublic"] = scrub_images(record.get("openingPublic"))
+            record["openingBar"] = scrub_images(record.get("openingBar"))
+            record["closingPublic"] = scrub_images(record.get("closingPublic"))
+            record["closingBar"] = scrub_images(record.get("closingBar"))
+            record["lossImgs"] = scrub_images(record.get("lossImgs"))
+            record["inventoryImgs"] = scrub_images(record.get("inventoryImgs"))
+            record["receiptImgs"] = scrub_images(record.get("receiptImgs"))
+
+    summary["_mediaDeferred"] = media_found
+    return summary
 
 
 def save_week(scope_user: str, start_date: str, payload: dict) -> dict:
