@@ -142,6 +142,27 @@ function hasDailyRecordPayload(record) {
     || Object.values(record.studentConfirmations || {}).some(hasApprovalStamp);
 }
 
+function hasWeekPayload(week) {
+  if (!week) return false;
+  return hasText(
+    week.creative?.marketing,
+    week.creative?.recipe,
+    week.creative?.procurement,
+    week.handover?.summary,
+    week.handover?.nextGroup,
+    week.reflection?.a,
+    week.reflection?.b,
+    week.reflection?.optPlan,
+    week.reflection?.managerComment,
+  )
+    || hasImages(week.creative?.posters)
+    || hasImages(week.handover?.photos)
+    || hasApprovalStamp(week.creative?.approval)
+    || hasApprovalStamp(week.handover?.approval)
+    || hasApprovalStamp(week.reflection?.approval)
+    || Object.values(week.daily || {}).some(hasDailyRecordPayload);
+}
+
 function pickPreferredDailyDate(week, preferredDay = "") {
   const dates = getWeekDates(week.startDate);
   if (dates.includes(preferredDay) && hasDailyRecordPayload(week.daily?.[preferredDay])) {
@@ -528,7 +549,7 @@ function App() {
     source.teacherNotices.push(normalized);
   };
 
-  const loadWeekForCurrentScope = async (startRaw, statusMessage) => {
+  const loadWeekForCurrentScope = async (startRaw, statusMessage, options = {}) => {
     const pending = cloneValue(stateRef.current);
     const corrected = adjustToWednesday(startRaw || pending.selectedWeekStart || todayISO());
     pending.selectedWeekStart = corrected;
@@ -542,14 +563,41 @@ function App() {
       const next = cloneValue(stateRef.current);
       const groupResponse = await api.fetchWeekGroup(corrected);
       next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
-      const scopeUser = resolveScopeUser(next, corrected);
+      let scopeUser = "";
+      let selectedWeek = null;
+
+      if (options.forceGroupedScope && canViewAllScopes(next)) {
+        const groupedUsers = getGroupedScopeUsers(next, corrected);
+        const groupedCandidates = [];
+        for (const username of groupedUsers) {
+          const weekKey = makeWeekKey(corrected, username);
+          const weekResponse = await api.fetchWeek(username, corrected);
+          const week = weekResponse.week || createEmptyWeek(corrected);
+          next.weeks[weekKey] = week;
+          groupedCandidates.push({ username, week });
+        }
+        const preferredCandidate = groupedCandidates.find((candidate) => hasWeekPayload(candidate.week)) || groupedCandidates[0];
+        if (preferredCandidate) {
+          scopeUser = preferredCandidate.username;
+          selectedWeek = preferredCandidate.week;
+          next.activeScopeUser = scopeUser;
+          next.scopeUserPinned = false;
+        }
+      }
+
+      if (!scopeUser) {
+        scopeUser = resolveScopeUser(next, corrected);
+      }
       if (!scopeUser) {
         throw new Error("当前没有可查看的学生账号，请先确认账号数据。");
       }
 
       const weekKey = makeWeekKey(corrected, scopeUser);
-      const weekResponse = await api.fetchWeek(scopeUser, corrected);
-      next.weeks[weekKey] = weekResponse.week || createEmptyWeek(corrected);
+      if (!selectedWeek) {
+        const weekResponse = await api.fetchWeek(scopeUser, corrected);
+        selectedWeek = weekResponse.week || createEmptyWeek(corrected);
+      }
+      next.weeks[weekKey] = selectedWeek;
       ensureWeekInState(next, weekKey, corrected);
       next.currentWeekKey = weekKey;
       next.currentDay = pickPreferredDailyDate(next.weeks[weekKey], next.currentDay);
@@ -596,7 +644,7 @@ function App() {
         next.booting = false;
         replaceState(next);
         if (next.currentUser) {
-          await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。");
+          await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
         }
       } catch (error) {
         replaceState({
@@ -876,6 +924,7 @@ function App() {
         sessionUsers.length > 1
           ? "双人登录成功。已自动加载本周轮值并同步到本组账号。"
           : "登录成功。已自动加载本周轮值。",
+        { forceGroupedScope: true },
       );
       applyState((draft) => {
         draft.loading = false;
@@ -914,9 +963,13 @@ function App() {
   const handleLoadWeek = async () => runAction(async () => {
     const raw = stateRef.current.selectedWeekStart || todayISO();
     const corrected = adjustToWednesday(raw);
+    const currentLoadedStart = stateRef.current.currentWeekKey
+      ? stateRef.current.weeks[stateRef.current.currentWeekKey]?.startDate || ""
+      : "";
     await loadWeekForCurrentScope(
       corrected,
       raw !== corrected ? `已自动调整到最近周三：${corrected}` : "已加载所选周次。",
+      { forceGroupedScope: canViewAllScopes() && trim(corrected) !== trim(currentLoadedStart) },
     );
   }, "加载周次失败，请稍后重试。");
 
