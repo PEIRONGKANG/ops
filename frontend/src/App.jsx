@@ -1526,6 +1526,29 @@ function App() {
   const showWeekLoadingState = app.activeTab !== "accounts" && app.weekLoading && !currentWeek;
   const showEmptyWeekState = app.activeTab !== "accounts" && !app.weekLoading && !currentWeek;
   const studentUsers = getStudentUsers(app.users);
+  const groupedStudentUsers = (() => {
+    const groupedTokens = [
+      currentWeek?.members.a || currentWeekGroup.a || "",
+      currentWeek?.members.b || currentWeekGroup.b || "",
+    ];
+    const seen = new Set();
+    return groupedTokens
+      .map((token, index) => {
+        const user = findStudentByToken(app.users, token);
+        if (!user || seen.has(user.username)) return null;
+        seen.add(user.username);
+        return {
+          username: user.username,
+          displayName: user.displayName || user.username,
+          groupLabel: index === 0 ? "本周学生 A" : "本周学生 B",
+        };
+      })
+      .filter(Boolean);
+  })();
+  const prioritizedStudentUsers = [
+    ...groupedStudentUsers.map((user) => studentUsers.find((item) => item.username === user.username)).filter(Boolean),
+    ...studentUsers.filter((user) => !groupedStudentUsers.some((item) => item.username === user.username)),
+  ];
   const resolvedScopeUser = currentUser
     ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
     : "";
@@ -1782,7 +1805,8 @@ function App() {
     }[currentUser.level] || currentUser.level) : "",
     sessionInfo: dashboardSessionInfo,
     canViewAllScopes: canViewAllScopes(),
-    studentUsers,
+    groupedStudentUsers,
+    studentUsers: prioritizedStudentUsers,
     activeScopeUser: resolvedScopeUser,
     weekStart: app.selectedWeekStart,
     weekEnd: currentWeek?.endDate || "",

@@ -3,6 +3,7 @@ export function Sidebar({
   roleLabel,
   sessionInfo,
   canViewAllScopes,
+  groupedStudentUsers,
   studentUsers,
   activeScopeUser,
   weekStart,
@@ -45,20 +46,7 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-section">
-        {canViewAllScopes ? (
-          <div>
-            <label className="field-label">查看学员数据</label>
-            <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={busy || !studentUsers.length}>
-              {studentUsers.map((user) => (
-                <option key={user.username} value={user.username}>
-                  {`${user.displayName}（${user.username}）`}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
-        <div className={`grid gap-3 ${canViewAllScopes ? "mt-4" : ""}`}>
+        <div className="grid gap-3">
           <div>
             <label className="field-label">轮值开始（周三）</label>
             <input className="field-input" type="date" value={weekStart} onChange={(event) => onWeekStartChange(event.target.value)} disabled={busy} />
@@ -97,12 +85,12 @@ export function Sidebar({
         <p className="status-line">{groupHint}</p>
 
         <div>
-          <label className="field-label">本周学员 A</label>
+          <label className="field-label">本周学生 A</label>
           <input className="field-input" value={memberA} onChange={(event) => onGroupChange("memberA", event.target.value)} placeholder="姓名或账号" readOnly={!editable || !hasWeek} />
         </div>
 
         <div>
-          <label className="field-label">本周学员 B</label>
+          <label className="field-label">本周学生 B</label>
           <input className="field-input" value={memberB} onChange={(event) => onGroupChange("memberB", event.target.value)} placeholder="姓名或账号" readOnly={!editable || !hasWeek} />
         </div>
 
@@ -115,6 +103,47 @@ export function Sidebar({
           保存分组
         </button>
       </div>
+
+      {canViewAllScopes ? (
+        <div className="sidebar-section space-y-3">
+          <div>
+            <p className="panel-eyebrow">Scope View</p>
+            <h3 className="panel-title mt-2">查看学员数据</h3>
+          </div>
+
+          {groupedStudentUsers.length ? (
+            <div className="sidebar-scope-grid">
+              {groupedStudentUsers.map((user) => (
+                <button
+                  key={user.username}
+                  type="button"
+                  className={activeScopeUser === user.username ? "sidebar-scope-chip is-active" : "sidebar-scope-chip"}
+                  onClick={() => onScopeChange(user.username)}
+                  disabled={busy}
+                >
+                  <span>{user.groupLabel}</span>
+                  <strong>{user.displayName}</strong>
+                  <small>{user.username}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="status-line">加载周次后，这里会自动带出当周值班学生。</p>
+          )}
+
+          <div>
+            <label className="field-label">查看学员</label>
+            <select className="field-input" value={activeScopeUser} onChange={(event) => onScopeChange(event.target.value)} disabled={busy || !studentUsers.length}>
+              {studentUsers.map((user) => (
+                <option key={user.username} value={user.username}>
+                  {`${user.displayName}（${user.username}）`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="status-line">当周值班学生已在上方快捷入口和下拉列表中优先显示。</p>
+        </div>
+      ) : null}
 
       <div className="sidebar-section">
         <p className="panel-eyebrow">Reports</p>
