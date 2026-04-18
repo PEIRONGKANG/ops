@@ -36,6 +36,14 @@ import {
   todayISO,
   trim,
 } from "./lib/core";
+import {
+  cloneDailyRecord,
+  hasDailyRecordPayload,
+  hasImages,
+  hasText,
+  pickDailyDate,
+  updateWeekDailyRecord,
+} from "./lib/dailyState";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
 import { api } from "./services/api";
 
@@ -103,14 +111,6 @@ function loadStoredSession() {
   }
 }
 
-function hasText(...values) {
-  return values.some((value) => trim(value));
-}
-
-function hasImages(images) {
-  return Array.isArray(images) && images.length > 0;
-}
-
 function hasApprovalStamp(approval) {
   return Boolean(trim(approval?.by) || trim(approval?.time) || trim(approval?.comment));
 }
@@ -128,36 +128,6 @@ function shiftWeekStart(startDate, weekDelta) {
   const date = toDate(startDate);
   date.setDate(date.getDate() + (weekDelta * 7));
   return adjustToWednesday(fmt(date));
-}
-
-function hasDailyRecordPayload(record) {
-  if (!record) return false;
-  return hasText(
-    record.checkIn,
-    record.checkOut,
-    record.attendanceNote,
-    record.notes,
-    record.sales,
-    record.cost,
-    record.lossAmount,
-    record.lossDesc,
-    record.inventoryDesc,
-    record.receiptDesc,
-    ...Object.values(record.managerNotes || {}),
-  )
-    || [
-      record.leaveImgs,
-      record.grooming,
-      record.openingPublic,
-      record.openingBar,
-      record.closingPublic,
-      record.closingBar,
-      record.lossImgs,
-      record.inventoryImgs,
-      record.receiptImgs,
-    ].some(hasImages)
-    || Object.values(record.approvals || {}).some(hasApprovalStamp)
-    || Object.values(record.studentConfirmations || {}).some(hasApprovalStamp);
 }
 
 function hasWeekPayload(week) {
@@ -180,20 +150,6 @@ function hasWeekPayload(week) {
     || hasApprovalStamp(week.reflection?.approval)
     || Object.values(week.daily || {}).some(hasDailyRecordPayload);
 }
-
-function pickPreferredDailyDate(week, preferredDay = "") {
-  const dates = getWeekDates(week.startDate);
-  if (dates.includes(preferredDay) && hasDailyRecordPayload(week.daily?.[preferredDay])) {
-    return preferredDay;
-  }
-  const latestWithPayload = dates
-    .slice()
-    .reverse()
-    .find((day) => hasDailyRecordPayload(week.daily?.[day]));
-  if (latestWithPayload) return latestWithPayload;
-  return dates.includes(preferredDay) ? preferredDay : dates[0];
-}
-
 function getDailyApprovalDefaults() {
   return {
     checkIn: true,
@@ -269,10 +225,15 @@ function App() {
     return replaceState(next);
   };
 
+  const patchState = (patch) => replaceState({
+    ...stateRef.current,
+    ...patch,
+  });
+
   const setStatus = (message, isError = false) => {
-    applyState((draft) => {
-      draft.statusMessage = message;
-      draft.statusError = isError;
+    patchState({
+      statusMessage: message,
+      statusError: isError,
     });
   };
 
@@ -485,20 +446,61 @@ function App() {
   };
 
   const withScopedWeeks = async (mutator) => {
-    const next = cloneValue(stateRef.current);
-    const baseWeek = next.weeks[next.currentWeekKey];
-    if (!baseWeek) return next;
-    const usernames = getWeekScopeUsers(next, baseWeek);
-    const fallbackUser = trim(String(next.currentWeekKey).split("::")[0]);
+    const source = stateRef.current;
+    const baseWeek = source.weeks[source.currentWeekKey];
+    if (!baseWeek) return source;
+    const usernames = getWeekScopeUsers(source, baseWeek);
+    const fallbackUser = trim(String(source.currentWeekKey).split("::")[0]);
     const targets = Array.from(new Set((usernames.length ? usernames : [fallbackUser]).filter(Boolean)));
+    const next = {
+      ...source,
+      weeks: {
+        ...source.weeks,
+      },
+      weekGroups: {
+        ...source.weekGroups,
+      },
+    };
+    const shared = getWeekGroupRecord(next, baseWeek.startDate);
+    const current = getCurrentUserRecord(next);
+    if (current?.level === "P3" && !trim(shared.a) && !trim(shared.b)) {
+      const sessionUsers = getCurrentSessionUsers(next);
+      const names = sessionUsers.map((username) => {
+        const user = next.users.find((item) => item.username === username);
+        return user ? (user.displayName || user.username) : username;
+      });
+      shared.a = names[0] || "";
+      shared.b = names[1] || "";
+    }
     targets.forEach((username) => {
       const weekKey = makeWeekKey(baseWeek.startDate, username);
-      ensureWeekInState(next, weekKey, baseWeek.startDate);
+      const currentWeek = source.weeks[weekKey];
+      next.weeks[weekKey] = currentWeek ? cloneValue(currentWeek) : createEmptyWeek(baseWeek.startDate);
+      syncWeekGroupForWeek(next.weeks[weekKey], shared);
       mutator(next.weeks[weekKey], username, next);
     });
     replaceState(next);
     await persistWeeks(next, baseWeek.startDate, targets);
     return next;
+  };
+
+  const updateCurrentDayState = (mutator) => {
+    const source = stateRef.current;
+    if (!source.currentWeekKey || !source.currentDay) return null;
+    const currentWeek = source.weeks[source.currentWeekKey];
+    if (!currentWeek) return null;
+    const next = {
+      ...source,
+      weeks: {
+        ...source.weeks,
+      },
+    };
+    next.weeks[source.currentWeekKey] = updateWeekDailyRecord(
+      currentWeek,
+      source.currentDay,
+      mutator,
+    );
+    return replaceState(next);
   };
 
   const stampApproval = (source, target) => {
@@ -648,7 +650,7 @@ function App() {
       const forceWeekStartDay = options.defaultToWeekStart !== false;
       next.currentDay = forceWeekStartDay
         ? corrected
-        : pickPreferredDailyDate(next.weeks[activeWeekKey], next.currentDay);
+        : pickDailyDate(next.weeks[activeWeekKey], next.currentDay, todayISO());
       ensureDayOnWeek(next.weeks[activeWeekKey], next.currentDay);
       next.weekLoading = false;
       next.weekMediaLoading = hasDeferredMedia(selectedWeek);
@@ -669,7 +671,7 @@ function App() {
         const forceWeekStartDay = options.defaultToWeekStart !== false;
         draft.currentDay = forceWeekStartDay
           ? corrected
-          : pickPreferredDailyDate(draft.weeks[activeWeekKey], draft.currentDay);
+          : pickDailyDate(draft.weeks[activeWeekKey], draft.currentDay, todayISO());
         ensureDayOnWeek(draft.weeks[activeWeekKey], draft.currentDay);
         draft.weekMediaLoading = false;
         draft.statusMessage = statusMessage || "已加载所选周次（含图片）。";
@@ -1073,9 +1075,7 @@ function App() {
   }, "切换查看对象失败，请稍后重试。");
 
   const handleTabChange = (tab) => {
-    applyState((draft) => {
-      draft.activeTab = tab;
-    });
+    patchState({ activeTab: tab });
   };
 
   const handleTeachingWeekChange = async (value) => runAction(async () => {
@@ -1135,31 +1135,48 @@ function App() {
   };
 
   const handleDailyDateChange = (value) => {
-    applyState((draft) => {
-      draft.currentDay = value;
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      ensureDayOnWeek(week, value);
-    });
+    const source = stateRef.current;
+    if (!source.currentWeekKey) {
+      patchState({ currentDay: value });
+      return;
+    }
+    const currentWeek = source.weeks[source.currentWeekKey];
+    if (!currentWeek) {
+      patchState({ currentDay: value });
+      return;
+    }
+    const next = {
+      ...source,
+      currentDay: value,
+      weeks: {
+        ...source.weeks,
+      },
+    };
+    next.weeks[source.currentWeekKey] = currentWeek.daily?.[value]
+      ? updateWeekDailyRecord(currentWeek, value, () => {})
+      : {
+        ...currentWeek,
+        daily: {
+          ...(currentWeek.daily || {}),
+          [value]: cloneDailyRecord(),
+        },
+      };
+    replaceState(next);
   };
 
   const handleDailyFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week || !draft.currentDay) return;
-      const record = ensureDayOnWeek(week, draft.currentDay);
+    const shouldReset = shouldResetDailyReviewState();
+    updateCurrentDayState((record) => {
       record[field] = value;
-      if (shouldResetDailyReviewState(draft)) {
+      if (shouldReset) {
         resetDailyReviewState(record, DAILY_FIELD_RESET_MAP[field] || []);
       }
     });
   };
 
   const handleDailyManagerNoteChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week || !draft.currentDay) return;
-      ensureDayOnWeek(week, draft.currentDay).managerNotes[field] = value;
+    updateCurrentDayState((record) => {
+      record.managerNotes[field] = value;
     });
   };
 
@@ -1251,19 +1268,15 @@ function App() {
     if (!day) return;
     const urls = await filesToDataUrls(files);
     if (!urls.length) return;
-    const next = cloneValue(stateRef.current);
-    const week = next.weeks[next.currentWeekKey];
-    if (!week) return;
-    const target = ensureDayOnWeek(week, day);
     const config = DAILY_IMAGE_CONFIG[kind];
     if (!config) return;
-
-    target[config.key] = target[config.key].concat(urls);
-    if (shouldResetDailyReviewState(next)) {
-      resetDailyReviewState(target, config.reviewKinds);
-    }
-
-    replaceState(next);
+    const shouldReset = shouldResetDailyReviewState();
+    updateCurrentDayState((record) => {
+      record[config.key] = record[config.key].concat(urls);
+      if (shouldReset) {
+        resetDailyReviewState(record, config.reviewKinds);
+      }
+    });
     await saveDaily();
   };
 
@@ -1277,19 +1290,15 @@ function App() {
     if (!day) return;
     const config = DAILY_IMAGE_CONFIG[kind];
     if (!config) return;
-
-    const next = cloneValue(stateRef.current);
-    const week = next.weeks[next.currentWeekKey];
-    if (!week) return;
-    const target = ensureDayOnWeek(week, day);
-    if (!hasImages(target[config.key])) return;
-
-    target[config.key] = [];
-    if (shouldResetDailyReviewState(next)) {
-      resetDailyReviewState(target, config.reviewKinds);
-    }
-
-    replaceState(next);
+    const sourceWeek = stateRef.current.weeks[stateRef.current.currentWeekKey];
+    if (!sourceWeek || !hasImages(sourceWeek.daily?.[day]?.[config.key])) return;
+    const shouldReset = shouldResetDailyReviewState();
+    updateCurrentDayState((record) => {
+      record[config.key] = [];
+      if (shouldReset) {
+        resetDailyReviewState(record, config.reviewKinds);
+      }
+    });
     await saveDaily();
   };
 

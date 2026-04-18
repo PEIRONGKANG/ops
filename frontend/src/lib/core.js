@@ -1,4 +1,4 @@
-import { TEACHING_WEEK_MAP, TEACHING_WEEK_PRESETS } from "./constants";
+import { TEACHING_WEEK_MAP, TEACHING_WEEK_PRESETS } from "./constants.js";
 
 export const trim = (value) => String(value ?? "").trim();
 
