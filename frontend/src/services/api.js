@@ -1,13 +1,52 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const API_BASE = import.meta.env?.VITE_API_BASE || "/api";
+const DEFAULT_TIMEOUT_MS = 60_000;
 
-async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+export async function request(path, options = {}) {
+  const {
+    headers,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    ...fetchOptions
+  } = options;
+  const controller = new AbortController();
+  const requestSignal = controller.signal;
+  let didTimeout = false;
+  let removeAbortListener = null;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timeoutId);
+      controller.abort(signal.reason);
+    } else {
+      const forwardAbort = () => controller.abort(signal.reason);
+      signal.addEventListener("abort", forwardAbort, { once: true });
+      removeAbortListener = () => signal.removeEventListener("abort", forwardAbort);
+    }
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(headers || {}),
+      },
+      ...fetchOptions,
+      signal: requestSignal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new Error("请求超时，请检查网络后重试。");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    removeAbortListener?.();
+  }
 
   if (!response.ok) {
     let detail = "请求失败。";

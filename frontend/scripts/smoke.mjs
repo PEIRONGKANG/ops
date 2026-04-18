@@ -52,16 +52,40 @@ function sectionByHeading(name) {
 }
 
 async function chooseFiles(scope, buttonName, filePath = uploadFixture) {
+  const marker = `smoke-target-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const matched = await scope.evaluate((node, payload) => {
+    const buttons = Array.from(node.querySelectorAll("button"));
+    const targetButton = buttons.find((button) => button.textContent?.trim() === payload.buttonName);
+    const targetInput = targetButton?.previousElementSibling;
+    if (!(targetInput instanceof HTMLInputElement) || targetInput.type !== "file") {
+      return false;
+    }
+    targetInput.setAttribute("data-smoke-target", payload.marker);
+    return true;
+  }, { buttonName, marker });
+
+  if (matched) {
+    const input = page.locator(`input[data-smoke-target="${marker}"]`);
+    await input.setInputFiles(filePath);
+    await input.evaluate((node) => node.removeAttribute("data-smoke-target"));
+    return;
+  }
+
+  const button = scope.getByRole("button", { name: buttonName, exact: true }).first();
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    scope.getByRole("button", { name: buttonName }).click(),
+    button.click(),
   ]);
   await chooser.setFiles(filePath);
 }
 
 async function loginAs({ username, password, secondUsername = "", secondPassword = "" }) {
+  const enterButton = page.getByRole("button", { name: "点击进入" });
+  if (await enterButton.isVisible().catch(() => false)) {
+    await enterButton.click();
+  }
   await expectVisible(page.getByRole("heading", { name: "登录" }), "登录面板未显示");
-  await typeAndBlur(page.getByPlaceholder("请输入账号，如：2401270101").first(), username);
+  await typeAndBlur(page.getByPlaceholder("请输入账号，例如 2401270101").first(), username);
   await typeAndBlur(page.getByPlaceholder("请输入密码").first(), password);
 
   if (secondUsername || secondPassword) {
@@ -78,7 +102,7 @@ async function logout() {
 }
 
 async function openTab(name) {
-  await page.getByRole("button", { name }).click();
+  await page.getByRole("button", { name, exact: true }).first().click();
 }
 
 async function expectUploadedPreview(section) {
@@ -152,7 +176,7 @@ async function runAccountsAudit() {
 
   await logout();
   await loginAs({ username: tempUser, password: finalPassword });
-  await expectVisible(page.getByRole("button", { name: "周三策划提交" }), "修改密码后新账号无法重新登录");
+  await expectVisible(page.getByRole("button", { name: "退出登录" }), "修改密码后新账号无法重新登录");
   await logout();
 
   await loginAs({
@@ -190,18 +214,18 @@ try {
     secondPassword: "2401270106",
   });
 
-  await expectVisible(page.getByRole("button", { name: "周三策划提交" }), "学生登录后未进入主界面");
+  await expectVisible(page.getByRole("button", { name: "退出登录" }), "学生登录后未进入主界面");
   await ensureTextVisible("双人登录成功。已自动加载本周轮值并同步到本组账号。");
 
-  await page.getByRole("button", { name: "加载/创建本周" }).click();
+  await page.getByRole("button", { name: "加载/创建本周", exact: true }).first().click();
   await ensureTextVisible("已加载所选周次。");
 
   const sidebarSelects = page.locator("aside select");
   await sidebarSelects.last().selectOption("第15周");
   await page.getByRole("button", { name: "保存分组" }).click();
-  await ensureTextVisible("分组信息已按本周保存，本周无需重复填写。");
+  await ensureTextVisible("分组信息已保存，并自动带入当周学生第一天数据。");
 
-  await openTab("周三策划提交");
+  await openTab("创意策划");
   const creativeSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "创意饮品策划提交（周三）", exact: true }) }).first();
   await typeAndBlur(page.getByPlaceholder("目标人群、推广渠道、售价策略、试饮安排"), `主打校园晚课轻负担饮品 ${noteSuffix}`);
   await typeAndBlur(page.getByPlaceholder("2 款饮品配方、克数、制作步骤、标准化要点"), `茉莉轻乳茶与柠香冷萃两款新品，记录于 ${noteSuffix}`);
@@ -212,11 +236,11 @@ try {
   await creativeSection.getByRole("button", { name: "保存本模块" }).click();
   await ensureTextVisible("已保存：周三策划提交模块。");
 
-  await openTab("每日打卡与运营");
+  await openTab("日常运营");
   const dailySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "每日打卡与运营执行", exact: true }) }).first();
   const groomingCard = dailySection.locator('div:has(> h3:has-text("仪容仪表检查照片"))').first();
-  const openingCard = dailySection.locator('div:has(> h3:has-text("上班前卫生（公区/吧台）"))').first();
-  const closingCard = dailySection.locator('div:has(> h3:has-text("下班后卫生（公区/吧台）"))').first();
+  const openingCard = dailySection.locator('div:has(> h3:has-text("上班前卫生"))').first();
+  const closingCard = dailySection.locator('div:has(> h3:has-text("下班后卫生"))').first();
   const financeCard = dailySection.locator('div:has(> h3:has-text("财务与库存盘点（含损耗、库存照片）"))').first();
   const receiptCard = dailySection.locator('div:has(> h3:has-text("学生购买创意饮品货品签收"))').first();
   const timeInputs = dailySection.locator('input[type="time"]');
@@ -255,19 +279,18 @@ try {
   await expectUploadedPreview(financeCard);
   await expectUploadedPreview(receiptCard);
   await dailySection.getByRole("button", { name: "保存当日记录" }).click();
-  await ensureTextVisible("当日记录。");
+  await ensureTextVisible("当日记录");
 
-  await openTab("交接班（次周三）");
+  await openTab("班次交接");
   const handoverSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "次周周三交接班", exact: true }) }).first();
   await typeAndBlur(page.getByPlaceholder("本周运营情况、问题清单、下周提醒"), `本周销售稳定，注意补货和高峰分工，${noteSuffix}`);
   await typeAndBlur(page.getByPlaceholder("交接对象姓名或账号"), "刘梓文");
   await chooseFiles(handoverSection, "添加交接照片");
-  await ensureTextVisible("已保存：交接记录。");
   await expectUploadedPreview(handoverSection);
   await handoverSection.getByRole("button", { name: "保存交接记录" }).click();
   await ensureTextVisible("已保存：交接记录。");
 
-  await openTab("总结与反思");
+  await openTab("总结复盘");
   const reflectionSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "总结与反思（周结束）", exact: true }) }).first();
   const reflectionAreas = reflectionSection.locator("textarea");
   await typeAndBlur(reflectionAreas.nth(0), `学生A复盘：时间管理更稳定，${noteSuffix}`);
@@ -299,41 +322,41 @@ try {
     password: "2301180107",
   });
 
-  await expectVisible(page.getByRole("button", { name: "每日打卡与运营" }), "经理登录后未进入主界面");
-  const managerScopeSelect = page.locator("aside select").first();
+  await expectVisible(page.getByRole("button", { name: "退出登录" }), "经理登录后未进入主界面");
+  const managerScopeSelect = page.locator("aside select").nth(1);
   await managerScopeSelect.selectOption("2401270101");
   await ensureTextVisible("已切换查看：2401270101");
-  await page.getByRole("button", { name: "加载/创建本周" }).click();
+  await page.getByRole("button", { name: "加载/创建本周", exact: true }).first().click();
   await ensureTextVisible("已加载所选周次。");
 
-  await openTab("周三策划提交");
+  await openTab("创意策划");
   await creativeSection.getByRole("button", { name: "运营经理确认本模块" }).click();
   await ensureTextVisible("已确认：周三策划提交。");
   await expectVisible(creativeSection.locator("text=已确认：").first(), "创意策划确认状态未更新");
 
-  await openTab("每日打卡与运营");
+  await openTab("日常运营");
   const managerDailySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "每日打卡与运营执行", exact: true }) }).first();
-  await groomingCard.getByRole("button", { name: "经理确认" }).click();
+  await groomingCard.getByRole("button", { name: "提交仪容确认" }).click();
   await expectVisible(groomingCard.locator("text=已确认：").first(), "仪容仪表确认状态未更新");
-  await managerDailySection.getByRole("button", { name: "运营经理确认签到" }).click();
+  await managerDailySection.getByRole("button", { name: "提交签到确认" }).click();
   await ensureTextVisible("已确认：签到时间。");
-  await managerDailySection.getByRole("button", { name: "运营经理确认签退" }).click();
+  await managerDailySection.getByRole("button", { name: "提交签退确认" }).click();
   await ensureTextVisible("已确认：签退时间。");
-  await openingCard.getByRole("button", { name: "经理确认" }).click();
+  await openingCard.getByRole("button", { name: "提交开店卫生确认" }).click();
   await expectVisible(openingCard.locator("text=已确认：").first(), "上班前卫生确认状态未更新");
-  await closingCard.getByRole("button", { name: "经理确认" }).click();
+  await closingCard.getByRole("button", { name: "提交闭店卫生确认" }).click();
   await expectVisible(closingCard.locator("text=已确认：").first(), "下班后卫生确认状态未更新");
-  await financeCard.getByRole("button", { name: "经理确认" }).click();
+  await financeCard.getByRole("button", { name: "提交财务库存确认" }).click();
   await expectVisible(financeCard.locator("text=已确认：").first(), "财务与库存确认状态未更新");
-  await receiptCard.getByRole("button", { name: "经理确认" }).click();
+  await receiptCard.getByRole("button", { name: "提交签收确认" }).click();
   await expectVisible(receiptCard.locator("text=已确认：").first(), "货品签收确认状态未更新");
 
-  await openTab("交接班（次周三）");
+  await openTab("班次交接");
   await handoverSection.getByRole("button", { name: "经理确认交接" }).click();
   await ensureTextVisible("已确认：交接班。");
   await expectVisible(handoverSection.locator("text=已确认：").first(), "交接确认状态未更新");
 
-  await openTab("总结与反思");
+  await openTab("总结复盘");
   await typeAndBlur(reflectionSection.locator("textarea").nth(3), `经理评语：本周执行完整，保持复盘节奏，${noteSuffix}`);
   await reflectionSection.getByRole("button", { name: "保存经理评语" }).click();
   await ensureTextVisible("已保存：经理评语。");

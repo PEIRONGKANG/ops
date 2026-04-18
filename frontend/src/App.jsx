@@ -44,6 +44,15 @@ import {
   pickDailyDate,
   updateWeekDailyRecord,
 } from "./lib/dailyState";
+import {
+  cloneCreativeSection,
+  cloneHandoverSection,
+  cloneReflectionSection,
+  cloneWeekForScopedMutation,
+  updateWeekCreative,
+  updateWeekHandover,
+  updateWeekReflection,
+} from "./lib/weekState";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
 import { api } from "./services/api";
 
@@ -219,15 +228,24 @@ function App() {
     return next;
   };
 
-  const applyState = (mutator) => {
-    const next = cloneValue(stateRef.current);
-    mutator(next);
-    return replaceState(next);
-  };
-
   const patchState = (patch) => replaceState({
     ...stateRef.current,
     ...patch,
+  });
+
+  const patchNestedState = (key, patch) => patchState({
+    [key]: {
+      ...(stateRef.current[key] || {}),
+      ...patch,
+    },
+  });
+
+  const createScopeResolutionSource = (source = stateRef.current) => ({
+    ...source,
+    currentSessionUsers: Array.isArray(source.currentSessionUsers) ? [...source.currentSessionUsers] : [],
+    weekGroups: Object.fromEntries(
+      Object.entries(source.weekGroups || {}).map(([key, group]) => [key, { ...(group || {}) }]),
+    ),
   });
 
   const setStatus = (message, isError = false) => {
@@ -445,7 +463,47 @@ function App() {
     await persistWeeks(source, startDate, usernames);
   };
 
-  const withScopedWeeks = async (mutator) => {
+  const buildWeekGroupScopedState = (source, startDate) => {
+    const next = {
+      ...source,
+      weeks: {
+        ...source.weeks,
+      },
+      weekGroups: {
+        ...source.weekGroups,
+      },
+    };
+    next.weekGroups[startDate] = {
+      ...(source.weekGroups[startDate] || createEmptyWeekGroup()),
+    };
+    Object.entries(source.weeks).forEach(([weekKey, week]) => {
+      if (trim(week.startDate) !== trim(startDate)) return;
+      next.weeks[weekKey] = cloneWeekForScopedMutation(week, startDate);
+    });
+    return next;
+  };
+
+  const buildScopedWeekForMutation = (week, startDate, options = {}) => {
+    const nextWeek = cloneWeekForScopedMutation(week, startDate);
+    if (options.section === "creative") {
+      nextWeek.creative = cloneCreativeSection(nextWeek.creative);
+    }
+    if (options.section === "handover") {
+      nextWeek.handover = cloneHandoverSection(nextWeek.handover);
+    }
+    if (options.section === "reflection") {
+      nextWeek.reflection = cloneReflectionSection(nextWeek.reflection);
+    }
+    if (options.section === "daily" && options.day) {
+      nextWeek.daily = {
+        ...(nextWeek.daily || {}),
+      };
+      nextWeek.daily[options.day] = cloneDailyRecord(nextWeek.daily[options.day]);
+    }
+    return nextWeek;
+  };
+
+  const withScopedWeeks = async (mutator, options = {}) => {
     const source = stateRef.current;
     const baseWeek = source.weeks[source.currentWeekKey];
     if (!baseWeek) return source;
@@ -475,13 +533,28 @@ function App() {
     targets.forEach((username) => {
       const weekKey = makeWeekKey(baseWeek.startDate, username);
       const currentWeek = source.weeks[weekKey];
-      next.weeks[weekKey] = currentWeek ? cloneValue(currentWeek) : createEmptyWeek(baseWeek.startDate);
+      next.weeks[weekKey] = buildScopedWeekForMutation(currentWeek, baseWeek.startDate, options);
       syncWeekGroupForWeek(next.weeks[weekKey], shared);
       mutator(next.weeks[weekKey], username, next);
     });
     replaceState(next);
     await persistWeeks(next, baseWeek.startDate, targets);
     return next;
+  };
+
+  const updateCurrentWeekState = (updater) => {
+    const source = stateRef.current;
+    if (!source.currentWeekKey) return null;
+    const currentWeek = source.weeks[source.currentWeekKey];
+    if (!currentWeek) return null;
+    const next = {
+      ...source,
+      weeks: {
+        ...source.weeks,
+      },
+    };
+    next.weeks[source.currentWeekKey] = updater(currentWeek);
+    return replaceState(next);
   };
 
   const updateCurrentDayState = (mutator) => {
@@ -586,20 +659,29 @@ function App() {
   };
 
   const loadWeekForCurrentScope = async (startRaw, statusMessage, options = {}) => {
-    const pending = cloneValue(stateRef.current);
-    const corrected = adjustToWednesday(startRaw || pending.selectedWeekStart || todayISO());
-    const previousWeekKey = pending.currentWeekKey;
-    pending.selectedWeekStart = corrected;
-    pending.weekLoading = true;
-    pending.weekMediaLoading = false;
-    if (!previousWeekKey) {
-      pending.currentDay = "";
-    }
-    pending.statusMessage = "正在加载本周数据。若本周上传了较多图片，首次打开可能需要 10 到 30 秒。";
-    pending.statusError = false;
-    replaceState(pending);
+    const source = stateRef.current;
+    const corrected = adjustToWednesday(startRaw || source.selectedWeekStart || todayISO());
+    const previousWeekKey = source.currentWeekKey;
+    replaceState({
+      ...source,
+      selectedWeekStart: corrected,
+      weekLoading: true,
+      weekMediaLoading: false,
+      currentDay: previousWeekKey ? source.currentDay : "",
+      statusMessage: "正在加载本周数据。若本周上传了较多图片，首次打开可能需要 10 到 30 秒。",
+      statusError: false,
+    });
     try {
-      const next = cloneValue(stateRef.current);
+      const current = stateRef.current;
+      const next = {
+        ...current,
+        weeks: {
+          ...current.weeks,
+        },
+        weekGroups: {
+          ...current.weekGroups,
+        },
+      };
       const groupResponse = await api.fetchWeekGroup(corrected);
       next.weekGroups[corrected] = groupResponse.group || createEmptyWeekGroup();
       let scopeUser = "";
@@ -664,24 +746,32 @@ function App() {
 
       const fullWeekResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: true });
       const fullWeek = fullWeekResponse.week || createEmptyWeek(corrected);
-      applyState((draft) => {
-        if (trim(draft.currentWeekKey) !== trim(activeWeekKey)) return;
-        draft.weeks[activeWeekKey] = fullWeek;
-        ensureWeekInState(draft, activeWeekKey, corrected);
-        const forceWeekStartDay = options.defaultToWeekStart !== false;
-        draft.currentDay = forceWeekStartDay
-          ? corrected
-          : pickDailyDate(draft.weeks[activeWeekKey], draft.currentDay, todayISO());
-        ensureDayOnWeek(draft.weeks[activeWeekKey], draft.currentDay);
-        draft.weekMediaLoading = false;
-        draft.statusMessage = statusMessage || "已加载所选周次（含图片）。";
-        draft.statusError = false;
-      });
+      const latest = stateRef.current;
+      if (trim(latest.currentWeekKey) !== trim(activeWeekKey)) return;
+      const hydrated = {
+        ...latest,
+        weeks: {
+          ...latest.weeks,
+          [activeWeekKey]: fullWeek,
+        },
+      };
+      ensureWeekInState(hydrated, activeWeekKey, corrected);
+      const shouldKeepWeekStartDay = options.defaultToWeekStart !== false;
+      hydrated.currentDay = shouldKeepWeekStartDay
+        ? corrected
+        : pickDailyDate(hydrated.weeks[activeWeekKey], hydrated.currentDay, todayISO());
+      ensureDayOnWeek(hydrated.weeks[activeWeekKey], hydrated.currentDay);
+      hydrated.weekMediaLoading = false;
+      hydrated.statusMessage = statusMessage || "已加载所选周次（含图片）。";
+      hydrated.statusError = false;
+      replaceState(hydrated);
     } catch (error) {
-      const failed = cloneValue(stateRef.current);
-      failed.weekLoading = false;
-      failed.weekMediaLoading = false;
-      replaceState(failed);
+      const failed = stateRef.current;
+      replaceState({
+        ...failed,
+        weekLoading: false,
+        weekMediaLoading: false,
+      });
       throw error;
     }
   };
@@ -832,21 +922,25 @@ function App() {
   })();
 
   const handleLoginFormChange = (field, value) => {
-    applyState((draft) => {
-      draft.loginForm[field] = value;
-    });
+    patchNestedState("loginForm", { [field]: value });
   };
 
   const handleTeacherNoticeImagesAdd = async (files) => {
     const images = await filesToDataUrls(files);
-    applyState((draft) => {
-      draft.teacherNoticeForm.images = draft.teacherNoticeForm.images.concat(images.filter(Boolean));
+    patchState({
+      teacherNoticeForm: {
+        ...stateRef.current.teacherNoticeForm,
+        images: stateRef.current.teacherNoticeForm.images.concat(images.filter(Boolean)),
+      },
     });
   };
 
   const handleTeacherNoticeImageRemove = (index) => {
-    applyState((draft) => {
-      draft.teacherNoticeForm.images = draft.teacherNoticeForm.images.filter((_, imageIndex) => imageIndex !== index);
+    patchState({
+      teacherNoticeForm: {
+        ...stateRef.current.teacherNoticeForm,
+        images: stateRef.current.teacherNoticeForm.images.filter((_, imageIndex) => imageIndex !== index),
+      },
     });
   };
 
@@ -863,9 +957,7 @@ function App() {
       throw new Error("请至少填写标题、正文或上传一张图片。");
     }
 
-    applyState((draft) => {
-      draft.teacherNoticeSaving = true;
-    });
+    patchState({ teacherNoticeSaving: true });
 
     try {
       const { notice } = await api.createTeacherNotice({
@@ -876,17 +968,18 @@ function App() {
         authorDisplayName: actor.displayName || actor.username,
       });
 
-      applyState((draft) => {
-        applyTeacherNoticeResult(draft, notice, true);
-        draft.teacherNoticeForm = { title: "", message: "", images: [] };
-        draft.teacherNoticeSaving = false;
-      });
+      const next = {
+        ...stateRef.current,
+        teacherNotices: [...stateRef.current.teacherNotices],
+        teacherNoticeForm: { title: "", message: "", images: [] },
+        teacherNoticeSaving: false,
+      };
+      applyTeacherNoticeResult(next, notice, true);
+      replaceState(next);
       setStatus("带教留言已发布，登录前后都能查看。");
       return true;
     } catch (error) {
-      applyState((draft) => {
-        draft.teacherNoticeSaving = false;
-      });
+      patchState({ teacherNoticeSaving: false });
       throw error;
     }
   }, "发布留言失败，请稍后重试。");
@@ -896,21 +989,17 @@ function App() {
       return;
     }
 
-    applyState((draft) => {
-      draft.teacherNoticeBusyId = noticeId;
-    });
+    patchState({ teacherNoticeBusyId: noticeId });
 
     try {
       await api.deleteTeacherNotice(noticeId);
-      applyState((draft) => {
-        draft.teacherNotices = draft.teacherNotices.filter((notice) => notice.id !== noticeId);
-        draft.teacherNoticeBusyId = "";
+      patchState({
+        teacherNotices: stateRef.current.teacherNotices.filter((notice) => notice.id !== noticeId),
+        teacherNoticeBusyId: "",
       });
       setStatus("带教留言已删除。");
     } catch (error) {
-      applyState((draft) => {
-        draft.teacherNoticeBusyId = "";
-      });
+      patchState({ teacherNoticeBusyId: "" });
       throw error;
     }
   }, "删除留言失败，请稍后重试。");
@@ -934,30 +1023,29 @@ function App() {
       return;
     }
 
-    applyState((draft) => {
-      draft.teacherNoticeBusyId = noticeId;
-    });
+    patchState({ teacherNoticeBusyId: noticeId });
 
     try {
       const { notice: updatedNotice } = await api.acknowledgeTeacherNotice(noticeId, missingReceipts);
-      applyState((draft) => {
-        applyTeacherNoticeResult(draft, updatedNotice);
-        draft.teacherNoticeBusyId = "";
-      });
+      const next = {
+        ...stateRef.current,
+        teacherNotices: [...stateRef.current.teacherNotices],
+        teacherNoticeBusyId: "",
+      };
+      applyTeacherNoticeResult(next, updatedNotice);
+      replaceState(next);
       setStatus(missingReceipts.length > 1 ? "本组已确认收到这条带教留言。" : "已确认收到这条带教留言。");
     } catch (error) {
-      applyState((draft) => {
-        draft.teacherNoticeBusyId = "";
-      });
+      patchState({ teacherNoticeBusyId: "" });
       throw error;
     }
   }, "确认收到失败，请稍后重试。");
 
   const handleLogin = async () => {
-    const next = cloneValue(stateRef.current);
-    next.loading = true;
-    next.loginMessage = "";
-    replaceState(next);
+    patchState({
+      loading: true,
+      loginMessage: "",
+    });
 
     try {
       const { username, password, secondUsername, secondPassword } = stateRef.current.loginForm;
@@ -980,19 +1068,22 @@ function App() {
         sessionUsers = [first.user.username];
       }
 
-      applyState((draft) => {
-        draft.currentUser = {
+      patchState({
+        currentUser: {
           username: first.user.username,
           role: first.user.role,
           level: first.user.level,
           displayName: first.user.displayName,
-        };
-        draft.currentSessionUsers = sessionUsers;
-        draft.activeScopeUser = first.user.level === "P3" ? first.user.username : "";
-        draft.scopeUserPinned = first.user.level === "P3";
-        draft.loginForm.password = "";
-        draft.loginForm.secondPassword = "";
-        draft.loginMessage = "";
+        },
+        currentSessionUsers: sessionUsers,
+        activeScopeUser: first.user.level === "P3" ? first.user.username : "",
+        scopeUserPinned: first.user.level === "P3",
+        loginForm: {
+          ...stateRef.current.loginForm,
+          password: "",
+          secondPassword: "",
+        },
+        loginMessage: "",
       });
 
       await loadWeekForCurrentScope(
@@ -1002,20 +1093,22 @@ function App() {
           : "登录成功。已自动加载本周轮值。",
         { forceGroupedScope: true },
       );
-      applyState((draft) => {
-        draft.loading = false;
-      });
+      patchState({ loading: false });
     } catch (error) {
-      applyState((draft) => {
-        draft.loading = false;
-        draft.weekLoading = false;
-        if (draft.currentUser) {
-          draft.statusMessage = error.message || "加载本周失败。";
-          draft.statusError = true;
-          draft.loginMessage = "";
-          return;
-        }
-        draft.loginMessage = error.message || "登录失败。";
+      if (stateRef.current.currentUser) {
+        patchState({
+          loading: false,
+          weekLoading: false,
+          statusMessage: error.message || "加载本周失败。",
+          statusError: true,
+          loginMessage: "",
+        });
+        return;
+      }
+      patchState({
+        loading: false,
+        weekLoading: false,
+        loginMessage: error.message || "登录失败。",
       });
     }
   };
@@ -1032,13 +1125,13 @@ function App() {
 
   const handleWeekStartChange = async (value) => {
     const corrected = adjustToWednesday(value || todayISO());
-    const before = cloneValue(stateRef.current);
-    applyState((draft) => {
-      draft.selectedWeekStart = corrected;
-      if (canViewAllScopes(draft)) {
-        draft.activeScopeUser = "";
-        draft.scopeUserPinned = false;
-      }
+    const before = stateRef.current;
+    patchState({
+      selectedWeekStart: corrected,
+      ...(canViewAllScopes(before) ? {
+        activeScopeUser: "",
+        scopeUserPinned: false,
+      } : {}),
     });
     if (!before.currentUser) return;
     await runAction(async () => {
@@ -1063,9 +1156,9 @@ function App() {
   }, "加载周次失败，请稍后重试。");
 
   const handleScopeChange = async (scopeUser) => runAction(async () => {
-    applyState((draft) => {
-      draft.activeScopeUser = scopeUser;
-      draft.scopeUserPinned = true;
+    patchState({
+      activeScopeUser: scopeUser,
+      scopeUserPinned: true,
     });
     await loadWeekForCurrentScope(
       stateRef.current.selectedWeekStart || todayISO(),
@@ -1079,8 +1172,16 @@ function App() {
   };
 
   const handleTeachingWeekChange = async (value) => runAction(async () => {
-    const next = cloneValue(stateRef.current);
+    const source = stateRef.current;
+    const next = buildWeekGroupScopedState(source, adjustToWednesday(source.selectedWeekStart || todayISO()));
     const targetWeekStart = resolveWeekStartByTeachingWeek(next, value);
+    if (trim(targetWeekStart) !== trim(source.selectedWeekStart || todayISO())) {
+      const rebased = buildWeekGroupScopedState(source, targetWeekStart);
+      rebased.selectedWeekStart = next.selectedWeekStart;
+      rebased.activeScopeUser = next.activeScopeUser;
+      rebased.scopeUserPinned = next.scopeUserPinned;
+      Object.assign(next, rebased);
+    }
     const shared = getWeekGroupRecord(next, targetWeekStart);
     applyTeachingWeekPreset(shared, value);
     applyWeekGroupToLoadedWeeks(next, targetWeekStart);
@@ -1103,19 +1204,24 @@ function App() {
   }, "教学周次保存失败，请稍后重试。");
 
   const handleGroupChange = (field, value) => {
-    applyState((draft) => {
-      const startDate = adjustToWednesday(draft.selectedWeekStart || todayISO());
-      const shared = getWeekGroupRecord(draft, startDate);
-      if (field === "memberA") shared.a = value;
-      if (field === "memberB") shared.b = value;
-      if (field === "nextGroup") shared.nextGroup = value;
-      applyWeekGroupToLoadedWeeks(draft, startDate);
+    const source = stateRef.current;
+    const startDate = adjustToWednesday(source.selectedWeekStart || todayISO());
+    const next = buildWeekGroupScopedState(source, startDate);
+    const shared = next.weekGroups[startDate];
+    if (field === "memberA") shared.a = value;
+    if (field === "memberB") shared.b = value;
+    if (field === "nextGroup") shared.nextGroup = value;
+    Object.keys(next.weeks).forEach((weekKey) => {
+      if (trim(next.weeks[weekKey].startDate) !== trim(startDate)) return;
+      syncWeekGroupForWeek(next.weeks[weekKey], shared);
     });
+    replaceState(next);
   };
 
   const handleSaveGroup = async () => runAction(async () => {
-    const next = cloneValue(stateRef.current);
-    const startDate = adjustToWednesday(next.selectedWeekStart || todayISO());
+    const source = stateRef.current;
+    const startDate = adjustToWednesday(source.selectedWeekStart || todayISO());
+    const next = buildWeekGroupScopedState(source, startDate);
     applyWeekGroupToLoadedWeeks(next, startDate);
     replaceState(next);
     await persistGroupAndWeeks(next, startDate);
@@ -1127,11 +1233,9 @@ function App() {
   }, "分组信息保存失败，请稍后重试。");
 
   const handleCreativeFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.creative[field] = value;
-    });
+    updateCurrentWeekState((week) => updateWeekCreative(week, (creative) => {
+      creative[field] = value;
+    }));
   };
 
   const handleDailyDateChange = (value) => {
@@ -1181,28 +1285,24 @@ function App() {
   };
 
   const handleHandoverFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.handover[field] = value;
-    });
+    updateCurrentWeekState((week) => updateWeekHandover(week, (handover) => {
+      handover[field] = value;
+    }));
   };
 
   const handleReflectionFieldChange = (field, value) => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.reflection[field] = value;
-    });
+    updateCurrentWeekState((week) => updateWeekReflection(week, (reflection) => {
+      reflection[field] = value;
+    }));
   };
 
   const saveCreative = async () => {
     const week = requireCurrentWeek("请先加载本周后再保存创意策划。");
     if (!week) return;
-    const source = cloneValue(week);
+    const source = cloneCreativeSection(week.creative);
     await withScopedWeeks((week) => {
-      week.creative = cloneValue(source.creative);
-    });
+      week.creative = cloneCreativeSection(source);
+    }, { section: "creative" });
     setStatus("已保存：周三策划提交模块。");
   };
 
@@ -1212,10 +1312,10 @@ function App() {
       setStatus("请先选择需要保存的日期。", true);
       return;
     }
-    const sourceDay = cloneValue(ensureDayOnWeek(sourceWeek, stateRef.current.currentDay));
+    const sourceDay = cloneDailyRecord(ensureDayOnWeek(sourceWeek, stateRef.current.currentDay));
     await withScopedWeeks((week) => {
-      week.daily[stateRef.current.currentDay] = cloneValue(sourceDay);
-    });
+      week.daily[stateRef.current.currentDay] = cloneDailyRecord(sourceDay);
+    }, { section: "daily", day: stateRef.current.currentDay });
     if (shouldResetDailyReviewState()) {
       setStatus(`已保存：${stateRef.current.currentDay} 当日记录，需重新提交给 P2 审核。`);
       return;
@@ -1226,40 +1326,36 @@ function App() {
   const saveHandover = async () => {
     const week = requireCurrentWeek("请先加载本周后再保存交接记录。");
     if (!week) return;
-    const source = cloneValue(week.handover);
+    const source = cloneHandoverSection(week.handover);
     await withScopedWeeks((week) => {
-      week.handover = cloneValue(source);
-    });
+      week.handover = cloneHandoverSection(source);
+    }, { section: "handover" });
     setStatus("已保存：交接记录。");
   };
 
   const saveReflection = async () => {
     const week = requireCurrentWeek("请先加载本周后再保存总结。");
     if (!week) return;
-    const source = cloneValue(week.reflection);
+    const source = cloneReflectionSection(week.reflection);
     await withScopedWeeks((week) => {
-      week.reflection = cloneValue(source);
-    });
+      week.reflection = cloneReflectionSection(source);
+    }, { section: "reflection" });
     setStatus(canApprove() && !canEditCurrentScopeData() ? "已保存：经理评语。" : "已保存：总结与反思。");
   };
 
   const addCreativePoster = async (files) => {
     const urls = await filesToDataUrls(files);
     if (!urls.length) return;
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.creative.posters = week.creative.posters.concat(urls);
-    });
+    updateCurrentWeekState((week) => updateWeekCreative(week, (creative) => {
+      creative.posters = creative.posters.concat(urls);
+    }));
     await saveCreative();
   };
 
   const clearCreativePoster = async () => {
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.creative.posters = [];
-    });
+    updateCurrentWeekState((week) => updateWeekCreative(week, (creative) => {
+      creative.posters = [];
+    }));
     await saveCreative();
   };
 
@@ -1305,11 +1401,9 @@ function App() {
   const addHandoverImages = async (files) => {
     const urls = await filesToDataUrls(files);
     if (!urls.length) return;
-    applyState((draft) => {
-      const week = draft.weeks[draft.currentWeekKey];
-      if (!week) return;
-      week.handover.photos = week.handover.photos.concat(urls);
-    });
+    updateCurrentWeekState((week) => updateWeekHandover(week, (handover) => {
+      handover.photos = handover.photos.concat(urls);
+    }));
     await saveHandover();
   };
 
@@ -1321,7 +1415,7 @@ function App() {
     let approved = false;
     await withScopedWeeks((week, _username, source) => {
       approved = stampApproval(source, week.creative.approval) || approved;
-    });
+    }, { section: "creative" });
     if (approved) setStatus("已确认：周三策划提交。");
   };
 
@@ -1359,7 +1453,7 @@ function App() {
         receipt: record.approvals.receipt,
       };
       approved = stampApproval(source, targetMap[kind] || emptyApproval()) || approved;
-    });
+    }, { section: "daily", day });
     if (approved) {
       const labels = {
         checkIn: "签到时间",
@@ -1398,7 +1492,7 @@ function App() {
         notes: record.approvals.notes,
       };
       approved = stampApproval(source, targetMap[kind] || emptyApproval()) || approved;
-    });
+    }, { section: "daily", day });
     if (approved) {
       setStatus("已提交 P2 确认，等待 P3 回签。");
     }
@@ -1428,7 +1522,7 @@ function App() {
         notes: record.studentConfirmations.notes,
       };
       confirmed = stampStudentConfirmation(source, targetMap[kind] || emptyApproval()) || confirmed;
-    });
+    }, { section: "daily", day });
     if (confirmed) {
       setStatus("已完成 P3 回签确认。");
     }
@@ -1442,7 +1536,7 @@ function App() {
     let approved = false;
     await withScopedWeeks((week, _username, source) => {
       approved = stampApproval(source, week.handover.approval) || approved;
-    });
+    }, { section: "handover" });
     if (approved) setStatus("已确认：交接班。");
   };
 
@@ -1454,7 +1548,7 @@ function App() {
     let approved = false;
     await withScopedWeeks((week, _username, source) => {
       approved = stampApproval(source, week.reflection.approval) || approved;
-    });
+    }, { section: "reflection" });
     if (approved) setStatus("已确认：周总结。");
   };
 
@@ -1469,24 +1563,30 @@ function App() {
       passwordUpdatedAt: new Date().toLocaleString(),
     };
     const response = await api.updateAccount(current.username, updated);
-    applyState((draft) => {
-      draft.users = draft.users.map((user) => (user.username === current.username ? normalizeUser(response.user) : user));
-      draft.passwordForm.newPassword = "";
-      draft.currentUser = {
+    const next = {
+      ...stateRef.current,
+      users: stateRef.current.users.map((user) => (user.username === current.username ? normalizeUser(response.user) : user)),
+      passwordForm: {
+        ...stateRef.current.passwordForm,
+        newPassword: "",
+      },
+      editForm: {
+        ...stateRef.current.editForm,
+      },
+      currentUser: {
         username: response.user.username,
         role: response.user.role,
         level: response.user.level,
         displayName: response.user.displayName,
-      };
-      syncEditForms(draft);
-    });
+      },
+    };
+    syncEditForms(next);
+    replaceState(next);
     setStatus("密码已修改。");
   }, "密码修改失败，请稍后重试。");
 
   const handleNewUserChange = (field, value) => {
-    applyState((draft) => {
-      draft.newUserForm[field] = value;
-    });
+    patchNestedState("newUserForm", { [field]: value });
   };
 
   const handleCreateUser = async () => runAction(async () => {
@@ -1506,26 +1606,33 @@ function App() {
       passwordUpdatedAt: new Date().toLocaleString(),
     };
     const response = await api.createAccount(payload);
-    applyState((draft) => {
-      draft.users.push(normalizeUser(response.user));
-      draft.users.sort((a, b) => a.username.localeCompare(b.username));
-      draft.newUserForm = { username: "", displayName: "", password: "123456", level: "P3" };
-      syncEditForms(draft);
-    });
+    const next = {
+      ...stateRef.current,
+      users: [...stateRef.current.users, normalizeUser(response.user)].sort((a, b) => a.username.localeCompare(b.username)),
+      newUserForm: { username: "", displayName: "", password: "123456", level: "P3" },
+      editForm: {
+        ...stateRef.current.editForm,
+      },
+    };
+    syncEditForms(next);
+    replaceState(next);
     setStatus(`已新增账号：${payload.username}（${levelLabel(payload.level)}）`);
   }, "新增账号失败，请稍后重试。");
 
   const handleEditUserSelect = (username) => {
-    applyState((draft) => {
-      draft.editUserId = username;
-      syncEditForms(draft);
-    });
+    const next = {
+      ...stateRef.current,
+      editUserId: username,
+      editForm: {
+        ...stateRef.current.editForm,
+      },
+    };
+    syncEditForms(next);
+    replaceState(next);
   };
 
   const handleEditFormChange = (field, value) => {
-    applyState((draft) => {
-      draft.editForm[field] = value;
-    });
+    patchNestedState("editForm", { [field]: value });
   };
 
   const handleSaveUserEdit = async () => runAction(async () => {
@@ -1542,15 +1649,23 @@ function App() {
       passwordUpdatedAt: target.password !== trim(stateRef.current.editForm.password) ? new Date().toLocaleString() : target.passwordUpdatedAt,
     };
     const response = await api.updateAccount(target.username, updated);
-    applyState((draft) => {
-      draft.users = draft.users.map((user) => (user.username === target.username ? normalizeUser(response.user) : user));
-      if (draft.currentUser?.username === target.username) {
-        draft.currentUser.displayName = response.user.displayName;
-        draft.currentUser.role = response.user.role;
-        draft.currentUser.level = response.user.level;
-      }
-      syncEditForms(draft);
-    });
+    const next = {
+      ...stateRef.current,
+      users: stateRef.current.users.map((user) => (user.username === target.username ? normalizeUser(response.user) : user)),
+      editForm: {
+        ...stateRef.current.editForm,
+      },
+      currentUser: stateRef.current.currentUser
+        ? { ...stateRef.current.currentUser }
+        : null,
+    };
+    if (next.currentUser?.username === target.username) {
+      next.currentUser.displayName = response.user.displayName;
+      next.currentUser.role = response.user.role;
+      next.currentUser.level = response.user.level;
+    }
+    syncEditForms(next);
+    replaceState(next);
     setStatus(`已更新账号：${target.username}`);
   }, "账号修改失败，请稍后重试。");
 
@@ -1569,19 +1684,27 @@ function App() {
     const deletedCurrentScope = before.activeScopeUser === target.username
       || trim(before.currentWeekKey).startsWith(`${target.username}::`);
 
-    applyState((draft) => {
-      draft.users = draft.users.filter((user) => user.username !== target.username);
-      draft.currentSessionUsers = draft.currentSessionUsers.filter((username) => username !== target.username);
-      Object.keys(draft.weeks).forEach((key) => {
-        if (key.startsWith(`${target.username}::`)) delete draft.weeks[key];
-      });
-      if (draft.activeScopeUser === target.username) draft.activeScopeUser = fallbackStudent;
-      if (draft.currentWeekKey.startsWith(`${target.username}::`)) {
-        draft.currentWeekKey = "";
-        draft.currentDay = "";
-      }
-      syncEditForms(draft);
+    const next = {
+      ...stateRef.current,
+      users: stateRef.current.users.filter((user) => user.username !== target.username),
+      currentSessionUsers: stateRef.current.currentSessionUsers.filter((username) => username !== target.username),
+      weeks: {
+        ...stateRef.current.weeks,
+      },
+      editForm: {
+        ...stateRef.current.editForm,
+      },
+    };
+    Object.keys(next.weeks).forEach((key) => {
+      if (key.startsWith(`${target.username}::`)) delete next.weeks[key];
     });
+    if (next.activeScopeUser === target.username) next.activeScopeUser = fallbackStudent;
+    if (next.currentWeekKey.startsWith(`${target.username}::`)) {
+      next.currentWeekKey = "";
+      next.currentDay = "";
+    }
+    syncEditForms(next);
+    replaceState(next);
 
     if (deletedCurrentScope && fallbackStudent) {
       await loadWeekForCurrentScope(before.selectedWeekStart, `已删除账号：${target.displayName}（${target.username}）`);
@@ -1595,7 +1718,7 @@ function App() {
     return buildReportHtml({
       week: cloneValue(currentWeek),
       group: cloneValue(currentWeekGroup),
-      scopeUser: resolveScopeUser(cloneValue(stateRef.current)),
+      scopeUser: resolveScopeUser(createScopeResolutionSource()),
     });
   };
 
@@ -1617,7 +1740,7 @@ function App() {
       return;
     }
     const html = generateReportHtml();
-    const scopeUser = resolveScopeUser(cloneValue(stateRef.current));
+    const scopeUser = resolveScopeUser(createScopeResolutionSource());
     exportReportWord(currentWeek, scopeUser, html);
     setStatus("已导出美化版 Word 实训报告（含图片）。");
   };
@@ -1661,7 +1784,7 @@ function App() {
     ...studentUsers.filter((user) => !groupedStudentUsers.some((item) => item.username === user.username)),
   ];
   const resolvedScopeUser = currentUser
-    ? (canViewAllScopes() ? resolveScopeUser(cloneValue(stateRef.current)) : currentUser.username)
+    ? (canViewAllScopes() ? resolveScopeUser(createScopeResolutionSource(app)) : currentUser.username)
     : "";
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
   const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
@@ -1886,7 +2009,7 @@ function App() {
           newUserForm={app.newUserForm}
           editUserId={app.editUserId}
           editForm={app.editForm}
-          onPasswordChange={(value) => applyState((draft) => { draft.passwordForm.newPassword = value; })}
+          onPasswordChange={(value) => patchNestedState("passwordForm", { newPassword: value })}
           onSubmitPassword={handlePasswordSubmit}
           onNewUserChange={handleNewUserChange}
           onCreateUser={handleCreateUser}
@@ -2329,7 +2452,7 @@ function App() {
                     newUserForm={app.newUserForm}
                     editUserId={app.editUserId}
                     editForm={app.editForm}
-                    onPasswordChange={(value) => applyState((draft) => { draft.passwordForm.newPassword = value; })}
+                    onPasswordChange={(value) => patchNestedState("passwordForm", { newPassword: value })}
                     onSubmitPassword={handlePasswordSubmit}
                     onNewUserChange={handleNewUserChange}
                     onCreateUser={handleCreateUser}

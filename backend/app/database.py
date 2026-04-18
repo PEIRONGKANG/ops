@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import json
 import os
@@ -336,10 +338,8 @@ def save_week(scope_user: str, start_date: str, payload: dict) -> dict:
     with get_connection() as connection:
         connection.execute(
             """
-            INSERT INTO weeks (scope_user, start_date, payload, updated_at)
+            INSERT OR REPLACE INTO weeks (scope_user, start_date, payload, updated_at)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT(scope_user, start_date)
-            DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
             """,
             (scope_user, start_date, encoded, _now_iso()),
         )
@@ -361,10 +361,8 @@ def save_week_group(start_date: str, payload: dict) -> dict:
     with get_connection() as connection:
         connection.execute(
             """
-            INSERT INTO week_groups (start_date, payload, updated_at)
+            INSERT OR REPLACE INTO week_groups (start_date, payload, updated_at)
             VALUES (?, ?, ?)
-            ON CONFLICT(start_date)
-            DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
             """,
             (start_date, encoded, _now_iso()),
         )
@@ -465,14 +463,9 @@ def save_teacher_notice_receipts(notice_id: str, receipts: list[dict]) -> dict |
         for receipt in receipts:
             connection.execute(
                 """
-                INSERT INTO teacher_notice_receipts (
+                INSERT OR REPLACE INTO teacher_notice_receipts (
                     notice_id, username, display_name, level, received_at
                 ) VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(notice_id, username)
-                DO UPDATE SET
-                    display_name = excluded.display_name,
-                    level = excluded.level,
-                    received_at = excluded.received_at
                 """,
                 (
                     notice_id,

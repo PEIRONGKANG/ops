@@ -1,4 +1,6 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -9,11 +11,11 @@ class LoginRequest(BaseModel):
 
 
 class WeekPayload(BaseModel):
-    week: dict[str, Any]
+    week: Dict[str, Any]
 
 
 class WeekGroupPayload(BaseModel):
-    group: dict[str, Any]
+    group: Dict[str, Any]
 
 
 class UserPayload(BaseModel):
@@ -30,7 +32,7 @@ class UserPayload(BaseModel):
 class TeacherNoticePayload(BaseModel):
     title: str = ""
     message: str = ""
-    images: list[str] = Field(default_factory=list)
+    images: List[str] = Field(default_factory=list)
     authorUsername: str = ""
     authorDisplayName: str = ""
     createdAt: str = ""
@@ -45,4 +47,4 @@ class TeacherNoticeReceiptItem(BaseModel):
 
 
 class TeacherNoticeReceiptPayload(BaseModel):
-    receipts: list[TeacherNoticeReceiptItem] = Field(default_factory=list)
+    receipts: List[TeacherNoticeReceiptItem] = Field(default_factory=list)
