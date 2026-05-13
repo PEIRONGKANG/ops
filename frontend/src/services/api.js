@@ -67,6 +67,9 @@ export const api = {
   health() {
     return request("/health");
   },
+  now() {
+    return request("/now");
+  },
   bootstrap() {
     return request("/bootstrap");
   },
@@ -122,7 +125,10 @@ export const api = {
       params.set("include_media", "false");
     }
     const query = params.toString();
-    return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}${query ? `?${query}` : ""}`);
+    return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}${query ? `?${query}` : ""}`, {
+      // Media-heavy payloads can be very large (tens of MB). Default to a longer timeout when explicitly requested.
+      timeoutMs: options.includeMedia === true ? 180_000 : undefined,
+    });
   },
   saveWeek(scopeUser, startDate, week) {
     return request(`/weeks/${encodeURIComponent(scopeUser)}/${encodeURIComponent(startDate)}`, {
@@ -132,6 +138,9 @@ export const api = {
   },
   fetchWeekGroup(startDate) {
     return request(`/week-groups/${encodeURIComponent(startDate)}`);
+  },
+  fetchWeekScopes(startDate) {
+    return request(`/week-scopes/${encodeURIComponent(startDate)}`);
   },
   saveWeekGroup(startDate, group) {
     return request(`/week-groups/${encodeURIComponent(startDate)}`, {

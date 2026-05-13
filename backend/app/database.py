@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import copy
+import base64
+import hashlib
 import json
 import os
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +15,64 @@ from uuid import uuid4
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "backend" / "data"
 DB_PATH = Path(os.environ.get("OPS_TRAINING_DB_PATH", DATA_DIR / "ops_training.db"))
+MEDIA_DIR = Path(os.environ.get("OPS_TRAINING_MEDIA_DIR", DATA_DIR / "media"))
 IMAGE_PLACEHOLDER = "__OPS_IMAGE_PENDING__"
+
+_DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<b64>.+)$", re.DOTALL)
+
+
+def _media_ext(mime: str) -> str:
+    value = (mime or "").lower().strip()
+    if value == "image/jpeg":
+        return ".jpg"
+    if value == "image/png":
+        return ".png"
+    if value == "image/webp":
+        return ".webp"
+    if value == "image/gif":
+        return ".gif"
+    if value == "video/mp4":
+        return ".mp4"
+    # Fallback for uncommon types.
+    return ""
+
+
+def store_data_url(value: str) -> str:
+    """Persist a data: URL to disk and return a URL path to serve it."""
+    if not isinstance(value, str) or not value.startswith("data:"):
+        return value
+    match = _DATA_URL_RE.match(value)
+    if not match:
+        return value
+
+    mime = match.group("mime")
+    try:
+        raw = base64.b64decode(match.group("b64"), validate=False)
+    except Exception:
+        return value
+
+    digest = hashlib.sha256(raw).hexdigest()
+    ext = _media_ext(mime)
+    filename = f"{digest}{ext}" if ext else digest
+    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    target = MEDIA_DIR / filename
+    if not target.exists():
+        tmp = MEDIA_DIR / f".tmp-{uuid4().hex}"
+        tmp.write_bytes(raw)
+        tmp.replace(target)
+
+    return f"/media/{filename}"
+
+
+def normalize_payload_media(payload: object) -> object:
+    """Replace embedded data URLs with server-hosted URLs to keep DB payloads small."""
+    if isinstance(payload, dict):
+        return {k: normalize_payload_media(v) for k, v in payload.items()}
+    if isinstance(payload, list):
+        return [normalize_payload_media(v) for v in payload]
+    if isinstance(payload, str) and payload.startswith("data:"):
+        return store_data_url(payload)
+    return payload
 
 
 DEFAULT_USERS = [
@@ -334,7 +394,8 @@ def get_week_summary(scope_user: str, start_date: str) -> dict | None:
 
 
 def save_week(scope_user: str, start_date: str, payload: dict) -> dict:
-    encoded = json.dumps(payload, ensure_ascii=False)
+    normalized = normalize_payload_media(payload)
+    encoded = json.dumps(normalized, ensure_ascii=False)
     with get_connection() as connection:
         connection.execute(
             """
@@ -344,7 +405,18 @@ def save_week(scope_user: str, start_date: str, payload: dict) -> dict:
             (scope_user, start_date, encoded, _now_iso()),
         )
         connection.commit()
-    return payload
+    # Return the normalized payload so callers (API) stay consistent with persisted data.
+    return normalized
+
+
+def list_week_scopes(start_date: str) -> list[str]:
+    """List scope_user values that have saved week payloads for the given start_date."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT DISTINCT scope_user FROM weeks WHERE start_date = ? ORDER BY scope_user",
+            (start_date,),
+        ).fetchall()
+    return [row["scope_user"] for row in rows]
 
 
 def get_week_group(start_date: str) -> dict | None:

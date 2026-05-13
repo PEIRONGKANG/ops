@@ -1,4 +1,12 @@
+import { useEffect, useRef, useState } from "react";
+
+import { api } from "../services/api.js";
 import { FilePickerButton, ImagePreviewGrid } from "./MediaBlocks";
+
+function formatClock(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
 
 function StatusBlock({ title, managerStatus, studentStatus }) {
   return (
@@ -80,6 +88,7 @@ function TextClearButton({ onClick, visible, label }) {
 export function DailyTab({
   dailyDateOptions,
   currentDay,
+  currentUserLevel,
   data,
   approvals,
   studentConfirmations,
@@ -98,9 +107,51 @@ export function DailyTab({
   onSave,
   onManagerSubmit,
   onStudentConfirm,
+  onP3StampAttendance,
 }) {
   const showStudentSave = editable;
   const showDeleteHint = editable && canDeleteContent;
+  const isP3 = currentUserLevel === "P3";
+
+  const [clockText, setClockText] = useState("");
+  const offsetMsRef = useRef(0);
+
+  useEffect(() => {
+    if (!isP3) return;
+    let mounted = true;
+    let tickId = null;
+    let resyncId = null;
+
+    const syncClock = async () => {
+      try {
+        const { epochMs, iso } = await api.now();
+        const serverMs = Number.isFinite(epochMs) ? epochMs : Date.parse(iso);
+        if (!Number.isFinite(serverMs)) return;
+        offsetMsRef.current = serverMs - Date.now();
+      } catch {
+        // Ignore sync failures; keep ticking with last known offset.
+      }
+    };
+
+    const start = async () => {
+      await syncClock();
+      if (!mounted) return;
+      const tick = () => {
+        const now = new Date(Date.now() + offsetMsRef.current);
+        setClockText(formatClock(now));
+      };
+      tick();
+      tickId = setInterval(tick, 250);
+      resyncId = setInterval(syncClock, 60_000);
+    };
+
+    start();
+    return () => {
+      mounted = false;
+      if (tickId) clearInterval(tickId);
+      if (resyncId) clearInterval(resyncId);
+    };
+  }, [isP3]);
 
   return (
     <section className="module-shell">
@@ -121,32 +172,72 @@ export function DailyTab({
             ))}
           </select>
         </div>
-        <div className="soft-card">
-          <label className="field-label">签到时间</label>
-          <input
-            className="field-input"
-            type="time"
-            value={data.checkIn}
-            onChange={(event) => onFieldChange("checkIn", event.target.value)}
-            readOnly={!editable}
-          />
-          <div className="mt-3 flex flex-wrap gap-3">
-            <TextClearButton visible={showDeleteHint && Boolean(data.checkIn)} onClick={() => onClearField("checkIn")} label="清空签到时间" />
-          </div>
-        </div>
-        <div className="soft-card">
-          <label className="field-label">签退时间</label>
-          <input
-            className="field-input"
-            type="time"
-            value={data.checkOut}
-            onChange={(event) => onFieldChange("checkOut", event.target.value)}
-            readOnly={!editable}
-          />
-          <div className="mt-3 flex flex-wrap gap-3">
-            <TextClearButton visible={showDeleteHint && Boolean(data.checkOut)} onClick={() => onClearField("checkOut")} label="清空签退时间" />
-          </div>
-        </div>
+        {isP3 ? (
+          <>
+            <div className="soft-card">
+              <label className="field-label">当前时间（自动同步）</label>
+              <div className="field-input flex items-center justify-between font-mono">
+                <span>{clockText || "--:--:--"}</span>
+                <span className="text-xs opacity-70">含秒</span>
+              </div>
+              <p className="status-line mt-3">P3 只能点击按钮完成签到/签退，系统将自动写入服务器时间。</p>
+            </div>
+            <div className="soft-card">
+              <label className="field-label">签到 / 签退</label>
+              <div className="mt-1 flex flex-wrap gap-3">
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={() => onP3StampAttendance?.("checkIn")}
+                  disabled={!editable}
+                >
+                  签到
+                </button>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={() => onP3StampAttendance?.("checkOut")}
+                  disabled={!editable}
+                >
+                  签退
+                </button>
+              </div>
+              <div className="mt-4 space-y-2">
+                <p className="status-line">已签到：{data.checkIn || "-"}</p>
+                <p className="status-line">已签退：{data.checkOut || "-"}</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="soft-card">
+              <label className="field-label">签到时间</label>
+              <input
+                className="field-input"
+                type="time"
+                value={data.checkIn}
+                onChange={(event) => onFieldChange("checkIn", event.target.value)}
+                readOnly={!editable}
+              />
+              <div className="mt-3 flex flex-wrap gap-3">
+                <TextClearButton visible={showDeleteHint && Boolean(data.checkIn)} onClick={() => onClearField("checkIn")} label="清空签到时间" />
+              </div>
+            </div>
+            <div className="soft-card">
+              <label className="field-label">签退时间</label>
+              <input
+                className="field-input"
+                type="time"
+                value={data.checkOut}
+                onChange={(event) => onFieldChange("checkOut", event.target.value)}
+                readOnly={!editable}
+              />
+              <div className="mt-3 flex flex-wrap gap-3">
+                <TextClearButton visible={showDeleteHint && Boolean(data.checkOut)} onClick={() => onClearField("checkOut")} label="清空签退时间" />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="soft-card">

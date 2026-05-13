@@ -463,6 +463,11 @@ function App() {
     await persistWeeks(source, startDate, usernames);
   };
 
+  const persistWeekGroupOnly = async (source, startDate) => {
+    const shared = getWeekGroupRecord(source, startDate);
+    await api.saveWeekGroup(startDate, shared);
+  };
+
   const buildWeekGroupScopedState = (source, startDate) => {
     const next = {
       ...source,
@@ -668,7 +673,7 @@ function App() {
       weekLoading: true,
       weekMediaLoading: false,
       currentDay: previousWeekKey ? source.currentDay : "",
-      statusMessage: "正在加载本周数据。若本周上传了较多图片，首次打开可能需要 10 到 30 秒。",
+      statusMessage: "正在加载本周数据。",
       statusError: false,
     });
     try {
@@ -687,7 +692,9 @@ function App() {
       let scopeUser = "";
       let selectedWeek = null;
       let groupedFallbackUsers = [];
-      const preferSummary = options.preferSummary ?? canViewAllScopes(next);
+      // Media is stored as /media/* URLs (not base64), so it's safe to load full week payload by default.
+      const preferSummary = options.preferSummary ?? false;
+      let didFetchEmptyWeek = false;
 
       if (options.forceGroupedScope && canViewAllScopes(next)) {
         const groupedUsers = getGroupedScopeUsers(next, corrected);
@@ -708,7 +715,38 @@ function App() {
 
       if (!selectedWeek) {
         const weekResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: !preferSummary });
+        didFetchEmptyWeek = !weekResponse.week;
         selectedWeek = weekResponse.week || createEmptyWeek(corrected);
+      }
+
+      // If the auto-selected student has no week record, but the week has other students' data,
+      // pick the first scope with data so P1 can immediately see filled content.
+      if (didFetchEmptyWeek && canViewAllScopes(next) && !trim(next.weekGroups[corrected]?.a) && !trim(next.weekGroups[corrected]?.b)) {
+        const scopesResp = await api.fetchWeekScopes(corrected);
+        const scopes = Array.isArray(scopesResp.scopes) ? scopesResp.scopes : [];
+        const first = scopes.find((username) => username && username !== scopeUser);
+        if (first) {
+          scopeUser = first;
+          next.activeScopeUser = scopeUser;
+          next.scopeUserPinned = false;
+          const fallbackResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: false });
+          didFetchEmptyWeek = !fallbackResponse.week;
+          selectedWeek = fallbackResponse.week || createEmptyWeek(corrected);
+        }
+      }
+
+      // For P1/P2 viewers, prefetch the other grouped student's summary so switching is instant.
+      if (canViewAllScopes(next) && groupedFallbackUsers.length) {
+        const results = await Promise.allSettled(
+          groupedFallbackUsers.map(async (username) => {
+            const weekKey = makeWeekKey(corrected, username);
+            if (next.weeks[weekKey]) return;
+            const resp = await api.fetchWeek(username, corrected, { includeMedia: false });
+            next.weeks[weekKey] = resp.week || createEmptyWeek(corrected);
+          }),
+        );
+        // Suppress prefetch failures; they should not block the main week load.
+        void results;
       }
 
       if (!hasWeekPayload(selectedWeek) && groupedFallbackUsers.length) {
@@ -735,36 +773,18 @@ function App() {
         : pickDailyDate(next.weeks[activeWeekKey], next.currentDay, todayISO());
       ensureDayOnWeek(next.weeks[activeWeekKey], next.currentDay);
       next.weekLoading = false;
-      next.weekMediaLoading = hasDeferredMedia(selectedWeek);
-      next.statusMessage = next.weekMediaLoading
-        ? "已加载当周核心数据，图片正在后台补充。"
-        : (statusMessage || "已加载所选周次。");
+      next.weekMediaLoading = false;
+      next.statusMessage = (() => {
+        if (didFetchEmptyWeek && canViewAllScopes(next)) {
+          return "该学员本周尚未提交填报内容（当前显示为空白模板）。";
+        }
+        if (!hasWeekPayload(selectedWeek) && canViewAllScopes(next)) {
+          return "该学员本周暂无填报内容（当前显示为空白模板）。";
+        }
+        return statusMessage || "已加载所选周次。";
+      })();
       next.statusError = false;
       replaceState(next);
-
-      if (!next.weekMediaLoading) return;
-
-      const fullWeekResponse = await api.fetchWeek(scopeUser, corrected, { includeMedia: true });
-      const fullWeek = fullWeekResponse.week || createEmptyWeek(corrected);
-      const latest = stateRef.current;
-      if (trim(latest.currentWeekKey) !== trim(activeWeekKey)) return;
-      const hydrated = {
-        ...latest,
-        weeks: {
-          ...latest.weeks,
-          [activeWeekKey]: fullWeek,
-        },
-      };
-      ensureWeekInState(hydrated, activeWeekKey, corrected);
-      const shouldKeepWeekStartDay = options.defaultToWeekStart !== false;
-      hydrated.currentDay = shouldKeepWeekStartDay
-        ? corrected
-        : pickDailyDate(hydrated.weeks[activeWeekKey], hydrated.currentDay, todayISO());
-      ensureDayOnWeek(hydrated.weeks[activeWeekKey], hydrated.currentDay);
-      hydrated.weekMediaLoading = false;
-      hydrated.statusMessage = statusMessage || "已加载所选周次（含图片）。";
-      hydrated.statusError = false;
-      replaceState(hydrated);
     } catch (error) {
       const failed = stateRef.current;
       replaceState({
@@ -1156,12 +1176,33 @@ function App() {
   }, "加载周次失败，请稍后重试。");
 
   const handleScopeChange = async (scopeUser) => runAction(async () => {
+    const before = stateRef.current;
+    const startDate = adjustToWednesday(before.selectedWeekStart || todayISO());
+    const weekKey = makeWeekKey(startDate, scopeUser);
+
+    // If we already have this student's week in memory for the selected startDate,
+    // switch instantly without hitting the network again.
+    if (before.weeks[weekKey]) {
+      const next = {
+        ...before,
+        activeScopeUser: scopeUser,
+        scopeUserPinned: true,
+        currentWeekKey: weekKey,
+        currentDay: before.currentDay || startDate,
+      };
+      ensureWeekInState(next, weekKey, startDate);
+      ensureDayOnWeek(next.weeks[weekKey], next.currentDay);
+      replaceState(next);
+      setStatus(`已切换查看：${scopeUser}`);
+      return;
+    }
+
     patchState({
       activeScopeUser: scopeUser,
       scopeUserPinned: true,
     });
     await loadWeekForCurrentScope(
-      stateRef.current.selectedWeekStart || todayISO(),
+      startDate,
       `已切换查看：${scopeUser}`,
       { defaultToWeekStart: false },
     );
@@ -1191,7 +1232,9 @@ function App() {
       next.scopeUserPinned = false;
     }
     replaceState(next);
-    await persistGroupAndWeeks(next, targetWeekStart);
+    // Teaching week selection is primarily a viewing operation. Persist only the group metadata
+    // to avoid accidentally overwriting existing student weeks with empty payloads.
+    await persistWeekGroupOnly(next, targetWeekStart);
     await loadWeekForCurrentScope(
       targetWeekStart,
       `已切换到 ${value || "手动分组"}，并自动带入当周第一天数据。`,
@@ -1313,6 +1356,18 @@ function App() {
       return;
     }
     const sourceDay = cloneDailyRecord(ensureDayOnWeek(sourceWeek, stateRef.current.currentDay));
+
+    // P3 学员的签到时间不允许手动选择：保存时从服务器时间同步写入。
+    const actor = getCurrentUserRecord();
+    if (actor?.level === "P3" && !trim(sourceDay.checkIn)) {
+      try {
+        const { time } = await api.now();
+        if (trim(time)) sourceDay.checkIn = time;
+      } catch (error) {
+        setStatus(error.message || "同步签到时间失败，请稍后重试。", true);
+        return;
+      }
+    }
     await withScopedWeeks((week) => {
       week.daily[stateRef.current.currentDay] = cloneDailyRecord(sourceDay);
     }, { section: "daily", day: stateRef.current.currentDay });
@@ -1322,6 +1377,34 @@ function App() {
     }
     setStatus(`已保存：${stateRef.current.currentDay} 当日记录。`);
   };
+
+  const stampP3Attendance = async (kind) => runAction(async () => {
+    const actor = getCurrentUserRecord();
+    if (actor?.level !== "P3") return;
+    const sourceWeek = requireCurrentWeek("请先加载本周后再签到/签退。");
+    if (!sourceWeek || !stateRef.current.currentDay) {
+      setStatus("请先选择需要签到的日期。", true);
+      return;
+    }
+
+    const sourceDay = cloneDailyRecord(ensureDayOnWeek(sourceWeek, stateRef.current.currentDay));
+    const { time } = await api.now();
+    if (!trim(time)) throw new Error("同步服务器时间失败，请稍后重试。");
+
+    if (kind === "checkIn") {
+      sourceDay.checkIn = time;
+    } else if (kind === "checkOut") {
+      sourceDay.checkOut = time;
+    } else {
+      throw new Error("不支持的签到类型。");
+    }
+
+    await withScopedWeeks((week) => {
+      week.daily[stateRef.current.currentDay] = cloneDailyRecord(sourceDay);
+    }, { section: "daily", day: stateRef.current.currentDay });
+
+    setStatus(kind === "checkIn" ? "已签到（自动同步服务器时间）。" : "已签退（自动同步服务器时间）。");
+  }, "签到/签退失败，请稍后重试。");
 
   const saveHandover = async () => {
     const week = requireCurrentWeek("请先加载本周后再保存交接记录。");
@@ -1934,6 +2017,7 @@ function App() {
         <DailyTab
           dailyDateOptions={dailyDateOptions}
           currentDay={app.currentDay}
+          currentUserLevel={currentUser?.level || ""}
           data={currentDayData}
           approvals={{
             checkIn: renderApprovalText(currentDayData.approvals.checkIn),
@@ -1968,6 +2052,7 @@ function App() {
           onAddImages={addDailyImages}
           onClearImages={clearDailyImages}
           onSave={saveDaily}
+          onP3StampAttendance={stampP3Attendance}
           onManagerSubmit={submitDailyManagerConfirmation}
           onStudentConfirm={confirmDailyByStudent}
         />
@@ -2373,15 +2458,16 @@ function App() {
                   />
                 ) : null}
 
-                {app.activeTab === "daily" && currentWeek && currentDayData ? (
-                  <DailyTab
-                    dailyDateOptions={dailyDateOptions}
-                    currentDay={app.currentDay}
-                    data={currentDayData}
-                    approvals={{
-                      checkIn: renderApprovalText(currentDayData.approvals.checkIn),
-                      checkOut: renderApprovalText(currentDayData.approvals.checkOut),
-                      grooming: renderApprovalText(currentDayData.approvals.grooming),
+      {app.activeTab === "daily" && currentWeek && currentDayData ? (
+        <DailyTab
+          dailyDateOptions={dailyDateOptions}
+          currentDay={app.currentDay}
+          currentUserLevel={currentUser?.level || ""}
+          data={currentDayData}
+          approvals={{
+            checkIn: renderApprovalText(currentDayData.approvals.checkIn),
+            checkOut: renderApprovalText(currentDayData.approvals.checkOut),
+            grooming: renderApprovalText(currentDayData.approvals.grooming),
                       opening: renderApprovalText(currentDayData.approvals.opening),
                       closing: renderApprovalText(currentDayData.approvals.closing),
                       finance: renderApprovalText(currentDayData.approvals.finance),
@@ -2407,14 +2493,15 @@ function App() {
                     onDateChange={handleDailyDateChange}
                     onFieldChange={handleDailyFieldChange}
                     onClearField={clearDailyField}
-                    onManagerNoteChange={handleDailyManagerNoteChange}
-                    onAddImages={addDailyImages}
-                    onClearImages={clearDailyImages}
-                    onSave={saveDaily}
-                    onManagerSubmit={submitDailyManagerConfirmation}
-                    onStudentConfirm={confirmDailyByStudent}
-                  />
-                ) : null}
+          onManagerNoteChange={handleDailyManagerNoteChange}
+          onAddImages={addDailyImages}
+          onClearImages={clearDailyImages}
+          onSave={saveDaily}
+          onP3StampAttendance={stampP3Attendance}
+          onManagerSubmit={submitDailyManagerConfirmation}
+          onStudentConfirm={confirmDailyByStudent}
+        />
+      ) : null}
 
                 {app.activeTab === "handover" && currentWeek ? (
                   <HandoverTab

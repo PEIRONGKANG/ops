@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import os
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+import httpx
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import StreamingResponse
 
 from .database import (
     create_user,
@@ -18,8 +23,10 @@ from .database import (
     get_week_summary,
     get_week_group,
     init_db,
+    list_week_scopes,
     list_users,
     list_teacher_notices,
+    MEDIA_DIR,
     save_week,
     save_week_group,
     save_teacher_notice_receipts,
@@ -38,6 +45,26 @@ from .schemas import (
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DIST_DIR = ROOT_DIR / "frontend" / "dist"
+TRAINING_DIST_DIR = ROOT_DIR / "training_frontend" / "dist"
+
+MAX_WEEK_START_FUTURE_DAYS = 180
+
+
+def normalize_week_start(start_date: str) -> str:
+    """Normalize an arbitrary date to the week's canonical start (Wednesday)."""
+    try:
+        parsed = date.fromisoformat(start_date)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="周次日期格式不正确，应为 YYYY-MM-DD。") from exc
+
+    # Python weekday: Monday=0 ... Sunday=6. Wednesday=2.
+    diff = (parsed.weekday() - 2) % 7
+    corrected = parsed - timedelta(days=diff)
+
+    if (corrected - date.today()).days > MAX_WEEK_START_FUTURE_DAYS:
+        raise HTTPException(status_code=400, detail="周次日期异常（超过允许的未来范围）。")
+
+    return corrected.isoformat()
 
 
 app = FastAPI(title="Drink Training Ops API", version="1.0.0")
@@ -50,6 +77,8 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+POCKETBASE_INTERNAL_URL = os.environ.get("OPS_POCKETBASE_INTERNAL_URL", "http://127.0.0.1:8090")
+
 
 @app.on_event("startup")
 def on_startup() -> None:
@@ -59,6 +88,54 @@ def on_startup() -> None:
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
+
+@app.get("/api/now")
+def now() -> dict:
+    """Server-side time for clients that need a trusted clock (e.g. P3 check-in)."""
+    current = datetime.now().astimezone()
+    return {
+        "iso": current.isoformat(timespec="seconds"),
+        "epochMs": int(current.timestamp() * 1000),
+        "time": current.strftime("%H:%M:%S"),
+        "timezone": str(current.tzinfo),
+    }
+
+@app.api_route("/pb/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], include_in_schema=False)
+async def pocketbase_proxy(full_path: str, request: Request):
+    """Reverse proxy PocketBase so the training frontend can use a same-origin base URL (/pb)."""
+    upstream = POCKETBASE_INTERNAL_URL.rstrip("/")
+    target = f"{upstream}/{full_path}"
+    if request.url.query:
+        target = f"{target}?{request.url.query}"
+
+    headers = dict(request.headers)
+    headers.pop("host", None)
+
+    try:
+        body = await request.body()
+        timeout = httpx.Timeout(180.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+            upstream_resp = await client.request(request.method, target, headers=headers, content=body)
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"PocketBase 不可用：{exc.__class__.__name__}") from exc
+
+    excluded = {
+        "content-encoding",
+        "transfer-encoding",
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "upgrade",
+    }
+    response_headers = {k: v for k, v in upstream_resp.headers.items() if k.lower() not in excluded}
+    return StreamingResponse(
+        upstream_resp.aiter_raw(),
+        status_code=upstream_resp.status_code,
+        headers=response_headers,
+    )
 
 
 @app.get("/api/bootstrap")
@@ -137,24 +214,33 @@ def remove_account(username: str) -> Response:
 
 @app.get("/api/week-groups/{start_date}")
 def fetch_week_group(start_date: str) -> dict:
-    return {"group": get_week_group(start_date)}
+    corrected = normalize_week_start(start_date)
+    return {"group": get_week_group(corrected)}
 
 
 @app.put("/api/week-groups/{start_date}")
 def upsert_week_group(start_date: str, payload: WeekGroupPayload) -> dict:
-    return {"group": save_week_group(start_date, payload.group)}
+    corrected = normalize_week_start(start_date)
+    return {"group": save_week_group(corrected, payload.group)}
+
+@app.get("/api/week-scopes/{start_date}")
+def week_scopes(start_date: str) -> dict:
+    corrected = normalize_week_start(start_date)
+    return {"scopes": list_week_scopes(corrected)}
 
 
 @app.get("/api/weeks/{scope_user}/{start_date}")
 def fetch_week(scope_user: str, start_date: str, include_media: bool = True) -> dict:
+    corrected = normalize_week_start(start_date)
     if include_media:
-        return {"week": get_week(scope_user, start_date)}
-    return {"week": get_week_summary(scope_user, start_date)}
+        return {"week": get_week(scope_user, corrected)}
+    return {"week": get_week_summary(scope_user, corrected)}
 
 
 @app.put("/api/weeks/{scope_user}/{start_date}")
 def upsert_week(scope_user: str, start_date: str, payload: WeekPayload) -> dict:
-    return {"week": save_week(scope_user, start_date, payload.week)}
+    corrected = normalize_week_start(start_date)
+    return {"week": save_week(scope_user, corrected, payload.week)}
 
 
 @app.get("/", include_in_schema=False)
@@ -164,7 +250,32 @@ def serve_index() -> FileResponse:
     raise HTTPException(
         status_code=404,
         detail="前端尚未构建，请先在 frontend 目录执行 npm run build。",
+)
+
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+
+@app.get("/training", include_in_schema=False)
+def serve_training_index() -> FileResponse:
+    if TRAINING_DIST_DIR.exists():
+        return FileResponse(TRAINING_DIST_DIR / "index.html")
+    raise HTTPException(
+        status_code=404,
+        detail="实训内容站点尚未构建，请先在 training_frontend 目录执行 npm run build。",
     )
+
+
+@app.get("/training/{full_path:path}", include_in_schema=False)
+def serve_training_frontend(full_path: str):
+    if not TRAINING_DIST_DIR.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="实训内容站点尚未构建，请先在 training_frontend 目录执行 npm run build。",
+        )
+    candidate = TRAINING_DIST_DIR / full_path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(TRAINING_DIST_DIR / "index.html")
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

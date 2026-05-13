@@ -158,6 +158,15 @@ export function Sidebar({
         </div>
       </div>
 
+      <div className="sidebar-section">
+        <p className="panel-eyebrow">Training</p>
+        <h3 className="panel-title mt-2">学生实训内容</h3>
+        <p className="status-line mt-4">进入 Vue + PocketBase 的实训任务学习与提交模块。</p>
+        <a className="btn-good mt-4 block w-full text-center" href="/training/" target="_blank" rel="noreferrer">
+          打开实训内容站点
+        </a>
+      </div>
+
       <p className={`status-line mt-4 ${statusError ? "border-rose-200 bg-rose-50 text-rose-700" : ""}`}>
         {statusMessage}
       </p>
