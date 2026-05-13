@@ -9,6 +9,10 @@ import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
 import { Sidebar } from "./components/Sidebar";
 import { TabNav } from "./components/TabNav";
+import { TrainingTasksTab } from "./components/TrainingTasksTab";
+import { TraineeGuideTab } from "./components/TraineeGuideTab";
+import { TrainingProgressTab } from "./components/TrainingProgressTab";
+import { CompletionMatrixTab } from "./components/CompletionMatrixTab";
 import { TAB_ITEMS } from "./lib/constants";
 import {
   adjustToWednesday,
@@ -54,7 +58,7 @@ import {
   updateWeekReflection,
 } from "./lib/weekState";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
-import { api } from "./services/api";
+import { api, clearAuthToken, loadAuthToken, setAuthToken } from "./services/api";
 
 
 const SESSION_KEY = "ops_training_ops_react_session_v1";
@@ -799,6 +803,7 @@ function App() {
   useEffect(() => {
     const boot = async () => {
       try {
+        loadAuthToken();
         const { users, teacherNotices = [] } = await api.bootstrap();
         const normalizedUsers = users.map(normalizeUser);
         const storedSession = loadStoredSession();
@@ -815,6 +820,13 @@ function App() {
               level: found.level,
               displayName: found.displayName,
             };
+            next.activeTab = (() => {
+              if (found.level === "P3") return "training_tasks";
+              if (found.level === "P2") return "daily";
+              if (found.level === "T1") return "completion_matrix";
+              if (found.level === "P1") return "completion_matrix";
+              return "daily";
+            })();
             next.currentSessionUsers = Array.isArray(storedSession.currentSessionUsers)
               ? storedSession.currentSessionUsers
               : (found.level === "P3" ? [found.username] : []);
@@ -826,6 +838,19 @@ function App() {
         next.booting = false;
         replaceState(next);
         if (next.currentUser) {
+          // Refresh authenticated account list (e.g. P1 sees full list) if the token is still valid.
+          try {
+            const resp = await api.listAccounts();
+            if (Array.isArray(resp?.users) && resp.users.length) {
+              const refreshed = resp.users.map(normalizeUser);
+              // Only replace the global user list when we actually got the full dataset (P1).
+              if (refreshed.length >= normalizedUsers.length) {
+                replaceState({ ...stateRef.current, users: refreshed });
+              }
+            }
+          } catch {
+            clearAuthToken();
+          }
           await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
         }
       } catch (error) {
@@ -1070,6 +1095,7 @@ function App() {
     try {
       const { username, password, secondUsername, secondPassword } = stateRef.current.loginForm;
       const first = await api.login({ username: trim(username), password: trim(password) });
+      if (first?.token) setAuthToken(first.token);
       let sessionUsers = [];
 
       if (trim(secondUsername) || trim(secondPassword)) {
@@ -1098,6 +1124,13 @@ function App() {
         currentSessionUsers: sessionUsers,
         activeScopeUser: first.user.level === "P3" ? first.user.username : "",
         scopeUserPinned: first.user.level === "P3",
+        activeTab: (() => {
+          if (first.user.level === "P3") return "training_tasks";
+          if (first.user.level === "P2") return "daily";
+          if (first.user.level === "T1") return "completion_matrix";
+          if (first.user.level === "P1") return "completion_matrix";
+          return "daily";
+        })(),
         loginForm: {
           ...stateRef.current.loginForm,
           password: "",
@@ -1105,6 +1138,19 @@ function App() {
         },
         loginMessage: "",
       });
+
+      try {
+        const resp = await api.listAccounts();
+        if (Array.isArray(resp?.users) && resp.users.length) {
+          const refreshed = resp.users.map(normalizeUser);
+          // Only replace the global user list when it looks like the full dataset (P1).
+          if (refreshed.length >= stateRef.current.users.length) {
+            patchState({ users: refreshed });
+          }
+        }
+      } catch {
+        // Ignore; token may be absent/expired for older servers.
+      }
 
       await loadWeekForCurrentScope(
         todayISO(),
@@ -1135,6 +1181,12 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem(SESSION_KEY);
+    try {
+      api.logout();
+    } catch {
+      // Ignore.
+    }
+    clearAuthToken();
     replaceState({
       ...cloneValue(initialState),
       users: stateRef.current.users,
@@ -1840,8 +1892,9 @@ function App() {
     );
   }
 
-  const showWeekLoadingState = app.activeTab !== "accounts" && app.weekLoading && !currentWeek;
-  const showEmptyWeekState = app.activeTab !== "accounts" && !app.weekLoading && !currentWeek;
+  const isOpsTab = ["creative", "daily", "handover", "reflection"].includes(app.activeTab);
+  const showWeekLoadingState = isOpsTab && app.weekLoading && !currentWeek;
+  const showEmptyWeekState = isOpsTab && !app.weekLoading && !currentWeek;
   const studentUsers = getStudentUsers(app.users);
   const groupedStudentUsers = (() => {
     const groupedTokens = [
@@ -1870,20 +1923,42 @@ function App() {
     ? (canViewAllScopes() ? resolveScopeUser(createScopeResolutionSource(app)) : currentUser.username)
     : "";
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
-  const activeTabItem = TAB_ITEMS.find((item) => item.key === app.activeTab);
-  const dashboardTabItems = [
-    { key: "creative", label: "创意策划" },
-    { key: "daily", label: "日常运营" },
-    { key: "handover", label: "班次交接" },
-    { key: "reflection", label: "总结复盘" },
-    { key: "accounts", label: "账号管理" },
-  ];
+  const dashboardTabItems = (() => {
+    const level = currentUser?.level || "";
+    const base = [
+      { key: "creative", label: "创意策划" },
+      { key: "daily", label: "日常运营" },
+      { key: "handover", label: "班次交接" },
+      { key: "reflection", label: "总结复盘" },
+    ];
+    const training = [
+      { key: "training_tasks", label: "我的实训任务" },
+      { key: "training_progress", label: "学生实训进度" },
+      { key: "completion_matrix", label: "完成状态总览" },
+      { key: "trainee_guide", label: "岗位说明" },
+    ];
+
+    if (level === "P3") {
+      return [training[0], ...base, training[3]];
+    }
+    if (level === "P2") {
+      return [...base, training[1], training[2], training[3]];
+    }
+    if (level === "T1") {
+      return [training[2], training[1], ...base, training[3]];
+    }
+    if (level === "P1") {
+      return [training[2], training[1], ...base, training[3], { key: "accounts", label: "账号管理" }];
+    }
+    return [...base, training[3]];
+  })();
+  const activeTabItem = dashboardTabItems.find((item) => item.key === app.activeTab) || null;
   const activeDashboardTabLabel = dashboardTabItems.find((item) => item.key === app.activeTab)?.label || "运营工作台";
   const dashboardPublicNavItems = ["首页", "清单", "财务", "库存", "手册"];
-  const pageTitle = app.currentUser ? "实训基地概览" : "饮品实训基地周运营系统";
+  const pageTitle = app.currentUser ? "统一工作台" : "OpsMaster";
   const pageSubtitle = app.currentUser
-    ? `当前查看 ${scopeUserRecord ? `${scopeUserRecord.displayName || scopeUserRecord.username} 的轮值进度` : "本周运营数据"}。保持原有业务逻辑不变，只更新为 OpsMaster 风格工作台。`
-    : "围绕学生轮值、日常运营、经理审核与周报导出的完整实训流程，提供更清晰的运营看板与执行入口。";
+    ? `当前查看：${scopeUserRecord ? `${scopeUserRecord.displayName || scopeUserRecord.username}` : "本周数据"}。`
+    : "统一登录入口：周运营记录、实训任务、进度与矩阵总览。";
   const dashboardDate = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "long",
@@ -1997,6 +2072,22 @@ function App() {
           <h2 className="section-title mt-2">请先加载本周</h2>
           <p className="status-line mt-4">左侧选择轮值起始日期后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
         </section>
+      ) : null}
+
+      {app.activeTab === "training_tasks" && currentUser ? (
+        <TrainingTasksTab currentUser={currentUser} />
+      ) : null}
+
+      {app.activeTab === "training_progress" ? (
+        <TrainingProgressTab />
+      ) : null}
+
+      {app.activeTab === "completion_matrix" ? (
+        <CompletionMatrixTab selectedWeekStart={selectedSidebarWeekStart} users={app.users} />
+      ) : null}
+
+      {app.activeTab === "trainee_guide" ? (
+        <TraineeGuideTab />
       ) : null}
 
       {app.activeTab === "creative" && currentWeek ? (
@@ -2119,10 +2210,14 @@ function App() {
     currentUser,
     roleLabel: currentUser ? ({
       P1: "教学主管",
+      T1: "督导教师",
       P2: "运营经理",
       P3: "轮值学员",
     }[currentUser.level] || currentUser.level) : "",
     sessionInfo: dashboardSessionInfo,
+    navItems: dashboardTabItems,
+    activeTab: app.activeTab,
+    onNavigate: handleTabChange,
     canViewAllScopes: canViewAllScopes(),
     groupedStudentUsers,
     studentUsers: prioritizedStudentUsers,
@@ -2305,7 +2400,7 @@ function App() {
             </div>
 
             {app.currentUser ? (
-              <TabNav items={TAB_ITEMS} activeTab={app.activeTab} onChange={handleTabChange} />
+              <TabNav items={dashboardTabItems} activeTab={app.activeTab} onChange={handleTabChange} />
             ) : (
               <nav className="marketing-nav">
                 {publicNavItems.map((item, index) => (

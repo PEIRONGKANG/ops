@@ -1,5 +1,32 @@
 const API_BASE = import.meta.env?.VITE_API_BASE || "/api";
 const DEFAULT_TIMEOUT_MS = 60_000;
+const AUTH_TOKEN_KEY = "ops_training_auth_token_v1";
+
+let authToken = null;
+
+export function loadAuthToken() {
+  try {
+    const value = localStorage.getItem(AUTH_TOKEN_KEY);
+    authToken = value ? String(value) : null;
+  } catch {
+    authToken = null;
+  }
+  return authToken;
+}
+
+export function setAuthToken(token) {
+  authToken = token ? String(token) : null;
+  try {
+    if (authToken) localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+    else localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function clearAuthToken() {
+  setAuthToken(null);
+}
 
 export async function request(path, options = {}) {
   const {
@@ -33,6 +60,7 @@ export async function request(path, options = {}) {
     response = await fetch(`${API_BASE}${path}`, {
       headers: {
         "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(headers || {}),
       },
       ...fetchOptions,
@@ -79,6 +107,9 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  logout() {
+    return request("/logout", { method: "POST" });
+  },
   listAccounts() {
     return request("/accounts");
   },
@@ -118,6 +149,24 @@ export const api = {
     return request(`/accounts/${encodeURIComponent(username)}`, {
       method: "DELETE",
     });
+  },
+  listTrainingTasks(options = {}) {
+    const params = new URLSearchParams();
+    if (options.publishedOnly === false) params.set("published_only", "false");
+    const query = params.toString();
+    return request(`/training/tasks${query ? `?${query}` : ""}`);
+  },
+  myTrainingSubmissions() {
+    return request("/training/my/submissions");
+  },
+  submitTraining(payload) {
+    return request("/training/submit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  trainingProgress() {
+    return request("/training/progress");
   },
   fetchWeek(scopeUser, startDate, options = {}) {
     const params = new URLSearchParams();

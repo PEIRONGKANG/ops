@@ -10,6 +10,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
+from datetime import timedelta
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -210,6 +211,13 @@ def init_db() -> None:
                 received_at TEXT NOT NULL,
                 PRIMARY KEY (notice_id, username)
             );
+
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
             """
         )
 
@@ -236,6 +244,55 @@ def init_db() -> None:
                     user["owner_type"],
                 ),
             )
+        connection.commit()
+
+
+def create_session(username: str, days: int = 14) -> dict:
+    token = uuid4().hex
+    now = datetime.now().astimezone()
+    created_at = now.isoformat(timespec="seconds")
+    expires_at = (now + timedelta(days=days)).isoformat(timespec="seconds")
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO sessions (token, username, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (token, username, created_at, expires_at),
+        )
+        connection.commit()
+    return {"token": token, "username": username, "createdAt": created_at, "expiresAt": expires_at}
+
+
+def get_session(token: str) -> dict | None:
+    if not token:
+        return None
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT token, username, created_at, expires_at
+            FROM sessions
+            WHERE token = ?
+            """,
+            (token,),
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        expires_at = datetime.fromisoformat(row["expires_at"])
+    except Exception:
+        return None
+    if expires_at < datetime.now().astimezone():
+        delete_session(token)
+        return None
+    return {"token": row["token"], "username": row["username"], "createdAt": row["created_at"], "expiresAt": row["expires_at"]}
+
+
+def delete_session(token: str) -> None:
+    if not token:
+        return
+    with get_connection() as connection:
+        connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
         connection.commit()
 
 

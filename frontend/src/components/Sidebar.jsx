@@ -2,6 +2,9 @@ export function Sidebar({
   currentUser,
   roleLabel,
   sessionInfo,
+  navItems,
+  activeTab,
+  onNavigate,
   canViewAllScopes,
   groupedStudentUsers,
   studentUsers,
@@ -104,6 +107,25 @@ export function Sidebar({
         </button>
       </div>
 
+      {currentUser && Array.isArray(navItems) && navItems.length ? (
+        <div className="sidebar-section">
+          <p className="panel-eyebrow">Navigation</p>
+          <h3 className="panel-title mt-2">功能导航</h3>
+          <div className="mt-4 grid gap-2">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={activeTab === item.key ? "btn-good" : "btn-secondary"}
+                onClick={() => onNavigate?.(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {canViewAllScopes ? (
         <div className="sidebar-section space-y-3">
           <div>
@@ -156,15 +178,6 @@ export function Sidebar({
             预览/打印周报
           </button>
         </div>
-      </div>
-
-      <div className="sidebar-section">
-        <p className="panel-eyebrow">Training</p>
-        <h3 className="panel-title mt-2">学生实训内容</h3>
-        <p className="status-line mt-4">进入 Vue + PocketBase 的实训任务学习与提交模块。</p>
-        <a className="btn-good mt-4 block w-full text-center" href="/training/" target="_blank" rel="noreferrer">
-          打开实训内容站点
-        </a>
       </div>
 
       <p className={`status-line mt-4 ${statusError ? "border-rose-200 bg-rose-50 text-rose-700" : ""}`}>

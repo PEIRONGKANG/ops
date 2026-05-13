@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
+from typing import Annotated
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
@@ -14,10 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from .database import (
     create_user,
     create_teacher_notice,
+    create_session,
     delete_user,
     delete_teacher_notice,
+    delete_session,
     get_user,
     get_teacher_notice,
+    get_session,
     get_week,
     get_week_summary,
     get_week_group,
@@ -40,6 +44,7 @@ from .schemas import (
     WeekGroupPayload,
     WeekPayload,
 )
+from .training import build_router
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -76,7 +81,32 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+# Training APIs (PocketBase-backed, unified with Ops login token).
+try:
+    app.include_router(build_router(require_current_user))
+except Exception as exc:
+    # Keep legacy Ops endpoints available even if PocketBase isn't configured.
+    print(f"[training] router disabled: {exc}")
+
 POCKETBASE_INTERNAL_URL = os.environ.get("OPS_POCKETBASE_INTERNAL_URL", "http://127.0.0.1:8090")
+
+
+def require_current_user(authorization: Annotated[str | None, Header()] = None) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未登录。")
+    token = authorization.split(" ", 1)[1].strip()
+    session = get_session(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="登录已过期，请重新登录。")
+    user = get_user(session["username"])
+    if not user:
+        delete_session(token)
+        raise HTTPException(status_code=401, detail="账号不存在，请重新登录。")
+    # Never expose the password field to clients.
+    safe = {**user}
+    safe.pop("password", None)
+    safe["sessionToken"] = token
+    return safe
 
 
 @app.on_event("startup")
@@ -143,7 +173,13 @@ async def pocketbase_proxy(full_path: str, request: Request):
 
 @app.get("/api/bootstrap")
 def bootstrap() -> dict:
-    return {"users": list_users(), "teacherNotices": list_teacher_notices()}
+    # Public bootstrap: return only non-sensitive fields; login requires /api/login anyway.
+    users = []
+    for user in list_users():
+        safe = {**user}
+        safe.pop("password", None)
+        users.append(safe)
+    return {"users": users, "teacherNotices": list_teacher_notices()}
 
 
 @app.post("/api/login")
@@ -151,12 +187,29 @@ def login(payload: LoginRequest) -> dict:
     user = verify_user(payload.username, payload.password)
     if not user:
         raise HTTPException(status_code=401, detail="账号或密码错误。")
-    return {"user": user}
+    session = create_session(user["username"])
+    safe = {**user}
+    safe.pop("password", None)
+    return {"user": safe, "token": session["token"], "expiresAt": session["expiresAt"]}
+
+
+@app.post("/api/logout")
+def logout(current_user: dict = Depends(require_current_user)) -> Response:
+    token = current_user.get("sessionToken") or ""
+    delete_session(token)
+    return Response(status_code=204)
 
 
 @app.get("/api/accounts")
-def accounts() -> dict:
-    return {"users": list_users()}
+def accounts(current_user: dict = Depends(require_current_user)) -> dict:
+    level = current_user.get("level") or ""
+    if level == "P1":
+        return {"users": list_users()}
+    # Non-P1 users can only see their own non-sensitive profile.
+    user = get_user(current_user["username"])
+    safe = {**(user or {})}
+    safe.pop("password", None)
+    return {"users": [safe] if safe else []}
 
 
 @app.get("/api/teacher-notices")
@@ -191,14 +244,18 @@ def receive_teacher_notice(notice_id: str, payload: TeacherNoticeReceiptPayload)
 
 
 @app.post("/api/accounts")
-def create_account(payload: UserPayload) -> dict:
+def create_account(payload: UserPayload, current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") != "P1":
+        raise HTTPException(status_code=403, detail="权限不足。")
     if get_user(payload.username):
         raise HTTPException(status_code=409, detail="账号已存在。")
     return {"user": create_user(payload.model_dump())}
 
 
 @app.put("/api/accounts/{username}")
-def update_account(username: str, payload: UserPayload) -> dict:
+def update_account(username: str, payload: UserPayload, current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") != "P1" and current_user.get("username") != username:
+        raise HTTPException(status_code=403, detail="权限不足。")
     if not get_user(username):
         raise HTTPException(status_code=404, detail="账号不存在。")
     if payload.username != username:
@@ -207,7 +264,9 @@ def update_account(username: str, payload: UserPayload) -> dict:
 
 
 @app.delete("/api/accounts/{username}", status_code=204)
-def remove_account(username: str) -> Response:
+def remove_account(username: str, current_user: dict = Depends(require_current_user)) -> Response:
+    if current_user.get("level") != "P1":
+        raise HTTPException(status_code=403, detail="权限不足。")
     if not get_user(username):
         raise HTTPException(status_code=404, detail="账号不存在。")
     if not delete_user(username):

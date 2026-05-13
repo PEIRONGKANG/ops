@@ -854,6 +854,47 @@ img {
   font-weight: 600;
 }
 
+.pill-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.25rem 0.65rem;
+  color: #0f172a;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(241, 245, 249, 0.85);
+  padding: 0.26rem 0.7rem;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.status-pill.is-good {
+  border-color: rgba(5, 150, 105, 0.35);
+  background: rgba(16, 185, 129, 0.14);
+  color: #065f46;
+}
+.status-pill.is-warn {
+  border-color: rgba(234, 179, 8, 0.38);
+  background: rgba(250, 204, 21, 0.15);
+  color: #854d0e;
+}
+.status-pill.is-quiet {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(241, 245, 249, 0.8);
+  color: #475569;
+}
+
 .status-line {
   border: 1px solid var(--line);
   border-radius: 0.95rem;
@@ -2225,3 +2266,71 @@ img {
     justify-items: center;
   }
 }
+
+/* Integrated training markdown rendering (kept lightweight; no typography plugin). */
+.markdown-content {
+  color: var(--ink);
+  line-height: 1.7;
+}
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin: 1.1em 0 0.45em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.markdown-content h1 { font-size: 1.35rem; }
+.markdown-content h2 { font-size: 1.2rem; }
+.markdown-content h3 { font-size: 1.05rem; }
+.markdown-content p { margin: 0.65em 0; }
+.markdown-content ul,
+.markdown-content ol { margin: 0.65em 0 0.65em 1.1em; }
+.markdown-content li { margin: 0.25em 0; }
+.markdown-content blockquote {
+  margin: 0.8em 0;
+  padding: 0.6em 0.85em;
+  border-left: 3px solid rgba(27, 143, 74, 0.35);
+  background: rgba(27, 143, 74, 0.06);
+  border-radius: 12px;
+}
+.markdown-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.92em;
+}
+.markdown-content pre {
+  margin: 0.85em 0;
+  padding: 0.85em;
+  overflow: auto;
+  border-radius: 14px;
+  background: #0b1220;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+.markdown-content pre code { color: inherit; }
+.markdown-content table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0.85em 0;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.markdown-content table thead th {
+  background: rgba(148, 163, 184, 0.12);
+  text-align: left;
+  font-weight: 600;
+}
+.markdown-content table th,
+.markdown-content table td {
+  padding: 0.55em 0.65em;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+.markdown-content table tr:last-child td { border-bottom: none; }
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.markdown-content a { color: rgb(22 163 74); text-decoration: underline; }

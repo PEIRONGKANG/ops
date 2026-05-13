@@ -4,12 +4,14 @@ export const trim = (value) => String(value ?? "").trim();
 
 export function levelFromRole(role) {
   if (role === "admin") return "P1";
+  if (role === "teacher") return "T1";
   if (role === "manager") return "P2";
   return "P3";
 }
 
 export function roleFromLevel(level) {
   if (level === "P1") return "admin";
+  if (level === "T1") return "teacher";
   if (level === "P2") return "manager";
   return "student";
 }
@@ -63,6 +65,7 @@ export function normalizeTeacherNotice(noticeLike = {}) {
 
 export function levelLabel(level) {
   if (level === "P1") return "P1 最高权限";
+  if (level === "T1") return "T1 督导教师";
   if (level === "P2") return "P2 运营经理";
   return "P3 学生";
 }
