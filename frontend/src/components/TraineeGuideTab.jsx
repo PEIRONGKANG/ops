@@ -104,11 +104,30 @@ export function TraineeGuideTab() {
         <input className="field-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="例如：个人信息、电话、应急、交接…" />
       </div>
 
+      <div className="soft-card mt-4">
+        <div className="flex flex-wrap gap-2">
+          {HANDBOOK_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              className="pill-chip"
+              type="button"
+              onClick={() => {
+                setOpenIds((prev) => new Set([...prev, section.id]));
+                document.getElementById(`guide-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              {section.title}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-4 space-y-4">
         {filtered.map((section) => {
           const isOpen = openIds.has(section.id);
           return (
             <article key={section.id} className="soft-card">
+              <div id={`guide-${section.id}`} className="-mt-24 pt-24" />
               <button className="w-full text-left" type="button" onClick={() => toggleSection(section.id)}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -221,7 +240,7 @@ export function TraineeGuideTab() {
           );
         })}
       </div>
+      <button className="btn-secondary" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>返回顶部</button>
     </section>
   );
 }
-
