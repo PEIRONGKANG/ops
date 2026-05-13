@@ -120,6 +120,7 @@ async def pocketbase_proxy(full_path: str, request: Request):
 
     excluded = {
         "content-encoding",
+        "content-length",
         "transfer-encoding",
         "connection",
         "keep-alive",
