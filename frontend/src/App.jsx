@@ -115,6 +115,39 @@ const initialState = {
   teacherNoticeBusyId: "",
 };
 
+function defaultTabForLevel(level) {
+  if (level === "P3") return "training_tasks";
+  if (level === "P2") return "manager_dashboard";
+  if (level === "T1") return "supervisor_dashboard";
+  if (level === "P1") return "leader_dashboard";
+  return "daily";
+}
+
+function tabFromPathForLevel(pathname, level) {
+  const path = String(pathname || "/").replace(/\/+$/, "") || "/";
+  const map = {
+    "/dashboard/p1": "leader_dashboard",
+    "/dashboard/t1": "supervisor_dashboard",
+    "/dashboard/p2": "manager_dashboard",
+    "/dashboard/p3": "training_tasks",
+    "/account-management": "accounts",
+    "/semester-management": "semester_management",
+    "/completion-matrix": "completion_matrix",
+    "/trainee-guide": "trainee_guide",
+    "/training/tasks": "training_tasks",
+    "/training/progress": "training_progress",
+  };
+  const tab = map[path] || "";
+  if (!tab) return defaultTabForLevel(level);
+  if (tab === "accounts" && level !== "P1") return defaultTabForLevel(level);
+  if (tab === "semester_management" && !["P1", "T1"].includes(level)) return defaultTabForLevel(level);
+  if (tab === "leader_dashboard" && level !== "P1") return defaultTabForLevel(level);
+  if (tab === "supervisor_dashboard" && !["P1", "T1"].includes(level)) return defaultTabForLevel(level);
+  if (tab === "manager_dashboard" && level !== "P2") return defaultTabForLevel(level);
+  if (["completion_matrix", "training_progress"].includes(tab) && !["P1", "T1", "P2"].includes(level)) return defaultTabForLevel(level);
+  return tab;
+}
+
 function cloneValue(value) {
   if (typeof structuredClone === "function") return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
@@ -826,13 +859,7 @@ function App() {
               level: found.level,
               displayName: found.displayName,
             };
-            next.activeTab = (() => {
-              if (found.level === "P3") return "training_tasks";
-              if (found.level === "P2") return "manager_dashboard";
-              if (found.level === "T1") return "supervisor_dashboard";
-              if (found.level === "P1") return "leader_dashboard";
-              return "daily";
-            })();
+            next.activeTab = tabFromPathForLevel(window.location.pathname, found.level);
             next.currentSessionUsers = Array.isArray(storedSession.currentSessionUsers)
               ? storedSession.currentSessionUsers
               : (found.level === "P3" ? [found.username] : []);
@@ -1136,13 +1163,7 @@ function App() {
         currentSessionUsers: sessionUsers,
         activeScopeUser: first.user.level === "P3" ? first.user.username : "",
         scopeUserPinned: first.user.level === "P3",
-        activeTab: (() => {
-          if (first.user.level === "P3") return "training_tasks";
-          if (first.user.level === "P2") return "manager_dashboard";
-          if (first.user.level === "T1") return "supervisor_dashboard";
-          if (first.user.level === "P1") return "leader_dashboard";
-          return "daily";
-        })(),
+        activeTab: tabFromPathForLevel(window.location.pathname, first.user.level),
         loginForm: {
           ...stateRef.current.loginForm,
           password: "",
