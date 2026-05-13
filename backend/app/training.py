@@ -109,7 +109,8 @@ def build_router(require_current_user):
         if level in {"P1", "T1", "P2"}:
             published_only = False if published_only is False else True
         filter_expr = 'status=\"published\"' if published_only else ""
-        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr=filter_expr, sort="sort_order,created")
+        # PocketBase v0.38 returns 400 when sorting by system fields like `created`/`updated`.
+        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr=filter_expr, sort="sort_order,task_name")
         return {"tasks": tasks}
 
     @r.post("/tasks")
@@ -135,7 +136,7 @@ def build_router(require_current_user):
             pb,
             "Submissions",
             filter_expr=f'student_id="{student["id"]}"',
-            sort="-submitted_at,-created",
+            sort="-submitted_at",
             expand="task_id,student_id,reviewed_by",
         )
         return {"submissions": submissions, "student": student}
@@ -180,7 +181,7 @@ def build_router(require_current_user):
             submission = await pb.request("POST", "/api/collections/Submissions/records", json_body=record_payload)
 
         # Progress update (published tasks only).
-        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr='status=\"published\"', sort="sort_order,created")
+        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr='status=\"published\"', sort="sort_order,task_name")
         if tasks:
             completed = await _pb_list_all(
                 pb,
@@ -199,7 +200,7 @@ def build_router(require_current_user):
         if level not in {"P1", "T1", "P2"}:
             raise HTTPException(status_code=403, detail="权限不足。")
 
-        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr='status=\"published\"', sort="sort_order,created")
+        tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr='status=\"published\"', sort="sort_order,task_name")
         students = await _pb_list_all(pb, "Students", sort="student_no")
         submissions = await _pb_list_all(pb, "Submissions", sort="-submitted_at", expand="task_id,student_id")
 

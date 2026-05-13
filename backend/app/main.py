@@ -81,13 +81,6 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-# Training APIs (PocketBase-backed, unified with Ops login token).
-try:
-    app.include_router(build_router(require_current_user))
-except Exception as exc:
-    # Keep legacy Ops endpoints available even if PocketBase isn't configured.
-    print(f"[training] router disabled: {exc}")
-
 POCKETBASE_INTERNAL_URL = os.environ.get("OPS_POCKETBASE_INTERNAL_URL", "http://127.0.0.1:8090")
 
 
@@ -107,6 +100,14 @@ def require_current_user(authorization: Annotated[str | None, Header()] = None) 
     safe.pop("password", None)
     safe["sessionToken"] = token
     return safe
+
+
+# Training APIs (PocketBase-backed, unified with Ops login token).
+try:
+    app.include_router(build_router(require_current_user))
+except Exception as exc:
+    # Keep legacy Ops endpoints available even if PocketBase isn't configured.
+    print(f"[training] router disabled: {exc}")
 
 
 @app.on_event("startup")
