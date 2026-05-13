@@ -76,7 +76,7 @@ export function InteractiveExercise({ exercise, onSubmit, disabled }) {
       return { isCorrect: ok, score: ok ? maxScore : 0 };
     }
     return null;
-  }, [answer, exercise, maxScore, selected, textValue, type]);
+  }, [exercise, maxScore, selected, textValue, type]);
 
   const finalResult = result?.graded || result || null;
   const display = finalResult || localPreview;
@@ -143,4 +143,3 @@ export function InteractiveExercise({ exercise, onSubmit, disabled }) {
     </div>
   );
 }
-

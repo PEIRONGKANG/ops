@@ -242,7 +242,6 @@ def main() -> int:
             ],
             "indexes": [
                 "CREATE UNIQUE INDEX idx_students_student_no ON Students(student_no)",
-                "CREATE UNIQUE INDEX idx_students_user_id ON Students(user_id)",
             ],
             "listRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.role_code != 'P3')",
             "viewRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.role_code != 'P3')",
