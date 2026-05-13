@@ -1,4 +1,10 @@
-const API_BASE = import.meta.env?.VITE_API_BASE || "/api";
+function normalizeApiBase(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  if (!raw) return "/api";
+  return raw.endsWith("/api") ? raw : `${raw}/api`;
+}
+
+const API_BASE = normalizeApiBase(import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_BASE);
 const DEFAULT_TIMEOUT_MS = 60_000;
 const AUTH_TOKEN_KEY = "ops_training_auth_token_v1";
 
