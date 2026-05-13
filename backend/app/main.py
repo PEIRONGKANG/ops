@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import StreamingResponse
 
 from .database import (
     create_user,
@@ -131,10 +130,13 @@ async def pocketbase_proxy(full_path: str, request: Request):
         "upgrade",
     }
     response_headers = {k: v for k, v in upstream_resp.headers.items() if k.lower() not in excluded}
-    return StreamingResponse(
-        upstream_resp.aiter_raw(),
+    content_type = upstream_resp.headers.get("content-type")
+    # Avoid streaming the httpx response out of its context manager (StreamConsumed).
+    return Response(
+        content=upstream_resp.content,
         status_code=upstream_resp.status_code,
         headers=response_headers,
+        media_type=content_type,
     )
 
 
