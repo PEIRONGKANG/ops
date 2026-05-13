@@ -134,7 +134,7 @@ def build_router(require_current_user):
         submissions = await _pb_list_all(
             pb,
             "Submissions",
-            filter_expr=f'student_id=\"{student[\"id\"]}\"',
+            filter_expr=f'student_id="{student["id"]}"',
             sort="-submitted_at,-created",
             expand="task_id,student_id,reviewed_by",
         )
@@ -159,7 +159,7 @@ def build_router(require_current_user):
 
         student = await _ensure_student_record(pb, current_user)
 
-        existing = await _pb_first(pb, "Submissions", filter_expr=f'student_id=\"{student[\"id\"]}\" && task_id=\"{task_id}\"')
+        existing = await _pb_first(pb, "Submissions", filter_expr=f'student_id="{student["id"]}" && task_id="{task_id}"')
         record_payload = {
             "student_id": student["id"],
             "task_id": task_id,
@@ -185,7 +185,7 @@ def build_router(require_current_user):
             completed = await _pb_list_all(
                 pb,
                 "Submissions",
-                filter_expr=f'student_id=\"{student[\"id\"]}\" && status=\"completed\"',
+                filter_expr=f'student_id="{student["id"]}" && status="completed"',
                 sort="-submitted_at",
             )
             progress = int(round((len(completed) / len(tasks)) * 100))
