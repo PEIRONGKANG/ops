@@ -39,6 +39,11 @@ def _grade(exercise: dict, submitted: Any) -> dict:
 
     if ex_type in {"text_input", "short_answer"}:
         submitted_text = _trim(submitted).lower()
+        keywords = exercise.get("keywords")
+        if isinstance(keywords, list) and keywords:
+            normalized_keywords = [_trim(item).lower() for item in keywords if _trim(item)]
+            matched = bool(normalized_keywords) and all(keyword in submitted_text for keyword in normalized_keywords)
+            return result(matched, "回答正确" if matched else "回答不完整，请补充关键表达")
         answer_text = _trim(answer).lower()
         return result(submitted_text == answer_text and bool(answer_text), "回答正确" if submitted_text == answer_text else "回答不正确")
 

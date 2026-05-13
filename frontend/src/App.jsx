@@ -13,6 +13,8 @@ import { TrainingTasksTab } from "./components/TrainingTasksTab";
 import { TraineeGuideTab } from "./components/TraineeGuideTab";
 import { TrainingProgressTab } from "./components/TrainingProgressTab";
 import { CompletionMatrixTab } from "./components/CompletionMatrixTab";
+import { SemesterManagementTab } from "./components/SemesterManagementTab";
+import { LeaderDashboardTab } from "./components/LeaderDashboardTab";
 import { TAB_ITEMS } from "./lib/constants";
 import {
   adjustToWednesday,
@@ -100,6 +102,8 @@ const initialState = {
   editForm: {
     displayName: "",
     password: "",
+    level: "P3",
+    isActive: true,
   },
   teacherNotices: [],
   teacherNoticeForm: {
@@ -612,6 +616,8 @@ function App() {
     const target = sorted.find((user) => user.username === fallbackId);
     source.editForm.displayName = target?.displayName || "";
     source.editForm.password = target?.password || "";
+    source.editForm.level = target?.level || "P3";
+    source.editForm.isActive = target?.isActive !== false;
   };
 
   const requireCurrentWeek = (message) => {
@@ -822,9 +828,9 @@ function App() {
             };
             next.activeTab = (() => {
               if (found.level === "P3") return "training_tasks";
-              if (found.level === "P2") return "daily";
-              if (found.level === "T1") return "completion_matrix";
-              if (found.level === "P1") return "completion_matrix";
+              if (found.level === "P2") return "manager_dashboard";
+              if (found.level === "T1") return "supervisor_dashboard";
+              if (found.level === "P1") return "leader_dashboard";
               return "daily";
             })();
             next.currentSessionUsers = Array.isArray(storedSession.currentSessionUsers)
@@ -850,6 +856,12 @@ function App() {
             }
           } catch {
             clearAuthToken();
+          }
+          try {
+            const notices = await api.listTeacherNotices();
+            patchState({ teacherNotices: (notices?.notices || []).map(normalizeTeacherNotice) });
+          } catch {
+            // Authenticated notice fetch is best-effort during session restore.
           }
           await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
         }
@@ -991,8 +1003,8 @@ function App() {
 
   const handleTeacherNoticeCreate = async (draftOverride = {}) => runAction(async () => {
     const actor = currentUser || getCurrentUserRecord();
-    if (!actor || actor.level !== "P1") {
-      throw new Error("只有 P1 教师可以发布留言。");
+    if (!actor || !["P1", "T1"].includes(actor.level)) {
+      throw new Error("只有 P1/T1 可以发布留言。");
     }
 
     const title = trim(draftOverride.title || app.teacherNoticeForm.title);
@@ -1126,9 +1138,9 @@ function App() {
         scopeUserPinned: first.user.level === "P3",
         activeTab: (() => {
           if (first.user.level === "P3") return "training_tasks";
-          if (first.user.level === "P2") return "daily";
-          if (first.user.level === "T1") return "completion_matrix";
-          if (first.user.level === "P1") return "completion_matrix";
+          if (first.user.level === "P2") return "manager_dashboard";
+          if (first.user.level === "T1") return "supervisor_dashboard";
+          if (first.user.level === "P1") return "leader_dashboard";
           return "daily";
         })(),
         loginForm: {
@@ -1150,6 +1162,12 @@ function App() {
         }
       } catch {
         // Ignore; token may be absent/expired for older servers.
+      }
+      try {
+        const notices = await api.listTeacherNotices();
+        patchState({ teacherNotices: (notices?.notices || []).map(normalizeTeacherNotice) });
+      } catch {
+        // Ignore; notice endpoints require a valid login token.
       }
 
       await loadWeekForCurrentScope(
@@ -1693,7 +1711,6 @@ function App() {
       throw new Error("新密码不能为空。");
     }
     const updated = {
-      ...current,
       password: trim(app.passwordForm.newPassword),
       passwordUpdatedAt: new Date().toLocaleString(),
     };
@@ -1736,7 +1753,8 @@ function App() {
       password: trim(form.password),
       level: form.level,
       role: roleFromLevel(form.level),
-      ownerType: form.level === "P3" ? "Student" : (form.level === "P2" ? "OM(Operations Manager)" : "Teacher"),
+      ownerType: form.level === "P3" ? "Student" : (form.level === "P2" ? "OM(Operations Manager)" : (form.level === "T1" ? "Supervisor" : "Teacher")),
+      isActive: true,
       nameUpdatedAt: new Date().toLocaleString(),
       passwordUpdatedAt: new Date().toLocaleString(),
     };
@@ -1777,9 +1795,12 @@ function App() {
       throw new Error("姓名和密码不能为空。");
     }
     const updated = {
-      ...target,
       displayName: trim(stateRef.current.editForm.displayName),
       password: trim(stateRef.current.editForm.password),
+      level: stateRef.current.editForm.level,
+      role: roleFromLevel(stateRef.current.editForm.level),
+      ownerType: stateRef.current.editForm.level === "P3" ? "Student" : (stateRef.current.editForm.level === "P2" ? "OM(Operations Manager)" : (stateRef.current.editForm.level === "T1" ? "Supervisor" : "Teacher")),
+      isActive: stateRef.current.editForm.isActive,
       nameUpdatedAt: target.displayName !== trim(stateRef.current.editForm.displayName) ? new Date().toLocaleString() : target.nameUpdatedAt,
       passwordUpdatedAt: target.password !== trim(stateRef.current.editForm.password) ? new Date().toLocaleString() : target.passwordUpdatedAt,
     };
@@ -1942,13 +1963,22 @@ function App() {
       return [training[0], ...base, training[3]];
     }
     if (level === "P2") {
-      return [...base, training[1], training[2], training[3]];
+      return [{ key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
     }
     if (level === "T1") {
-      return [training[2], training[1], ...base, training[3]];
+      return [{ key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
     }
     if (level === "P1") {
-      return [training[2], training[1], ...base, training[3], { key: "accounts", label: "账号管理" }];
+      return [
+        { key: "leader_dashboard", label: "领导驾驶舱" },
+        training[2],
+        training[1],
+        { key: "training_tasks", label: "实训任务管理" },
+        ...base,
+        training[3],
+        { key: "semester_management", label: "学期管理" },
+        { key: "accounts", label: "账号管理" },
+      ];
     }
     return [...base, training[3]];
   })();
@@ -2017,7 +2047,7 @@ function App() {
     : [];
   const noticeBoardProps = {
     notices: app.teacherNotices,
-    canCompose: currentUser?.level === "P1",
+    canCompose: ["P1", "T1"].includes(currentUser?.level),
     composeForm: app.teacherNoticeForm,
     composePending: app.teacherNoticeSaving,
     activeActionId: app.teacherNoticeBusyId,
@@ -2088,6 +2118,26 @@ function App() {
 
       {app.activeTab === "trainee_guide" ? (
         <TraineeGuideTab />
+      ) : null}
+
+      {app.activeTab === "semester_management" ? (
+        <SemesterManagementTab currentUser={currentUser} />
+      ) : null}
+
+      {app.activeTab === "leader_dashboard" ? (
+        <LeaderDashboardTab />
+      ) : null}
+
+      {["supervisor_dashboard", "manager_dashboard"].includes(app.activeTab) ? (
+        <section className="module-shell">
+          <div className="soft-card">
+            <p className="module-kicker">{activeTabItem?.label || "工作台"}</p>
+            <h2 className="section-title mt-2">{activeTabItem?.label || "工作台"}</h2>
+            <p className="status-line mt-3">
+              当前角色入口已接入主系统；详细驾驶舱指标将在 P1 阶段继续补齐。可先通过左侧进入完成状态总览、学生实训进度、岗位说明和账号/学期管理。
+            </p>
+          </div>
+        </section>
       ) : null}
 
       {app.activeTab === "creative" && currentWeek ? (
@@ -2536,6 +2586,42 @@ function App() {
                     <p className="module-kicker">Weekly Preparation</p>
                     <h2 className="section-title mt-2">请先加载本周</h2>
                     <p className="status-line mt-4">左侧选择轮值起始日后，点击“加载/创建本周”，再进入各业务模块录入或确认数据。</p>
+                  </section>
+                ) : null}
+
+                {app.activeTab === "training_tasks" && currentUser ? (
+                  <TrainingTasksTab currentUser={currentUser} />
+                ) : null}
+
+                {app.activeTab === "training_progress" ? (
+                  <TrainingProgressTab />
+                ) : null}
+
+                {app.activeTab === "completion_matrix" ? (
+                  <CompletionMatrixTab selectedWeekStart={selectedSidebarWeekStart} users={app.users} />
+                ) : null}
+
+                {app.activeTab === "trainee_guide" ? (
+                  <TraineeGuideTab />
+                ) : null}
+
+                {app.activeTab === "semester_management" ? (
+                  <SemesterManagementTab currentUser={currentUser} />
+                ) : null}
+
+                {app.activeTab === "leader_dashboard" ? (
+                  <LeaderDashboardTab />
+                ) : null}
+
+                {["supervisor_dashboard", "manager_dashboard"].includes(app.activeTab) ? (
+                  <section className="module-shell">
+                    <div className="soft-card">
+                      <p className="module-kicker">{activeTabItem?.label || "工作台"}</p>
+                      <h2 className="section-title mt-2">{activeTabItem?.label || "工作台"}</h2>
+                      <p className="status-line mt-3">
+                        当前角色入口已接入主系统；详细驾驶舱指标将在 P1 阶段继续补齐。可先通过左侧进入完成状态总览、学生实训进度、岗位说明和账号/学期管理。
+                      </p>
+                    </div>
                   </section>
                 ) : null}
 

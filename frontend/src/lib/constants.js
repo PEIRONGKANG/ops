@@ -28,6 +28,7 @@ export const DEFAULT_USERS = [
   { username: "2401280120", password: "2401280120", role: "student", level: "P3", displayName: "刘月", ownerType: "Student" },
   { username: "103085", password: "103085", role: "admin", level: "P1", displayName: "周欣", ownerType: "Teacher" },
   { username: "122019", password: "122019", role: "admin", level: "P1", displayName: "裴荣康", ownerType: "Teacher" },
+  { username: "t1_teacher", password: "t1_teacher", role: "supervisor", level: "T1", displayName: "督导教师测试账号", ownerType: "Supervisor" },
   { username: "2301180107", password: "2301180107", role: "manager", level: "P2", displayName: "史燕香", ownerType: "OM(Operations Manager)" },
   { username: "425021", password: "425021", role: "admin", level: "P1", displayName: "王谦", ownerType: "Teacher" },
 ];

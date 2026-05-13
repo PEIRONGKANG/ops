@@ -27,6 +27,7 @@ class UserPayload(BaseModel):
     ownerType: str = ""
     passwordUpdatedAt: str = ""
     nameUpdatedAt: str = ""
+    isActive: bool = True
 
 
 class TeacherNoticePayload(BaseModel):

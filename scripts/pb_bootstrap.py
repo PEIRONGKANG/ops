@@ -374,6 +374,59 @@ def main() -> int:
         },
     )
 
+    cols = {c["name"]: c["id"] for c in list_collections(token)}
+    semesters_id = cols.get("Semesters") or "Semesters"
+
+    upsert_collection(
+        token,
+        {
+            "name": "Semesters",
+            "type": "base",
+            "fields": [
+                {"name": "academic_year_start", "type": "number", "required": True, "presentable": True, "system": False, "hidden": False, "min": 2000, "max": 2100},
+                {"name": "academic_year_end", "type": "number", "required": True, "presentable": True, "system": False, "hidden": False, "min": 2000, "max": 2100},
+                {"name": "semester_number", "type": "select", "required": True, "presentable": True, "system": False, "hidden": False, "maxSelect": 1, "values": ["第一学期", "第二学期", "第三学期"]},
+                {"name": "season", "type": "select", "required": True, "presentable": True, "system": False, "hidden": False, "maxSelect": 1, "values": ["春季学期", "秋季学期", "夏季学期", "冬季学期"]},
+                {"name": "display_name", "type": "text", "required": True, "presentable": True, "system": False, "hidden": False, "min": 0, "max": 255, "pattern": ""},
+                {"name": "first_week_start_date", "type": "date", "required": True, "presentable": True, "system": False, "hidden": False},
+                {"name": "weeks_count", "type": "number", "required": False, "presentable": True, "system": False, "hidden": False, "min": 1, "max": 30},
+                {"name": "status", "type": "select", "required": True, "presentable": True, "system": False, "hidden": False, "maxSelect": 1, "values": ["not_started", "active", "ended", "archived"]},
+                {"name": "created_by", "type": "text", "required": False, "presentable": True, "system": False, "hidden": False, "min": 0, "max": 255, "pattern": ""},
+            ],
+            "indexes": ["CREATE UNIQUE INDEX idx_semesters_display_name ON Semesters(display_name)"],
+            "listRule": "@request.auth.id != ''",
+            "viewRule": "@request.auth.id != ''",
+            "createRule": "@request.auth.role_code = 'P1'",
+            "updateRule": "@request.auth.role_code = 'P1'",
+            "deleteRule": "@request.auth.role_code = 'P1'",
+        },
+    )
+
+    cols = {c["name"]: c["id"] for c in list_collections(token)}
+    semesters_id = cols.get("Semesters") or semesters_id
+
+    upsert_collection(
+        token,
+        {
+            "name": "Teaching_Weeks",
+            "type": "base",
+            "fields": [
+                {"name": "semester_id", "type": "relation", "required": True, "presentable": True, "system": False, "hidden": False, "collectionId": semesters_id, "cascadeDelete": True, "minSelect": 0, "maxSelect": 1, "displayFields": None},
+                {"name": "week_number", "type": "number", "required": True, "presentable": True, "system": False, "hidden": False, "min": 1, "max": 40},
+                {"name": "start_date", "type": "date", "required": True, "presentable": True, "system": False, "hidden": False},
+                {"name": "end_date", "type": "date", "required": True, "presentable": True, "system": False, "hidden": False},
+                {"name": "display_name", "type": "text", "required": True, "presentable": True, "system": False, "hidden": False, "min": 0, "max": 80, "pattern": ""},
+                {"name": "is_current", "type": "bool", "required": False, "presentable": True, "system": False, "hidden": False},
+            ],
+            "indexes": ["CREATE UNIQUE INDEX idx_teaching_weeks_semester_week ON Teaching_Weeks(semester_id, week_number)"],
+            "listRule": "@request.auth.id != ''",
+            "viewRule": "@request.auth.id != ''",
+            "createRule": "@request.auth.role_code = 'P1'",
+            "updateRule": "@request.auth.role_code = 'P1'",
+            "deleteRule": "@request.auth.role_code = 'P1'",
+        },
+    )
+
     print("PocketBase bootstrap: OK")
     return 0
 

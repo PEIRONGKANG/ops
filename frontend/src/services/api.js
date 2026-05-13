@@ -174,6 +174,21 @@ export const api = {
   trainingProgress() {
     return request("/training/progress");
   },
+  listSemesters() {
+    return request("/semesters");
+  },
+  createSemester(payload) {
+    return request("/semesters", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  listOperationLogs(limit = 100) {
+    return request(`/operation-logs?limit=${encodeURIComponent(limit)}`);
+  },
+  p1Dashboard() {
+    return request("/dashboard/p1");
+  },
   fetchWeek(scopeUser, startDate, options = {}) {
     const params = new URLSearchParams();
     if (options.includeMedia === false) {

@@ -106,6 +106,7 @@ DEFAULT_USERS = [
     {"username": "2401280120", "password": "2401280120", "role": "student", "level": "P3", "display_name": "刘月", "owner_type": "Student"},
     {"username": "103085", "password": "103085", "role": "admin", "level": "P1", "display_name": "周欣", "owner_type": "Teacher"},
     {"username": "122019", "password": "122019", "role": "admin", "level": "P1", "display_name": "裴荣康", "owner_type": "Teacher"},
+    {"username": "t1_teacher", "password": "t1_teacher", "role": "supervisor", "level": "T1", "display_name": "督导教师测试账号", "owner_type": "Supervisor"},
     {"username": "2301180107", "password": "2301180107", "role": "manager", "level": "P2", "display_name": "史燕香", "owner_type": "OM(Operations Manager)"},
     {"username": "425021", "password": "425021", "role": "admin", "level": "P1", "display_name": "王谦", "owner_type": "Teacher"},
 ]
@@ -132,7 +133,16 @@ def _row_to_user(row: sqlite3.Row) -> dict:
         "ownerType": row["owner_type"],
         "passwordUpdatedAt": row["password_updated_at"],
         "nameUpdatedAt": row["name_updated_at"],
+        "isActive": bool(row["is_active"]) if "is_active" in row.keys() else True,
+        "createdAt": row["created_at"] if "created_at" in row.keys() else "",
+        "lastLoginAt": row["last_login_at"] if "last_login_at" in row.keys() else "",
     }
+
+
+def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def _row_to_notice_receipt(row: sqlite3.Row) -> dict:
@@ -175,7 +185,10 @@ def init_db() -> None:
                 display_name TEXT NOT NULL,
                 owner_type TEXT NOT NULL DEFAULT '',
                 password_updated_at TEXT NOT NULL DEFAULT '',
-                name_updated_at TEXT NOT NULL DEFAULT ''
+                name_updated_at TEXT NOT NULL DEFAULT '',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT '',
+                last_login_at TEXT NOT NULL DEFAULT ''
             );
 
             CREATE TABLE IF NOT EXISTS week_groups (
@@ -218,8 +231,22 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS operation_logs (
+                id TEXT PRIMARY KEY,
+                actor_username TEXT NOT NULL DEFAULT '',
+                actor_level TEXT NOT NULL DEFAULT '',
+                action TEXT NOT NULL,
+                target_type TEXT NOT NULL DEFAULT '',
+                target_id TEXT NOT NULL DEFAULT '',
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL
+            );
             """
         )
+        _ensure_column(connection, "users", "is_active", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(connection, "users", "created_at", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(connection, "users", "last_login_at", "TEXT NOT NULL DEFAULT ''")
 
         existing = {
             row["username"]
@@ -232,8 +259,9 @@ def init_db() -> None:
                 """
                 INSERT INTO users (
                     username, password, role, level, display_name,
-                    owner_type, password_updated_at, name_updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, '', '')
+                    owner_type, password_updated_at, name_updated_at,
+                    is_active, created_at, last_login_at
+                ) VALUES (?, ?, ?, ?, ?, ?, '', '', 1, ?, '')
                 """,
                 (
                     user["username"],
@@ -242,6 +270,7 @@ def init_db() -> None:
                     user["level"],
                     user["display_name"],
                     user["owner_type"],
+                    _now_iso(),
                 ),
             )
         connection.commit()
@@ -301,7 +330,8 @@ def list_users() -> list[dict]:
         rows = connection.execute(
             """
             SELECT username, password, role, level, display_name,
-                   owner_type, password_updated_at, name_updated_at
+                   owner_type, password_updated_at, name_updated_at,
+                   is_active, created_at, last_login_at
             FROM users
             ORDER BY username
             """
@@ -314,7 +344,8 @@ def get_user(username: str) -> dict | None:
         row = connection.execute(
             """
             SELECT username, password, role, level, display_name,
-                   owner_type, password_updated_at, name_updated_at
+                   owner_type, password_updated_at, name_updated_at,
+                   is_active, created_at, last_login_at
             FROM users
             WHERE username = ?
             """,
@@ -328,12 +359,19 @@ def verify_user(username: str, password: str) -> dict | None:
         row = connection.execute(
             """
             SELECT username, password, role, level, display_name,
-                   owner_type, password_updated_at, name_updated_at
+                   owner_type, password_updated_at, name_updated_at,
+                   is_active, created_at, last_login_at
             FROM users
-            WHERE username = ? AND password = ?
+            WHERE username = ? AND password = ? AND is_active = 1
             """,
             (username, password),
         ).fetchone()
+        if row:
+            connection.execute(
+                "UPDATE users SET last_login_at = ? WHERE username = ?",
+                (_now_iso(), username),
+            )
+            connection.commit()
     return _row_to_user(row) if row else None
 
 
@@ -343,8 +381,9 @@ def create_user(payload: dict) -> dict:
             """
             INSERT INTO users (
                 username, password, role, level, display_name,
-                owner_type, password_updated_at, name_updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                owner_type, password_updated_at, name_updated_at,
+                is_active, created_at, last_login_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["username"],
@@ -355,6 +394,9 @@ def create_user(payload: dict) -> dict:
                 payload.get("ownerType", ""),
                 payload.get("passwordUpdatedAt", ""),
                 payload.get("nameUpdatedAt", ""),
+                1 if payload.get("isActive", True) else 0,
+                payload.get("createdAt") or _now_iso(),
+                payload.get("lastLoginAt", ""),
             ),
         )
         connection.commit()
@@ -372,7 +414,8 @@ def update_user(username: str, payload: dict) -> dict:
                 display_name = ?,
                 owner_type = ?,
                 password_updated_at = ?,
-                name_updated_at = ?
+                name_updated_at = ?,
+                is_active = ?
             WHERE username = ?
             """,
             (
@@ -383,11 +426,91 @@ def update_user(username: str, payload: dict) -> dict:
                 payload.get("ownerType", ""),
                 payload.get("passwordUpdatedAt", ""),
                 payload.get("nameUpdatedAt", ""),
+                1 if payload.get("isActive", True) else 0,
                 username,
             ),
         )
         connection.commit()
     return get_user(username)
+
+
+def create_operation_log(actor: dict | None, action: str, target_type: str = "", target_id: str = "", detail: dict | None = None) -> dict:
+    log_id = uuid4().hex
+    row = {
+        "id": log_id,
+        "actor_username": (actor or {}).get("username", ""),
+        "actor_level": (actor or {}).get("level", ""),
+        "action": action,
+        "target_type": target_type,
+        "target_id": target_id,
+        "detail": json.dumps(detail or {}, ensure_ascii=False),
+        "created_at": _now_iso(),
+    }
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO operation_logs (
+                id, actor_username, actor_level, action, target_type,
+                target_id, detail, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row["id"],
+                row["actor_username"],
+                row["actor_level"],
+                row["action"],
+                row["target_type"],
+                row["target_id"],
+                row["detail"],
+                row["created_at"],
+            ),
+        )
+        connection.commit()
+    row["detail"] = detail or {}
+    return {
+        "id": row["id"],
+        "actorUsername": row["actor_username"],
+        "actorLevel": row["actor_level"],
+        "action": row["action"],
+        "targetType": row["target_type"],
+        "targetId": row["target_id"],
+        "detail": row["detail"],
+        "createdAt": row["created_at"],
+    }
+
+
+def list_operation_logs(limit: int = 100) -> list[dict]:
+    safe_limit = max(1, min(int(limit or 100), 500))
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, actor_username, actor_level, action, target_type,
+                   target_id, detail, created_at
+            FROM operation_logs
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+    logs = []
+    for row in rows:
+        try:
+            detail = json.loads(row["detail"] or "{}")
+        except json.JSONDecodeError:
+            detail = {}
+        logs.append(
+            {
+                "id": row["id"],
+                "actorUsername": row["actor_username"],
+                "actorLevel": row["actor_level"],
+                "action": row["action"],
+                "targetType": row["target_type"],
+                "targetId": row["target_id"],
+                "detail": detail,
+                "createdAt": row["created_at"],
+            }
+        )
+    return logs
 
 
 def delete_user(username: str) -> bool:

@@ -4,7 +4,7 @@ export const trim = (value) => String(value ?? "").trim();
 
 export function levelFromRole(role) {
   if (role === "admin") return "P1";
-  if (role === "teacher") return "T1";
+  if (role === "teacher" || role === "supervisor") return "T1";
   if (role === "manager") return "P2";
   return "P3";
 }
@@ -30,6 +30,9 @@ export function normalizeUser(userLike = {}) {
     ownerType: trim(userLike.ownerType || ""),
     passwordUpdatedAt: userLike.passwordUpdatedAt || "",
     nameUpdatedAt: userLike.nameUpdatedAt || "",
+    isActive: userLike.isActive !== false,
+    createdAt: userLike.createdAt || "",
+    lastLoginAt: userLike.lastLoginAt || "",
   };
 }
 

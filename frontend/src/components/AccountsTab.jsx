@@ -72,6 +72,7 @@ export function AccountsTab({
                 <label className="field-label">权限等级</label>
                 <select className="field-input" value={newUserForm.level} onChange={(event) => onNewUserChange("level", event.target.value)}>
                   <option value="P3">P3 学生</option>
+                  <option value="T1">T1 督导教师</option>
                   <option value="P2">P2 运营经理</option>
                   <option value="P1">P1 最高权限</option>
                 </select>
@@ -86,7 +87,7 @@ export function AccountsTab({
 
       {isTop ? (
         <div className="soft-card">
-          <h3 className="panel-title">修改已有账号（姓名 / 密码）</h3>
+          <h3 className="panel-title">修改已有账号（姓名 / 密码 / 权限）</h3>
           <label className="field-label">选择账号</label>
           <select className="field-input" value={editUserId} onChange={(event) => onEditUserSelect(event.target.value)}>
             {users.map((user) => (
@@ -104,6 +105,22 @@ export function AccountsTab({
             <div>
               <label className="field-label">新密码</label>
               <input className="field-input" type="password" value={editForm.password} onChange={(event) => onEditFormChange("password", event.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">权限等级</label>
+              <select className="field-input" value={editForm.level} onChange={(event) => onEditFormChange("level", event.target.value)}>
+                <option value="P3">P3 学生</option>
+                <option value="P2">P2 运营经理</option>
+                <option value="T1">T1 督导教师</option>
+                <option value="P1">P1 最高权限</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label">账号状态</label>
+              <select className="field-input" value={editForm.isActive ? "active" : "inactive"} onChange={(event) => onEditFormChange("isActive", event.target.value === "active")}>
+                <option value="active">启用</option>
+                <option value="inactive">停用</option>
+              </select>
             </div>
           </div>
 
@@ -127,7 +144,7 @@ export function AccountsTab({
             <div key={user.username} className="status-line">
               {user.displayName}（{user.username}） - {user.level}
               {isTop
-                ? `，密码：${user.password || "-"}，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
+                ? `，状态：${user.isActive === false ? "停用" : "启用"}，密码：${user.password || "-"}，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
                 : `，角色：${user.level}`}
             </div>
           ))}
