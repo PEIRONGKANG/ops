@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 import { FilePickerButton } from "./MediaBlocks";
 
 function ReceiptSummary({ receipts }) {
@@ -132,23 +130,19 @@ export function TeacherNoticeBoard({
   activeActionId,
   acknowledgedNoticeIds,
   acknowledgementLabel,
+  onComposeFieldChange,
   onComposeImagesAdd,
   onComposeImageRemove,
   onComposeSubmit,
   onAcknowledge,
   onDeleteNotice,
 }) {
-  const titleRef = useRef(null);
-  const messageRef = useRef(null);
-
   const handlePublish = async () => {
     const ok = await onComposeSubmit({
-      title: titleRef.current?.value || "",
-      message: messageRef.current?.value || "",
+      title: composeForm.title || "",
+      message: composeForm.message || "",
     });
-    if (!ok) return;
-    if (titleRef.current) titleRef.current.value = "";
-    if (messageRef.current) messageRef.current.value = "";
+    return ok;
   };
 
   return (
@@ -167,9 +161,9 @@ export function TeacherNoticeBoard({
             <label className="ops-notice-field">
               <span>留言标题</span>
               <input
-                ref={titleRef}
                 className="field-input"
-                defaultValue={composeForm.title}
+                value={composeForm.title}
+                onChange={(event) => onComposeFieldChange?.("title", event.target.value)}
                 placeholder="例如：本周迎检重点 / 饮品演示安排"
               />
             </label>
@@ -177,9 +171,9 @@ export function TeacherNoticeBoard({
             <label className="ops-notice-field full">
               <span>留言内容</span>
               <textarea
-                ref={messageRef}
                 className="field-input ops-notice-textarea"
-                defaultValue={composeForm.message}
+                value={composeForm.message}
+                onChange={(event) => onComposeFieldChange?.("message", event.target.value)}
                 placeholder="输入带教老师希望全体成员在登录前后都能看到的文字说明。"
               />
             </label>

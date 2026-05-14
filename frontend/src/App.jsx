@@ -907,7 +907,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const currentUser = getCurrentUserRecord();
+  const currentUser = getCurrentUserRecord() || app.currentUser;
   const currentWeek = app.currentWeekKey ? app.weeks[app.currentWeekKey] : null;
   const selectedSidebarWeekStart = adjustToWednesday(app.selectedWeekStart || todayISO());
   const currentWeekGroup = app.weekGroups[selectedSidebarWeekStart] || createEmptyWeekGroup();
@@ -2074,6 +2074,7 @@ function App() {
     activeActionId: app.teacherNoticeBusyId,
     acknowledgedNoticeIds,
     acknowledgementLabel: teacherNoticeReceiptTargets.length > 1 ? "本组信息收到" : "信息收到",
+    onComposeFieldChange: (field, value) => patchNestedState("teacherNoticeForm", { [field]: value }),
     onComposeImagesAdd: handleTeacherNoticeImagesAdd,
     onComposeImageRemove: handleTeacherNoticeImageRemove,
     onComposeSubmit: handleTeacherNoticeCreate,
