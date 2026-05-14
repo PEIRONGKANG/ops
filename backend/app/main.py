@@ -29,6 +29,7 @@ from .database import (
     init_db,
     list_week_scopes,
     list_users,
+    list_users_for_client,
     list_operation_logs,
     list_teacher_notices,
     MEDIA_DIR,
@@ -38,6 +39,7 @@ from .database import (
     update_user,
     verify_user,
 )
+from .password_crypto import verify_password_view_passphrase
 from .schemas import (
     LoginRequest,
     TeacherNoticePayload,
@@ -137,6 +139,8 @@ def _merge_account_payload(existing: dict, payload: dict) -> dict:
     merged = {**existing}
     for key, value in payload.items():
         if key in {"username", "createdAt", "lastLoginAt"}:
+            continue
+        if key == "password" and value == "":
             continue
         merged[key] = value
     if "level" in payload and "role" not in payload:
@@ -308,12 +312,23 @@ def logout(current_user: dict = Depends(require_current_user)) -> Response:
 def accounts(current_user: dict = Depends(require_current_user)) -> dict:
     level = current_user.get("level") or ""
     if level == "P1":
-        return {"users": list_users()}
+        return {"users": list_users_for_client(include_passwords=False)}
     # Non-P1 users can only see their own non-sensitive profile.
     user = get_user(current_user["username"])
-    safe = {**(user or {})}
-    safe.pop("password", None)
+    safe = _safe_user(user)
     return {"users": [safe] if safe else []}
+
+
+@app.post("/api/accounts/passwords/unlock")
+def unlock_account_passwords(payload: dict = Body(default_factory=dict), current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") != "P1":
+        raise HTTPException(status_code=403, detail="仅 P1 可查看账号密码。")
+    passphrase = payload.get("passphrase") or payload.get("password") or ""
+    if not verify_password_view_passphrase(passphrase):
+        create_operation_log(current_user, "account_password_unlock_failed", "account", "*", {})
+        raise HTTPException(status_code=403, detail="口令错误。")
+    create_operation_log(current_user, "account_password_unlock", "account", "*", {})
+    return {"users": list_users_for_client(include_passwords=True, passphrase=passphrase)}
 
 
 @app.get("/api/teacher-notices")
@@ -373,7 +388,7 @@ def create_account(payload: UserPayload, current_user: dict = Depends(require_cu
         raise HTTPException(status_code=409, detail="账号已存在。")
     user = create_user(payload.model_dump())
     create_operation_log(current_user, "account_create", "account", payload.username, {"level": payload.level})
-    return {"user": user}
+    return {"user": _safe_user(user)}
 
 
 @app.put("/api/accounts/{username}")
@@ -411,7 +426,7 @@ def update_account(
     if current_user.get("level") == "P1":
         action = "account_permission_update" if sensitive_changed else "account_update"
         create_operation_log(current_user, action, "account", username, sensitive_changed or {"fields": sorted(payload.keys())})
-    return {"user": updated}
+    return {"user": _safe_user(updated)}
 
 
 @app.delete("/api/accounts/{username}", status_code=204)

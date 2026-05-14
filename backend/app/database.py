@@ -12,6 +12,8 @@ from pathlib import Path
 from uuid import uuid4
 from datetime import timedelta
 
+from .password_crypto import decrypt_password, encrypt_password, is_encrypted_password
+
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "backend" / "data"
@@ -137,6 +139,12 @@ def _row_to_user(row: sqlite3.Row) -> dict:
         "createdAt": row["created_at"] if "created_at" in row.keys() else "",
         "lastLoginAt": row["last_login_at"] if "last_login_at" in row.keys() else "",
     }
+
+
+def _redact_password(user: dict) -> dict:
+    safe = {**user}
+    safe["password"] = ""
+    return safe
 
 
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -265,7 +273,7 @@ def init_db() -> None:
                 """,
                 (
                     user["username"],
-                    user["password"],
+                    encrypt_password(user["password"]),
                     user["role"],
                     user["level"],
                     user["display_name"],
@@ -273,6 +281,13 @@ def init_db() -> None:
                     _now_iso(),
                 ),
             )
+        rows = connection.execute("SELECT username, password FROM users").fetchall()
+        for row in rows:
+            if not is_encrypted_password(row["password"]):
+                connection.execute(
+                    "UPDATE users SET password = ? WHERE username = ?",
+                    (encrypt_password(row["password"]), row["username"]),
+                )
         connection.commit()
 
 
@@ -339,6 +354,13 @@ def list_users() -> list[dict]:
     return [_row_to_user(row) for row in rows]
 
 
+def list_users_for_client(include_passwords: bool = False, passphrase: str | None = None) -> list[dict]:
+    users = list_users()
+    if not include_passwords:
+        return [_redact_password(user) for user in users]
+    return [{**user, "password": decrypt_password(user.get("password", ""), passphrase)} for user in users]
+
+
 def get_user(username: str) -> dict | None:
     with get_connection() as connection:
         row = connection.execute(
@@ -362,17 +384,18 @@ def verify_user(username: str, password: str) -> dict | None:
                    owner_type, password_updated_at, name_updated_at,
                    is_active, created_at, last_login_at
             FROM users
-            WHERE username = ? AND password = ? AND is_active = 1
+            WHERE username = ? AND is_active = 1
             """,
-            (username, password),
+            (username,),
         ).fetchone()
-        if row:
+        if row and decrypt_password(row["password"]) == password:
             connection.execute(
                 "UPDATE users SET last_login_at = ? WHERE username = ?",
                 (_now_iso(), username),
             )
             connection.commit()
-    return _row_to_user(row) if row else None
+            return _row_to_user(row)
+    return None
 
 
 def create_user(payload: dict) -> dict:
@@ -387,7 +410,7 @@ def create_user(payload: dict) -> dict:
             """,
             (
                 payload["username"],
-                payload["password"],
+                encrypt_password(payload["password"]),
                 payload["role"],
                 payload["level"],
                 payload["displayName"],
@@ -419,7 +442,7 @@ def update_user(username: str, payload: dict) -> dict:
             WHERE username = ?
             """,
             (
-                payload["password"],
+                encrypt_password(payload["password"]),
                 payload["role"],
                 payload["level"],
                 payload["displayName"],

@@ -92,6 +92,8 @@ const initialState = {
   weekMediaLoading: false,
   booting: true,
   passwordForm: { newPassword: "" },
+  accountPasswordPassphrase: "",
+  accountPasswordsUnlocked: false,
   newUserForm: {
     username: "",
     displayName: "",
@@ -648,7 +650,7 @@ function App() {
     source.editUserId = fallbackId;
     const target = sorted.find((user) => user.username === fallbackId);
     source.editForm.displayName = target?.displayName || "";
-    source.editForm.password = target?.password || "";
+    source.editForm.password = "";
     source.editForm.level = target?.level || "P3";
     source.editForm.isActive = target?.isActive !== false;
   };
@@ -1762,6 +1764,22 @@ function App() {
     patchNestedState("newUserForm", { [field]: value });
   };
 
+  const handleUnlockAccountPasswords = async () => runAction(async () => {
+    if (!canManageAccounts()) throw new Error("只有 P1 可以查看账号密码。");
+    const passphrase = trim(stateRef.current.accountPasswordPassphrase);
+    if (!passphrase) throw new Error("请输入查看口令。");
+    const response = await api.unlockAccountPasswords(passphrase);
+    const next = {
+      ...stateRef.current,
+      users: (response.users || []).map(normalizeUser),
+      accountPasswordPassphrase: "",
+      accountPasswordsUnlocked: true,
+    };
+    syncEditForms(next);
+    replaceState(next);
+    setStatus("账号密码已解锁显示。本次仅在当前页面会话中展示。");
+  }, "密码查看口令验证失败。");
+
   const handleCreateUser = async () => runAction(async () => {
     if (!canManageAccounts()) throw new Error("只有 P1 账号可以新增账号。");
     const form = stateRef.current.newUserForm;
@@ -1812,19 +1830,21 @@ function App() {
   const handleSaveUserEdit = async () => runAction(async () => {
     const target = stateRef.current.users.find((user) => user.username === stateRef.current.editUserId);
     if (!target) throw new Error("请先选择账号。");
-    if (!trim(stateRef.current.editForm.displayName) || !trim(stateRef.current.editForm.password)) {
-      throw new Error("姓名和密码不能为空。");
+    if (!trim(stateRef.current.editForm.displayName)) {
+      throw new Error("姓名不能为空。");
     }
     const updated = {
       displayName: trim(stateRef.current.editForm.displayName),
-      password: trim(stateRef.current.editForm.password),
       level: stateRef.current.editForm.level,
       role: roleFromLevel(stateRef.current.editForm.level),
       ownerType: stateRef.current.editForm.level === "P3" ? "Student" : (stateRef.current.editForm.level === "P2" ? "OM(Operations Manager)" : (stateRef.current.editForm.level === "T1" ? "Supervisor" : "Teacher")),
       isActive: stateRef.current.editForm.isActive,
       nameUpdatedAt: target.displayName !== trim(stateRef.current.editForm.displayName) ? new Date().toLocaleString() : target.nameUpdatedAt,
-      passwordUpdatedAt: target.password !== trim(stateRef.current.editForm.password) ? new Date().toLocaleString() : target.passwordUpdatedAt,
+      passwordUpdatedAt: trim(stateRef.current.editForm.password) ? new Date().toLocaleString() : target.passwordUpdatedAt,
     };
+    if (trim(stateRef.current.editForm.password)) {
+      updated.password = trim(stateRef.current.editForm.password);
+    }
     const response = await api.updateAccount(target.username, updated);
     const next = {
       ...stateRef.current,
@@ -2254,10 +2274,14 @@ function App() {
           currentUser={currentUser}
           isTop={canManageAccounts()}
           passwordForm={app.passwordForm}
+          passwordViewPassphrase={app.accountPasswordPassphrase}
+          passwordsUnlocked={app.accountPasswordsUnlocked}
           newUserForm={app.newUserForm}
           editUserId={app.editUserId}
           editForm={app.editForm}
           onPasswordChange={(value) => patchNestedState("passwordForm", { newPassword: value })}
+          onPasswordViewPassphraseChange={(value) => patchState({ accountPasswordPassphrase: value })}
+          onUnlockPasswords={handleUnlockAccountPasswords}
           onSubmitPassword={handlePasswordSubmit}
           onNewUserChange={handleNewUserChange}
           onCreateUser={handleCreateUser}
@@ -2739,10 +2763,14 @@ function App() {
                     currentUser={currentUser}
                     isTop={canManageAccounts()}
                     passwordForm={app.passwordForm}
+                    passwordViewPassphrase={app.accountPasswordPassphrase}
+                    passwordsUnlocked={app.accountPasswordsUnlocked}
                     newUserForm={app.newUserForm}
                     editUserId={app.editUserId}
                     editForm={app.editForm}
                     onPasswordChange={(value) => patchNestedState("passwordForm", { newPassword: value })}
+                    onPasswordViewPassphraseChange={(value) => patchState({ accountPasswordPassphrase: value })}
+                    onUnlockPasswords={handleUnlockAccountPasswords}
                     onSubmitPassword={handlePasswordSubmit}
                     onNewUserChange={handleNewUserChange}
                     onCreateUser={handleCreateUser}

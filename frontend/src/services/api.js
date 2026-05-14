@@ -119,6 +119,12 @@ export const api = {
   listAccounts() {
     return request("/accounts");
   },
+  unlockAccountPasswords(passphrase) {
+    return request("/accounts/passwords/unlock", {
+      method: "POST",
+      body: JSON.stringify({ passphrase }),
+    });
+  },
   listTeacherNotices() {
     return request("/teacher-notices");
   },

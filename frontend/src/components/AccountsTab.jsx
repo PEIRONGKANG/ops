@@ -3,10 +3,14 @@ export function AccountsTab({
   currentUser,
   isTop,
   passwordForm,
+  passwordViewPassphrase,
+  passwordsUnlocked,
   newUserForm,
   editUserId,
   editForm,
   onPasswordChange,
+  onPasswordViewPassphraseChange,
+  onUnlockPasswords,
   onSubmitPassword,
   onNewUserChange,
   onCreateUser,
@@ -31,8 +35,7 @@ export function AccountsTab({
   const canSaveEdit = Boolean(
     isTop
     && editUserId
-    && editForm.displayName.trim()
-    && editForm.password.trim(),
+    && editForm.displayName.trim(),
   );
 
   return (
@@ -87,6 +90,26 @@ export function AccountsTab({
 
       {isTop ? (
         <div className="soft-card">
+          <h3 className="panel-title">密码查看口令</h3>
+          <p className="status-line mt-2">账号密码默认隐藏。P1 输入口令后，仅在当前页面会话中显示明文密码。</p>
+          <div className="mt-3 grid gap-3 xl:grid-cols-[1fr_auto]">
+            <input
+              className="field-input"
+              type="password"
+              value={passwordViewPassphrase}
+              onChange={(event) => onPasswordViewPassphraseChange(event.target.value)}
+              placeholder="请输入密码查看口令"
+            />
+            <button className="btn-secondary" type="button" onClick={onUnlockPasswords}>
+              {passwordsUnlocked ? "重新验证口令" : "查看账号密码"}
+            </button>
+          </div>
+          <p className="status-line mt-2">{passwordsUnlocked ? "密码已解锁显示。" : "未输入口令前，P1 也不能查看账号密码。"}</p>
+        </div>
+      ) : null}
+
+      {isTop ? (
+        <div className="soft-card">
           <h3 className="panel-title">修改已有账号（姓名 / 密码 / 权限）</h3>
           <label className="field-label">选择账号</label>
           <select className="field-input" value={editUserId} onChange={(event) => onEditUserSelect(event.target.value)}>
@@ -103,8 +126,8 @@ export function AccountsTab({
               <input className="field-input" value={editForm.displayName} onChange={(event) => onEditFormChange("displayName", event.target.value)} />
             </div>
             <div>
-              <label className="field-label">新密码</label>
-              <input className="field-input" type="password" value={editForm.password} onChange={(event) => onEditFormChange("password", event.target.value)} />
+              <label className="field-label">新密码（留空不修改）</label>
+              <input className="field-input" type="password" value={editForm.password} onChange={(event) => onEditFormChange("password", event.target.value)} placeholder="留空则保留原密码" />
             </div>
             <div>
               <label className="field-label">权限等级</label>
@@ -144,7 +167,7 @@ export function AccountsTab({
             <div key={user.username} className="status-line">
               {user.displayName}（{user.username}） - {user.level}
               {isTop
-                ? `，状态：${user.isActive === false ? "停用" : "启用"}，密码：${user.password || "-"}，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
+                ? `，状态：${user.isActive === false ? "停用" : "启用"}，密码：${passwordsUnlocked ? (user.password || "-") : "需输入口令查看"}，姓名更新时间：${user.nameUpdatedAt || "-"}，密码更新时间：${user.passwordUpdatedAt || "-"}`
                 : `，角色：${user.level}`}
             </div>
           ))}
