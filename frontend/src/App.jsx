@@ -2821,6 +2821,11 @@ function App() {
             <span>Drink Atelier Weekly Operations System</span>
             <span>{app.currentUser ? `当前登录：${currentUser.displayName}（${currentUser.username}）` : "当前未登录，可使用学生或管理账号进入系统。"}</span>
           </div>
+
+          <div className="footer-legal">
+            <p>Copyright © 裴荣康 保留所有权利</p>
+            <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
+          </div>
         </div>
       </footer>
     </div>

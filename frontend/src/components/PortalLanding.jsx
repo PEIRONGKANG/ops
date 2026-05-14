@@ -44,6 +44,11 @@ export function PortalLanding({ onEnter }) {
             点击进入
           </button>
         </div>
+
+        <footer className="portal-footer-legal">
+          <p>Copyright © 裴荣康 保留所有权利</p>
+          <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
+        </footer>
       </section>
     </main>
   );

@@ -1230,6 +1230,20 @@ img {
   font-size: 0.82rem;
 }
 
+.footer-legal {
+  margin-top: 1.15rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  padding-top: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+
+.footer-legal p {
+  margin: 0;
+}
+
 @media (min-width: 640px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1971,6 +1985,20 @@ img {
   border-radius: 1.5rem;
 }
 
+.ops-footer-legal {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+
+.ops-footer-legal p {
+  margin: 0;
+}
+
 @media (max-width: 1023px) {
   .ops-shell-auth,
   .ops-shell-public {
@@ -2182,6 +2210,22 @@ img {
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.8;
+}
+
+.portal-footer-legal {
+  position: absolute;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  left: 1rem;
+  z-index: 1;
+  text-align: center;
+  color: rgba(255, 244, 231, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.portal-footer-legal p {
+  margin: 0;
 }
 
 .portal-enter-button {
