@@ -2247,6 +2247,7 @@ function App() {
           statusText={renderApprovalText(currentWeek.handover.approval)}
           editable={canEditCurrentScopeData()}
           approveDisabled={handoverApproveDisabled}
+          studentUsers={studentUsers}
           onFieldChange={handleHandoverFieldChange}
           onAddImages={addHandoverImages}
           onSave={saveHandover}
@@ -2736,6 +2737,7 @@ function App() {
                     statusText={renderApprovalText(currentWeek.handover.approval)}
                     editable={canEditCurrentScopeData()}
                     approveDisabled={handoverApproveDisabled}
+                    studentUsers={studentUsers}
                     onFieldChange={handleHandoverFieldChange}
                     onAddImages={addHandoverImages}
                     onSave={saveHandover}

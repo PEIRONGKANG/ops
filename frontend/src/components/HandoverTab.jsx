@@ -1,4 +1,50 @@
+import { useMemo, useState } from "react";
 import { FilePickerButton, ImagePreviewGrid } from "./MediaBlocks";
+
+const MAX_HANDOVER_STUDENTS = 2;
+
+function normalizeText(value) {
+  return String(value ?? "").trim();
+}
+
+function formatStudentOption(student) {
+  const name = normalizeText(student.displayName) || normalizeText(student.username);
+  const no = normalizeText(student.username);
+  return no && no !== name ? `${name}（${no}）` : name;
+}
+
+function splitHandoverTokens(value) {
+  return normalizeText(value)
+    .split(/[、,，;；\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function resolveSelectedStudents(value, students) {
+  const seen = new Set();
+  return splitHandoverTokens(value)
+    .map((token) => {
+      const normalized = token.replace(/[（）()]/g, "");
+      return students.find((student) => {
+        const username = normalizeText(student.username);
+        const displayName = normalizeText(student.displayName);
+        const label = formatStudentOption(student);
+        return (
+          token === username
+          || token === displayName
+          || token === label
+          || normalized === `${displayName}${username}`
+          || normalized === `${username}${displayName}`
+        );
+      });
+    })
+    .filter((student) => {
+      if (!student || seen.has(student.username)) return false;
+      seen.add(student.username);
+      return true;
+    })
+    .slice(0, MAX_HANDOVER_STUDENTS);
+}
 
 export function HandoverTab({
   data,
@@ -9,7 +55,50 @@ export function HandoverTab({
   onAddImages,
   onSave,
   onApprove,
+  studentUsers = [],
 }) {
+  const [query, setQuery] = useState("");
+  const selectedStudents = useMemo(
+    () => resolveSelectedStudents(data.nextGroup, studentUsers),
+    [data.nextGroup, studentUsers],
+  );
+  const selectedUsernames = useMemo(
+    () => new Set(selectedStudents.map((student) => student.username)),
+    [selectedStudents],
+  );
+  const normalizedQuery = normalizeText(query).toLowerCase();
+  const candidateStudents = useMemo(() => {
+    if (!editable || selectedStudents.length >= MAX_HANDOVER_STUDENTS) return [];
+    return studentUsers
+      .filter((student) => !selectedUsernames.has(student.username))
+      .filter((student) => {
+        if (!normalizedQuery) return true;
+        const haystack = [
+          student.username,
+          student.displayName,
+          formatStudentOption(student),
+        ].join(" ").toLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+      .slice(0, 8);
+  }, [editable, normalizedQuery, selectedStudents.length, selectedUsernames, studentUsers]);
+  const unresolvedText = selectedStudents.length ? "" : normalizeText(data.nextGroup);
+
+  function commitStudents(nextStudents) {
+    onFieldChange("nextGroup", nextStudents.map(formatStudentOption).join("、"));
+  }
+
+  function addStudent(student) {
+    if (!editable || selectedStudents.length >= MAX_HANDOVER_STUDENTS) return;
+    commitStudents([...selectedStudents, student].slice(0, MAX_HANDOVER_STUDENTS));
+    setQuery("");
+  }
+
+  function removeStudent(username) {
+    if (!editable) return;
+    commitStudents(selectedStudents.filter((student) => student.username !== username));
+  }
+
   return (
     <section className="module-shell">
       <div>
@@ -39,13 +128,68 @@ export function HandoverTab({
 
       <div className="soft-card">
         <label className="field-label">交接对象（下一组同学）</label>
-        <input
-          className="field-input"
-          value={data.nextGroup}
-          onChange={(event) => onFieldChange("nextGroup", event.target.value)}
-          placeholder="交接对象姓名或账号"
-          readOnly={!editable}
-        />
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {selectedStudents.length ? (
+              selectedStudents.map((student) => (
+                <span key={student.username} className="tag-pill gap-2">
+                  {formatStudentOption(student)}
+                  {editable ? (
+                    <button
+                      className="text-slate-400 transition hover:text-rose-600"
+                      type="button"
+                      onClick={() => removeStudent(student.username)}
+                      aria-label={`移除 ${formatStudentOption(student)}`}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </span>
+              ))
+            ) : (
+              <span className="status-pill is-quiet">尚未选择交接对象</span>
+            )}
+          </div>
+
+          {unresolvedText ? (
+            <p className="status-line">
+              当前原始记录：{unresolvedText}。请从下方学生名单中重新选择，保存后将转换为标准格式。
+            </p>
+          ) : null}
+
+          <input
+            className="field-input"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={
+              selectedStudents.length >= MAX_HANDOVER_STUDENTS
+                ? "最多选择 2 位同学"
+                : "输入姓名或学号查询下一组同学"
+            }
+            readOnly={!editable || selectedStudents.length >= MAX_HANDOVER_STUDENTS}
+          />
+
+          {editable ? (
+            <div className="flex flex-wrap gap-2">
+              {candidateStudents.length ? (
+                candidateStudents.map((student) => (
+                  <button
+                    key={student.username}
+                    className="pill-chip transition hover:border-emerald-300 hover:bg-emerald-50"
+                    type="button"
+                    onClick={() => addStudent(student)}
+                  >
+                    {formatStudentOption(student)}
+                  </button>
+                ))
+              ) : (
+                <span className="status-pill is-quiet">
+                  {selectedStudents.length >= MAX_HANDOVER_STUDENTS ? "已达到 2 位上限" : "未找到匹配学生"}
+                </span>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="soft-card">
