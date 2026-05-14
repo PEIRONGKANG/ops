@@ -30,7 +30,7 @@ export function TrainingProgressTab() {
         if (!mounted) return;
         setData({
           tasks: Array.isArray(resp?.tasks) ? resp.tasks : [],
-          students: Array.isArray(resp?.students) ? resp.students : [],
+          students: Array.isArray(resp?.students) ? resp.students.filter((student) => (student?.role_code || "P3") === "P3") : [],
           submissions: Array.isArray(resp?.submissions) ? resp.submissions : [],
         });
       } catch (e) {
@@ -110,7 +110,7 @@ export function TrainingProgressTab() {
         <div>
           <p className="module-kicker">Training Progress</p>
           <h2 className="section-title mt-2">学生实训进度总览</h2>
-          <p className="status-line mt-3">{error || (busy ? "加载中…" : "按学号/进度/得分排序，搜索姓名或学号。")}</p>
+          <p className="status-line mt-3">{error || (busy ? "加载中…" : "仅展示 P3 学生账号，支持按学号/进度/得分排序，搜索姓名或学号。")}</p>
         </div>
         <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-4">
           <article className="ops-stat-card">
@@ -199,4 +199,3 @@ export function TrainingProgressTab() {
     </section>
   );
 }
-

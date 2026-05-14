@@ -206,7 +206,7 @@ def build_router(require_current_user):
             raise HTTPException(status_code=403, detail="权限不足。")
 
         tasks = await _pb_list_all(pb, "Training_Tasks", filter_expr='status=\"published\"', sort="sort_order,task_name")
-        students = await _pb_list_all(pb, "Students", sort="student_no")
+        students = await _pb_list_all(pb, "Students", filter_expr='role_code="P3"', sort="student_no")
         submissions = await _pb_list_all(pb, "Submissions", sort="-submitted_at", expand="task_id,student_id")
 
         return {"tasks": tasks, "students": students, "submissions": submissions}
