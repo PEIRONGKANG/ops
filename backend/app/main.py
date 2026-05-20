@@ -111,6 +111,16 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 POCKETBASE_INTERNAL_URL = os.environ.get("OPS_POCKETBASE_INTERNAL_URL", "http://127.0.0.1:8090")
 
 
+@app.middleware("http")
+async def strip_ptb_api_prefix(request: Request, call_next):
+    path = request.scope.get("path", "")
+    if path == "/ptb/api":
+        request.scope["path"] = "/api"
+    elif path.startswith("/ptb/api/") or path.startswith("/ptb/media/"):
+        request.scope["path"] = path.removeprefix("/ptb")
+    return await call_next(request)
+
+
 def require_current_user(authorization: Annotated[str | None, Header()] = None) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录。")
@@ -714,6 +724,8 @@ def serve_index() -> FileResponse:
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
+app.mount("/ptb/media", StaticFiles(directory=str(MEDIA_DIR)), name="ptb-media")
+
 @app.get("/training", include_in_schema=False)
 def serve_training_index() -> FileResponse:
     if TRAINING_DIST_DIR.exists():
@@ -735,6 +747,32 @@ def serve_training_frontend(full_path: str):
     if candidate.exists() and candidate.is_file():
         return FileResponse(candidate)
     return FileResponse(TRAINING_DIST_DIR / "index.html")
+
+
+@app.get("/ptb", include_in_schema=False)
+@app.get("/ptb/", include_in_schema=False)
+def serve_ptb_index() -> FileResponse:
+    if DIST_DIR.exists():
+        return FileResponse(DIST_DIR / "index.html")
+    raise HTTPException(
+        status_code=404,
+        detail="前端尚未构建，请先在 frontend 目录执行 npm run build。",
+    )
+
+
+@app.get("/ptb/{full_path:path}", include_in_schema=False)
+def serve_ptb_frontend(full_path: str):
+    if full_path.startswith("api") or full_path in {"docs", "openapi.json", "redoc"}:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not DIST_DIR.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="前端尚未构建，请先在 frontend 目录执行 npm run build。",
+        )
+    candidate = DIST_DIR / full_path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(DIST_DIR / "index.html")
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

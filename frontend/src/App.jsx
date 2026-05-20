@@ -59,6 +59,7 @@ import {
   updateWeekHandover,
   updateWeekReflection,
 } from "./lib/weekState";
+import { assetUrl } from "./lib/assets";
 import { buildReportHtml, exportReportWord, openReportPreview } from "./lib/report";
 import { api, clearAuthToken, loadAuthToken, setAuthToken } from "./services/api";
 
@@ -2510,7 +2511,7 @@ function App() {
       </header>
 
       <section className="hero-stage">
-        <div className="hero-backdrop" style={{ backgroundImage: "url('/assets/luxury-hero.svg')" }} />
+        <div className="hero-backdrop" style={{ backgroundImage: `url('${assetUrl("assets/luxury-hero.svg")}')` }} />
         <div className="hero-scrim" />
 
         <div className="hero-panel">

@@ -1,3 +1,5 @@
+import { assetUrl } from "../lib/assets";
+
 export function PortalLanding({ onEnter }) {
   return (
     <main className="portal-shell">
@@ -7,7 +9,7 @@ export function PortalLanding({ onEnter }) {
           <p className="portal-brand-kicker">HMS x Travelologist</p>
           <img
             className="portal-brand-logo"
-            src="/portal/portal-hms-logo.png"
+            src={assetUrl("portal/portal-hms-logo.png")}
             alt="酒店管理学院标识"
           />
           <p className="portal-brand-copy">Hotel Management School · 饮品生产性实训基地</p>
@@ -17,14 +19,14 @@ export function PortalLanding({ onEnter }) {
       <section className="portal-media-panel" aria-label="实训系统入口">
         <img
           className="portal-media-poster"
-          src="/portal/portal-coffee-poster.jpg"
+          src={assetUrl("portal/portal-coffee-poster.jpg")}
           alt=""
           aria-hidden="true"
         />
         <video
           className="portal-media-video"
-          src="/portal/portal-coffee.mp4"
-          poster="/portal/portal-coffee-poster.jpg"
+          src={assetUrl("portal/portal-coffee.mp4")}
+          poster={assetUrl("portal/portal-coffee-poster.jpg")}
           autoPlay
           muted
           loop

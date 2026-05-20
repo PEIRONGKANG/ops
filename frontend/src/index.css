@@ -2104,7 +2104,7 @@ img {
 .portal-ribbon {
   position: absolute;
   inset: -9% -8% -12% -10%;
-  background: url("/portal/portal-ribbon.svg") no-repeat left center / contain;
+  background: url("../portal/portal-ribbon.svg") no-repeat left center / contain;
   opacity: 0.9;
   pointer-events: none;
 }
