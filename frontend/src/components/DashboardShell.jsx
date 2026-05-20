@@ -84,6 +84,11 @@ export function DashboardShell({
 
           <footer className="ops-footer-legal no-print">
             <p>Copyright © 裴荣康 保留所有权利</p>
+            <p>
+              <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noreferrer">
+                苏ICP备2026030758号-1
+              </a>
+            </p>
             <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
           </footer>
         </main>
@@ -215,6 +220,11 @@ export function DashboardShell({
 
           <footer className="ops-footer-legal no-print">
             <p>Copyright © 裴荣康 保留所有权利</p>
+            <p>
+              <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noreferrer">
+                苏ICP备2026030758号-1
+              </a>
+            </p>
             <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
           </footer>
         </div>
