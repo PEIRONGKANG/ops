@@ -3774,3 +3774,145 @@ table tbody tr:hover {
   line-height: 1.55;
   padding: 9px 10px;
 }
+
+/* Sidebar density tuning: separate brand, nav, and session controls. */
+.prototype-sidebar {
+  width: 320px;
+  gap: 18px;
+  padding: 26px 18px 22px;
+}
+
+.prototype-main {
+  margin-left: 320px;
+}
+
+.prototype-brand {
+  min-height: 76px;
+  padding: 2px 4px 14px;
+  border-bottom: 1px solid rgba(124, 60, 255, 0.12);
+}
+
+.prototype-brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 20px;
+  font-size: 24px;
+}
+
+.prototype-brand strong {
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.prototype-brand small {
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.09em;
+}
+
+.prototype-nav {
+  flex: 0 1 auto;
+  max-height: min(38vh, 360px);
+  gap: 8px;
+  overflow-y: auto;
+  padding: 4px 8px 4px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 60, 255, 0.22) transparent;
+}
+
+.prototype-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prototype-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prototype-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(124, 60, 255, 0.2);
+}
+
+.prototype-nav-item {
+  min-height: 48px;
+  gap: 12px;
+  border-radius: 15px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.prototype-nav-item span {
+  width: 30px;
+  height: 30px;
+  border-radius: 11px;
+}
+
+.prototype-sidebar-card {
+  margin-top: 0;
+  padding: 16px;
+  border-radius: 18px;
+  box-shadow: 0 16px 42px rgba(75, 62, 180, 0.14);
+}
+
+.prototype-sidebar-controls {
+  gap: 10px;
+}
+
+.prototype-sidebar-card strong {
+  margin: 5px 0 2px;
+  line-height: 1.35;
+}
+
+.prototype-sidebar-card span {
+  font-size: 13px;
+}
+
+.prototype-control-group {
+  gap: 5px;
+}
+
+.prototype-control-group select {
+  min-height: 38px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.prototype-group-chips {
+  gap: 7px;
+}
+
+.prototype-group-chips button {
+  padding: 8px 9px;
+  border-radius: 12px;
+}
+
+.prototype-sidebar-hint {
+  max-height: 68px;
+  overflow-y: auto;
+  padding: 8px 9px;
+  font-size: 11.5px;
+}
+
+.prototype-logout {
+  min-height: 38px;
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .prototype-sidebar {
+    width: 100%;
+    padding: 18px 16px;
+  }
+
+  .prototype-main {
+    margin-left: 0;
+  }
+
+  .prototype-brand {
+    min-height: auto;
+  }
+
+  .prototype-nav {
+    max-height: none;
+  }
+}
