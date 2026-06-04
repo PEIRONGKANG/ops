@@ -8,6 +8,7 @@ const NAV_ICON_MAP = {
   prototype_inventory: "▦",
   prototype_finance: "¥",
   prototype_students: "◎",
+  job_assignments: "▣",
   leader_dashboard: "⌂",
   supervisor_dashboard: "◎",
   manager_dashboard: "◉",

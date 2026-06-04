@@ -181,6 +181,37 @@ def _row_to_teacher_notice(row: sqlite3.Row, receipts: list[dict] | None = None)
     }
 
 
+def _row_to_job_position(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "description": row["description"],
+        "isActive": bool(row["is_active"]),
+        "sortOrder": int(row["sort_order"] or 0),
+        "createdBy": row["created_by"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def _row_to_job_assignment(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "studentUsername": row["student_username"],
+        "studentName": row["student_name"],
+        "workDate": row["work_date"],
+        "slotStart": row["slot_start"],
+        "slotEnd": row["slot_end"],
+        "positionId": row["position_id"],
+        "positionName": row["position_name"],
+        "assignedBy": row["assigned_by"],
+        "assignedByName": row["assigned_by_name"],
+        "note": row["note"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
 def init_db() -> None:
     with get_connection() as connection:
         connection.executescript(
@@ -250,6 +281,34 @@ def init_db() -> None:
                 detail TEXT NOT NULL DEFAULT '{}',
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS job_positions (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_by TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS job_assignments (
+                id TEXT PRIMARY KEY,
+                student_username TEXT NOT NULL,
+                student_name TEXT NOT NULL DEFAULT '',
+                work_date TEXT NOT NULL,
+                slot_start TEXT NOT NULL,
+                slot_end TEXT NOT NULL,
+                position_id TEXT NOT NULL,
+                position_name TEXT NOT NULL,
+                assigned_by TEXT NOT NULL DEFAULT '',
+                assigned_by_name TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(student_username, work_date, slot_start)
+            );
             """
         )
         _ensure_column(connection, "users", "is_active", "INTEGER NOT NULL DEFAULT 1")
@@ -288,6 +347,31 @@ def init_db() -> None:
                     "UPDATE users SET password = ? WHERE username = ?",
                     (encrypt_password(row["password"]), row["username"]),
                 )
+        default_positions = [
+            ("物料补给", "负责吧台与仓储物料补充，记录低库存与补货建议。"),
+            ("公区维护", "负责公共区域卫生、动线检查与服务环境维护。"),
+            ("库存盘点", "负责物料数量核对、安全线检查和盘点记录。"),
+            ("吧台主岗", "负责饮品制作、出品标准和吧台设备检查。"),
+            ("收银与财务", "负责订单、收银、票据和日结财务记录。"),
+            ("服务接待", "负责客户接待、电话礼仪和现场引导沟通。"),
+        ]
+        existing_positions = {
+            row["name"]
+            for row in connection.execute("SELECT name FROM job_positions")
+        }
+        for index, (name, description) in enumerate(default_positions, start=1):
+            if name in existing_positions:
+                continue
+            timestamp = _now_iso()
+            connection.execute(
+                """
+                INSERT INTO job_positions (
+                    id, name, description, is_active, sort_order,
+                    created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, 1, ?, 'system', ?, ?)
+                """,
+                (uuid4().hex, name, description, index, timestamp, timestamp),
+            )
         connection.commit()
 
 
@@ -763,6 +847,176 @@ def delete_teacher_notice(notice_id: str) -> bool:
         deleted = connection.execute(
             "DELETE FROM teacher_notices WHERE id = ?",
             (notice_id,),
+        ).rowcount
+        connection.commit()
+    return deleted > 0
+
+
+def list_job_positions(include_inactive: bool = False) -> list[dict]:
+    where = "" if include_inactive else "WHERE is_active = 1"
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, name, description, is_active, sort_order,
+                   created_by, created_at, updated_at
+            FROM job_positions
+            {where}
+            ORDER BY sort_order ASC, name ASC
+            """
+        ).fetchall()
+    return [_row_to_job_position(row) for row in rows]
+
+
+def get_job_position(position_id: str) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, name, description, is_active, sort_order,
+                   created_by, created_at, updated_at
+            FROM job_positions
+            WHERE id = ?
+            """,
+            (position_id,),
+        ).fetchone()
+    return _row_to_job_position(row) if row else None
+
+
+def create_job_position(payload: dict, actor: dict) -> dict:
+    timestamp = _now_iso()
+    position_id = uuid4().hex
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO job_positions (
+                id, name, description, is_active, sort_order,
+                created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                position_id,
+                payload.get("name", ""),
+                payload.get("description", ""),
+                1 if payload.get("isActive", True) else 0,
+                int(payload.get("sortOrder") or 0),
+                actor.get("username", ""),
+                timestamp,
+                timestamp,
+            ),
+        )
+        connection.commit()
+    return get_job_position(position_id)
+
+
+def update_job_position(position_id: str, payload: dict) -> dict | None:
+    existing = get_job_position(position_id)
+    if not existing:
+        return None
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE job_positions
+            SET name = ?, description = ?, is_active = ?, sort_order = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                payload.get("name", existing.get("name", "")),
+                payload.get("description", existing.get("description", "")),
+                1 if payload.get("isActive", existing.get("isActive", True)) else 0,
+                int(payload.get("sortOrder", existing.get("sortOrder") or 0) or 0),
+                _now_iso(),
+                position_id,
+            ),
+        )
+        connection.commit()
+    return get_job_position(position_id)
+
+
+def list_job_assignments(work_date: str | None = None, student_username: str | None = None) -> list[dict]:
+    clauses = []
+    params: list[str] = []
+    if work_date:
+        clauses.append("work_date = ?")
+        params.append(work_date)
+    if student_username:
+        clauses.append("student_username = ?")
+        params.append(student_username)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, student_username, student_name, work_date, slot_start, slot_end,
+                   position_id, position_name, assigned_by, assigned_by_name,
+                   note, created_at, updated_at
+            FROM job_assignments
+            {where}
+            ORDER BY work_date DESC, slot_start ASC, student_name ASC, student_username ASC
+            """,
+            params,
+        ).fetchall()
+    return [_row_to_job_assignment(row) for row in rows]
+
+
+def get_job_assignment(assignment_id: str) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, student_username, student_name, work_date, slot_start, slot_end,
+                   position_id, position_name, assigned_by, assigned_by_name,
+                   note, created_at, updated_at
+            FROM job_assignments
+            WHERE id = ?
+            """,
+            (assignment_id,),
+        ).fetchone()
+    return _row_to_job_assignment(row) if row else None
+
+
+def upsert_job_assignment(payload: dict, actor: dict, student: dict, position: dict) -> dict:
+    timestamp = _now_iso()
+    existing = None
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT id, created_at FROM job_assignments
+            WHERE student_username = ? AND work_date = ? AND slot_start = ?
+            """,
+            (payload["studentUsername"], payload["workDate"], payload["slotStart"]),
+        ).fetchone()
+        assignment_id = existing["id"] if existing else uuid4().hex
+        created_at = existing["created_at"] if existing else timestamp
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO job_assignments (
+                id, student_username, student_name, work_date, slot_start, slot_end,
+                position_id, position_name, assigned_by, assigned_by_name,
+                note, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                assignment_id,
+                payload["studentUsername"],
+                student.get("displayName") or student.get("username", ""),
+                payload["workDate"],
+                payload["slotStart"],
+                payload["slotEnd"],
+                position["id"],
+                position["name"],
+                actor.get("username", ""),
+                actor.get("displayName") or actor.get("username", ""),
+                payload.get("note", ""),
+                created_at,
+                timestamp,
+            ),
+        )
+        connection.commit()
+    return get_job_assignment(assignment_id)
+
+
+def delete_job_assignment(assignment_id: str) -> bool:
+    with get_connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM job_assignments WHERE id = ?",
+            (assignment_id,),
         ).rowcount
         connection.commit()
     return deleted > 0

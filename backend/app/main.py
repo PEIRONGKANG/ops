@@ -20,7 +20,9 @@ from .database import (
     delete_teacher_notice,
     delete_session,
     create_operation_log,
+    create_job_position,
     get_user,
+    get_job_position,
     get_teacher_notice,
     get_session,
     get_week,
@@ -31,12 +33,17 @@ from .database import (
     list_users,
     list_users_for_client,
     list_operation_logs,
+    list_job_assignments,
+    list_job_positions,
     list_teacher_notices,
     MEDIA_DIR,
     save_week,
     save_week_group,
     save_teacher_notice_receipts,
     update_user,
+    update_job_position,
+    upsert_job_assignment,
+    delete_job_assignment,
     verify_user,
 )
 from .password_crypto import verify_password_view_passphrase
@@ -219,6 +226,27 @@ def _parse_date_like(value: str) -> datetime | None:
             return datetime.fromisoformat(raw[:19])
         except Exception:
             return None
+
+
+def _normalize_work_date(value: str) -> str:
+    try:
+        return date.fromisoformat(str(value or "")[:10]).isoformat()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="岗位日期格式不正确，应为 YYYY-MM-DD。") from exc
+
+
+def _normalize_slot_start(value: str) -> tuple[str, str]:
+    raw = str(value or "").strip()
+    try:
+        parsed = datetime.strptime(raw, "%H:%M")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="岗位时段格式不正确，应为 HH:MM。") from exc
+    if parsed.minute != 0 or parsed.hour < 6 or parsed.hour > 20:
+        raise HTTPException(status_code=400, detail="岗位时段必须以整点开始，范围为 06:00-20:00。")
+    end_hour = parsed.hour + 2
+    if end_hour > 22:
+        raise HTTPException(status_code=400, detail="岗位时段结束时间不能超过 22:00。")
+    return f"{parsed.hour:02d}:00", f"{end_hour:02d}:00"
 
 
 # Training APIs (PocketBase-backed, unified with Ops login token).
@@ -456,6 +484,123 @@ def operation_logs(limit: int = 100, current_user: dict = Depends(require_curren
     if current_user.get("level") != "P1":
         raise HTTPException(status_code=403, detail="权限不足。")
     return {"logs": list_operation_logs(limit)}
+
+
+@app.get("/api/job-positions")
+def job_positions(current_user: dict = Depends(require_current_user)) -> dict:
+    include_inactive = current_user.get("level") == "P1"
+    return {"positions": list_job_positions(include_inactive=include_inactive)}
+
+
+@app.post("/api/job-positions")
+def create_position(payload: dict = Body(default_factory=dict), current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") != "P1":
+        raise HTTPException(status_code=403, detail="仅 P1 可新增岗位名称。")
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="请填写岗位名称。")
+    position = create_job_position(
+        {
+            "name": name,
+            "description": str(payload.get("description") or "").strip(),
+            "isActive": bool(payload.get("isActive", True)),
+            "sortOrder": int(payload.get("sortOrder") or 0),
+        },
+        current_user,
+    )
+    create_operation_log(current_user, "job_position_create", "job_position", position["id"], {"name": position["name"]})
+    return {"position": position}
+
+
+@app.put("/api/job-positions/{position_id}")
+def edit_position(position_id: str, payload: dict = Body(default_factory=dict), current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") != "P1":
+        raise HTTPException(status_code=403, detail="仅 P1 可修改岗位名称。")
+    existing = get_job_position(position_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="岗位不存在。")
+    name = str(payload.get("name", existing.get("name", "")) or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="请填写岗位名称。")
+    position = update_job_position(
+        position_id,
+        {
+            "name": name,
+            "description": str(payload.get("description", existing.get("description", "")) or "").strip(),
+            "isActive": bool(payload.get("isActive", existing.get("isActive", True))),
+            "sortOrder": int(payload.get("sortOrder", existing.get("sortOrder") or 0) or 0),
+        },
+    )
+    create_operation_log(current_user, "job_position_update", "job_position", position_id, {"before": existing, "after": position})
+    return {"position": position}
+
+
+@app.get("/api/job-assignments")
+def job_assignments(
+    work_date: str | None = None,
+    student_username: str | None = None,
+    current_user: dict = Depends(require_current_user),
+) -> dict:
+    level = current_user.get("level") or ""
+    target_student = student_username or ""
+    if work_date:
+        work_date = _normalize_work_date(work_date)
+    if level == "P3":
+        target_student = current_user.get("username", "")
+    elif level not in {"P1", "T1", "P2"}:
+        raise HTTPException(status_code=403, detail="权限不足。")
+    return {"assignments": list_job_assignments(work_date=work_date, student_username=target_student or None)}
+
+
+@app.put("/api/job-assignments")
+def save_job_assignment(payload: dict = Body(default_factory=dict), current_user: dict = Depends(require_current_user)) -> dict:
+    if current_user.get("level") not in {"P1", "P2"}:
+        raise HTTPException(status_code=403, detail="仅 P1/P2 可进行每日定岗。")
+    student_username = str(payload.get("studentUsername") or payload.get("student_username") or "").strip()
+    student = get_user(student_username)
+    if not student or student.get("level") != "P3":
+        raise HTTPException(status_code=400, detail="请选择有效的 P3 学生。")
+    position_id = str(payload.get("positionId") or payload.get("position_id") or "").strip()
+    position = get_job_position(position_id)
+    if not position or not position.get("isActive"):
+        raise HTTPException(status_code=400, detail="请选择有效的岗位。")
+    work_date = _normalize_work_date(str(payload.get("workDate") or payload.get("work_date") or ""))
+    slot_start, slot_end = _normalize_slot_start(str(payload.get("slotStart") or payload.get("slot_start") or ""))
+    assignment = upsert_job_assignment(
+        {
+            "studentUsername": student_username,
+            "workDate": work_date,
+            "slotStart": slot_start,
+            "slotEnd": slot_end,
+            "note": str(payload.get("note") or "").strip(),
+        },
+        current_user,
+        student,
+        position,
+    )
+    create_operation_log(
+        current_user,
+        "job_assignment_upsert",
+        "job_assignment",
+        assignment["id"],
+        {
+            "student": student_username,
+            "work_date": work_date,
+            "slot": f"{slot_start}-{slot_end}",
+            "position": position.get("name"),
+        },
+    )
+    return {"assignment": assignment}
+
+
+@app.delete("/api/job-assignments/{assignment_id}", status_code=204)
+def remove_job_assignment(assignment_id: str, current_user: dict = Depends(require_current_user)) -> Response:
+    if current_user.get("level") not in {"P1", "P2"}:
+        raise HTTPException(status_code=403, detail="仅 P1/P2 可删除定岗记录。")
+    if not delete_job_assignment(assignment_id):
+        raise HTTPException(status_code=404, detail="定岗记录不存在。")
+    create_operation_log(current_user, "job_assignment_delete", "job_assignment", assignment_id, {})
+    return Response(status_code=204)
 
 
 @app.get("/api/semesters")

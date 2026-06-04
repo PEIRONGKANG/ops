@@ -3898,6 +3898,180 @@ table tbody tr:hover {
   margin-top: 4px;
 }
 
+.job-assignment-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.job-assignment-hero,
+.job-matrix-head,
+.job-position-manager,
+.job-assignment-form {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.job-date-box {
+  min-width: 220px;
+}
+
+.job-position-manager,
+.job-assignment-form {
+  flex-direction: column;
+}
+
+.job-position-form,
+.job-form-grid {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+}
+
+.job-position-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) auto;
+  align-items: center;
+}
+
+.job-form-grid {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.job-form-grid label {
+  display: grid;
+  gap: 6px;
+  color: #68709d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.job-position-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.job-position-chip {
+  border: 1px solid rgba(124, 60, 255, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(124, 60, 255, 0.1), rgba(32, 214, 255, 0.1));
+  color: #24135f;
+  padding: 9px 13px;
+  text-align: left;
+}
+
+.job-position-chip strong,
+.job-position-chip span {
+  display: block;
+}
+
+.job-position-chip span {
+  color: #6d75a8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.job-position-chip.is-off {
+  background: rgba(245, 247, 255, 0.78);
+  color: #8b91ad;
+}
+
+.job-matrix-scroll {
+  overflow-x: auto;
+}
+
+.job-matrix-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+.job-matrix-table th {
+  color: #68709d;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.job-matrix-table td {
+  border-top: 1px solid rgba(124, 60, 255, 0.12);
+  border-bottom: 1px solid rgba(124, 60, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px 10px;
+  vertical-align: top;
+}
+
+.job-matrix-table td:first-child {
+  border-left: 1px solid rgba(124, 60, 255, 0.12);
+  border-radius: 16px 0 0 16px;
+  min-width: 130px;
+}
+
+.job-matrix-table td:last-child {
+  border-right: 1px solid rgba(124, 60, 255, 0.12);
+  border-radius: 0 16px 16px 0;
+}
+
+.job-matrix-table td small,
+.job-slot-card span {
+  display: block;
+  color: #6d75a8;
+  font-size: 12px;
+  font-weight: 750;
+  margin-top: 4px;
+}
+
+.job-slot-card {
+  display: grid;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.job-slot-card strong {
+  color: #24135f;
+}
+
+.job-slot-card button {
+  width: max-content;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 79, 137, 0.12);
+  color: #d12d63;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.job-empty {
+  display: inline-flex;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #7c849f;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 5px 9px;
+}
+
+@media (max-width: 980px) {
+  .job-assignment-hero,
+  .job-matrix-head {
+    flex-direction: column;
+  }
+
+  .job-date-box {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .job-position-form,
+  .job-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .prototype-sidebar {
     width: 100%;

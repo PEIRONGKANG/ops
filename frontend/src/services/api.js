@@ -195,6 +195,39 @@ export const api = {
   p1Dashboard() {
     return request("/dashboard/p1");
   },
+  listJobPositions() {
+    return request("/job-positions");
+  },
+  createJobPosition(position) {
+    return request("/job-positions", {
+      method: "POST",
+      body: JSON.stringify(position),
+    });
+  },
+  updateJobPosition(positionId, position) {
+    return request(`/job-positions/${encodeURIComponent(positionId)}`, {
+      method: "PUT",
+      body: JSON.stringify(position),
+    });
+  },
+  listJobAssignments(options = {}) {
+    const params = new URLSearchParams();
+    if (options.workDate) params.set("work_date", options.workDate);
+    if (options.studentUsername) params.set("student_username", options.studentUsername);
+    const query = params.toString();
+    return request(`/job-assignments${query ? `?${query}` : ""}`);
+  },
+  saveJobAssignment(assignment) {
+    return request("/job-assignments", {
+      method: "PUT",
+      body: JSON.stringify(assignment),
+    });
+  },
+  deleteJobAssignment(assignmentId) {
+    return request(`/job-assignments/${encodeURIComponent(assignmentId)}`, {
+      method: "DELETE",
+    });
+  },
   fetchWeek(scopeUser, startDate, options = {}) {
     const params = new URLSearchParams();
     if (options.includeMedia === false) {

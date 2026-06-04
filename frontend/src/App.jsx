@@ -5,6 +5,7 @@ import { CreativeTab } from "./components/CreativeTab";
 import { DashboardShell } from "./components/DashboardShell";
 import { DailyTab } from "./components/DailyTab";
 import { HandoverTab } from "./components/HandoverTab";
+import { JobAssignmentTab } from "./components/JobAssignmentTab";
 import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
 import { PrototypeOpsTabs } from "./components/PrototypeOpsTabs";
@@ -2008,19 +2009,21 @@ function App() {
       { key: "completion_matrix", label: "完成状态总览" },
       { key: "trainee_guide", label: "岗位说明" },
     ];
+    const jobAssignment = { key: "job_assignments", label: level === "P3" ? "我的岗位" : "岗位定岗" };
 
     if (level === "P3") {
-      return [...prototype, training[0], ...base, training[3]];
+      return [...prototype, jobAssignment, training[0], ...base, training[3]];
     }
     if (level === "P2") {
-      return [...prototype, { key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
+      return [...prototype, jobAssignment, { key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
     }
     if (level === "T1") {
-      return [...prototype, { key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
+      return [...prototype, jobAssignment, { key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
     }
     if (level === "P1") {
       return [
         ...prototype,
+        jobAssignment,
         { key: "leader_dashboard", label: "领导驾驶舱" },
         training[2],
         training[1],
@@ -2182,6 +2185,10 @@ function App() {
 
       {app.activeTab === "trainee_guide" ? (
         <TraineeGuideTab />
+      ) : null}
+
+      {app.activeTab === "job_assignments" ? (
+        <JobAssignmentTab currentUser={currentUser} studentUsers={studentUsers} />
       ) : null}
 
       {app.activeTab === "semester_management" ? (

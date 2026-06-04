@@ -1,4 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { api } from "../services/api";
+
+function todayValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function currentSlotStart() {
+  const hour = new Date().getHours();
+  const normalized = Math.max(8, Math.min(18, Math.floor(hour / 2) * 2));
+  return `${String(normalized).padStart(2, "0")}:00`;
+}
+
+function buildAssignedRoleMap(assignments = []) {
+  const current = currentSlotStart();
+  const map = {};
+  assignments.forEach((assignment) => {
+    if (!assignment?.studentUsername) return;
+    if (!map[assignment.studentUsername] || assignment.slotStart === current) {
+      map[assignment.studentUsername] = assignment.positionName || map[assignment.studentUsername];
+    }
+  });
+  return map;
+}
 
 function statusClass(status, neutral = false) {
   if (["正常", "在岗", "已通过", "已完成"].includes(status)) return "normal";
@@ -25,7 +53,7 @@ function Panel({ eyebrow, title, actions, children, side }) {
   );
 }
 
-function buildAttendanceRows(studentUsers, currentDayData) {
+function buildAttendanceRows(studentUsers, currentDayData, assignedRoles = {}) {
   const fallbackRoles = ["吧台主岗", "收银与财务", "库存盘点", "服务接待", "公区维护", "物料补给"];
   const rows = (studentUsers || []).slice(0, 8).map((student, index) => {
     const isCurrent = index === 0;
@@ -33,7 +61,7 @@ function buildAttendanceRows(studentUsers, currentDayData) {
     const state = checkIn === "请假" ? "请假" : String(checkIn || "").match(/08:1[0-9]/) ? "迟到" : checkIn ? "正常" : "未签到";
     return {
       name: student.displayName || student.username,
-      role: fallbackRoles[index % fallbackRoles.length],
+      role: assignedRoles[student.username] || fallbackRoles[index % fallbackRoles.length],
       in: checkIn || "--",
       out: isCurrent ? currentDayData?.checkOut || "--" : "--",
       state,
@@ -69,12 +97,12 @@ function buildFinanceRows(currentDayData, studentUsers) {
   ];
 }
 
-function buildStudentCards(studentUsers) {
+function buildStudentCards(studentUsers, assignedRoles = {}) {
   const roles = ["吧台主岗", "收银与财务", "库存盘点", "服务接待", "公区维护", "物料补给"];
   const progress = [92, 88, 73, 45, 84, 68, 76, 81];
   return (studentUsers || []).slice(0, 12).map((student, index) => ({
     name: student.displayName || student.username,
-    role: roles[index % roles.length],
+    role: assignedRoles[student.username] || roles[index % roles.length],
     progress: `${progress[index % progress.length]}%`,
     status: index % 5 === 2 ? "迟到" : index % 7 === 3 ? "请假" : "在岗",
     tags: index % 5 === 2 ? ["需说明", "低库存 3 项"] : ["签到正常", index % 3 === 0 ? "库存已确认" : "待审费用 1"],
@@ -88,8 +116,22 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
   const [inventoryQuery, setInventoryQuery] = useState("");
   const [inventoryFilter, setInventoryFilter] = useState("all");
   const [studentQuery, setStudentQuery] = useState("");
+  const [jobAssignments, setJobAssignments] = useState([]);
 
   const isManagementRole = ["P1", "T1", "P2"].includes(currentUserLevel);
+  const assignedRoles = useMemo(() => buildAssignedRoleMap(jobAssignments), [jobAssignments]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listJobAssignments({ workDate: todayValue() })
+      .then((resp) => {
+        if (!cancelled) setJobAssignments(resp?.assignments || []);
+      })
+      .catch(() => {
+        if (!cancelled) setJobAssignments([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
   const tasks = useMemo(() => [
     { step: 1, title: "学生签到并确认岗位", meta: isManagementRole ? "使用服务器时间完成签到/签退记录" : "使用服务器时间签到/签退，需补充说明时进入日常运营", status: currentDayData?.checkIn ? "done" : "pending", label: currentDayData?.checkIn ? "已完成" : "待跟进", tab: "daily" },
     { step: 2, title: "开店前卫生与设备检查", meta: "吧台、公区、制冰机照片上传后等待 P2 确认", status: "pending", label: "待确认", tab: "daily" },
@@ -104,7 +146,7 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
     return true;
   });
 
-  const attendanceRows = buildAttendanceRows(studentUsers, currentDayData).filter((row) => {
+  const attendanceRows = buildAttendanceRows(studentUsers, currentDayData, assignedRoles).filter((row) => {
     const hit = `${row.name} ${row.role}`.includes(attendanceQuery.trim());
     const stateHit = attendanceFilter === "all" || row.state === attendanceFilter;
     return hit && stateHit;
@@ -117,7 +159,7 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
   });
 
   const financeRows = buildFinanceRows(currentDayData, studentUsers);
-  const studentCards = buildStudentCards(studentUsers).filter((item) => `${item.name} ${item.role} ${item.status} ${item.tags.join(" ")}`.includes(studentQuery.trim()));
+  const studentCards = buildStudentCards(studentUsers, assignedRoles).filter((item) => `${item.name} ${item.role} ${item.status} ${item.tags.join(" ")}`.includes(studentQuery.trim()));
 
   if (activeTab === "prototype_attendance") {
     return (
