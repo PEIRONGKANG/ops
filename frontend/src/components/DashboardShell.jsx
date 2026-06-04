@@ -77,6 +77,13 @@ export function DashboardShell({
             <DashboardStats items={dashboardStats} />
           </section>
 
+          <section className="ops-public-command-strip" aria-label="快捷入口">
+            <strong>快速进入：</strong>
+            <button type="button" onClick={() => document.querySelector(".login-card")?.scrollIntoView({ behavior: "smooth", block: "center" })}>账号登录</button>
+            <button type="button" onClick={() => document.querySelector(".ops-public-grid")?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看带教留言</button>
+            <button type="button" onClick={() => document.querySelector(".login-card")?.scrollIntoView({ behavior: "smooth", block: "center" })}>双人协同</button>
+          </section>
+
           <section className="ops-public-grid">
             <TeacherNoticeBoard {...noticeBoardProps} loggedIn={false} />
             <LoginPanel {...loginProps} />
