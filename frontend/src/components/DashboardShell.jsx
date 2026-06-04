@@ -1,7 +1,22 @@
 import { LoginPanel } from "./LoginPanel";
-import { Sidebar } from "./Sidebar";
 import { TabNav } from "./TabNav";
 import { TeacherNoticeBoard } from "./TeacherNoticeBoard";
+
+const NAV_ICON_MAP = {
+  leader_dashboard: "⌂",
+  supervisor_dashboard: "◎",
+  manager_dashboard: "◉",
+  training_tasks: "◷",
+  training_progress: "↗",
+  completion_matrix: "▦",
+  trainee_guide: "☰",
+  semester_management: "◌",
+  accounts: "☷",
+  creative: "✦",
+  daily: "▣",
+  handover: "⇄",
+  reflection: "✓",
+};
 
 function DashboardStats({ items }) {
   return (
@@ -17,6 +32,111 @@ function DashboardStats({ items }) {
         </article>
       ))}
     </>
+  );
+}
+
+function PrototypeSidebar({ tabItems, activeTab, onTabChange, sidebarProps }) {
+  const currentUser = sidebarProps?.currentUser;
+  const roleLabel = sidebarProps?.roleLabel || "角色未识别";
+  const displayName = currentUser?.displayName || currentUser?.username || "未登录";
+
+  return (
+    <aside className="prototype-sidebar no-print" aria-label="主导航">
+      <div className="prototype-brand">
+        <span className="prototype-brand-mark">训</span>
+        <div>
+          <strong>综合实训</strong>
+          <small>学生工作状态中心</small>
+        </div>
+      </div>
+
+      <nav className="prototype-nav">
+        {tabItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={activeTab === item.key ? "prototype-nav-item active" : "prototype-nav-item"}
+            onClick={() => onTabChange(item.key)}
+            aria-current={activeTab === item.key ? "page" : undefined}
+          >
+            <span>{NAV_ICON_MAP[item.key] || "•"}</span>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="prototype-sidebar-card">
+        <small>当前会话</small>
+        <strong>{displayName}</strong>
+        <span>{roleLabel}</span>
+        <button type="button" className="prototype-logout" onClick={sidebarProps?.onLogout}>退出登录</button>
+      </div>
+    </aside>
+  );
+}
+
+function PrototypeTaskFlow({ todoItems }) {
+  return (
+    <section className="prototype-panel prototype-wide prototype-task-panel">
+      <div className="prototype-panel-head">
+        <div>
+          <p className="ops-kicker">今日进度</p>
+          <h2>实训任务流</h2>
+        </div>
+        <div className="prototype-segmented" aria-label="任务过滤">
+          <button type="button" className="active">全部</button>
+          <button type="button">异常</button>
+          <button type="button">已完成</button>
+        </div>
+      </div>
+
+      <div className="prototype-timeline">
+        {todoItems.map((item, index) => (
+          <button
+            key={item.title}
+            type="button"
+            className="prototype-task-card"
+            onClick={() => {
+              if (typeof item.onClick === "function") {
+                item.onClick();
+                return;
+              }
+            }}
+          >
+            <span className="prototype-task-index">{index + 1}</span>
+            <span className="prototype-task-copy">
+              <strong>{item.title}</strong>
+              <small>{item.meta}</small>
+            </span>
+            <em className={`prototype-tag ${item.tone || "info"}`}>{item.tone === "emerald" ? "进行中" : item.tone === "indigo" ? "待确认" : "可处理"}</em>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PrototypeStatusPanel({ activityItems }) {
+  return (
+    <section className="prototype-panel prototype-status-panel">
+      <div className="prototype-panel-head">
+        <div>
+          <p className="ops-kicker">班级状态</p>
+          <h2>运行分布</h2>
+        </div>
+      </div>
+      <div className="prototype-donut" aria-label="完成度概览">
+        <span>82%</span>
+      </div>
+      <div className="prototype-legend">
+        {activityItems.map((item, index) => (
+          <span key={item.label}>
+            <i className={index === 0 ? "purple" : index === 1 ? "blue" : "pink"} />
+            {item.label}：{item.value}
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -104,137 +224,85 @@ export function DashboardShell({
   }
 
   return (
-    <div className="ops-shell ops-shell-auth">
-      <aside className="ops-sidebar no-print">
-        <div className="ops-sidebar-top">
-          <div className="ops-brand">
-            <div className="ops-brand-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
+    <div className="ops-shell ops-shell-auth prototype-shell">
+      <PrototypeSidebar
+        tabItems={tabItems}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        sidebarProps={sidebarProps}
+      />
+
+      <main className="prototype-main">
+        <header className="prototype-topbar">
+          <div>
+            <p className="ops-kicker">{dashboardDate}</p>
+            <h1>{pageTitle}</h1>
+            <p>{pageSubtitle}</p>
+          </div>
+          <div className="prototype-top-actions no-print">
+            <span className="ops-status-badge">{statusLabel}</span>
+            <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>导出日报</button>
+            <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>加载本周</button>
+          </div>
+        </header>
+
+        <section className="prototype-stat-strip" aria-label="关键状态">
+          <DashboardStats items={dashboardStats} />
+        </section>
+
+        <section className="prototype-notice-line" aria-label="需要处理">
+          <strong>需要处理：</strong>
+          {todoItems.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => {
+                if (typeof item.onClick === "function") item.onClick();
+                else if (item.tab) onTabChange(item.tab);
+              }}
+            >
+              {item.title}
+            </button>
+          ))}
+        </section>
+
+        <section className="prototype-work-grid">
+          <PrototypeTaskFlow todoItems={todoItems} />
+          <PrototypeStatusPanel activityItems={activityItems} />
+        </section>
+
+        <TeacherNoticeBoard {...noticeBoardProps} loggedIn />
+
+        <section className="prototype-panel prototype-workbench">
+          <div className="prototype-panel-head">
+            <div>
+              <p className="ops-kicker">Workbench</p>
+              <h2>{activeTabLabel}</h2>
             </div>
-            <div className="ops-brand-copy">
-              <h1>OpsMaster</h1>
-              <p>TRAINING BASE</p>
+            <div className="ops-action-row no-print">
+              <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>加载/创建本周</button>
+              <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>预览周报</button>
             </div>
           </div>
 
-          <TabNav items={tabItems} activeTab={activeTab} onChange={onTabChange} orientation="vertical" />
-        </div>
+          <div className="ops-inline-tabs no-print">
+            <TabNav items={tabItems} activeTab={activeTab} onChange={onTabChange} />
+          </div>
 
-        <div className="ops-sidebar-bottom">
-          <Sidebar {...sidebarProps} />
-        </div>
-      </aside>
+          <div className="ops-workbench-body">
+            {moduleContent}
+          </div>
+        </section>
 
-      <main className="ops-main">
-        <div className="ops-main-inner">
-          <header className="ops-page-header">
-            <div>
-              <h2 className="ops-page-title">{pageTitle}</h2>
-              <p className="ops-page-date">{dashboardDate}</p>
-              <p className="ops-page-subtitle">{pageSubtitle}</p>
-            </div>
-            <span className="ops-status-badge">{statusLabel}</span>
-          </header>
-
-          <section className="ops-stat-grid">
-            <DashboardStats items={dashboardStats} />
-          </section>
-
-          <TeacherNoticeBoard {...noticeBoardProps} loggedIn />
-
-          <section className="ops-content-grid">
-            <article className="ops-panel">
-              <div className="ops-panel-head">
-                <div>
-                  <p className="ops-kicker">To-do</p>
-                  <h3>待办事项</h3>
-                </div>
-              </div>
-
-              <div className="ops-todo-list">
-                {todoItems.map((item) => (
-                  <button
-                    key={item.title}
-                    type="button"
-                    className="ops-todo-item"
-                    onClick={() => {
-                      if (typeof item.onClick === "function") {
-                        item.onClick();
-                        return;
-                      }
-                      if (item.tab) onTabChange(item.tab);
-                    }}
-                  >
-                    <span className={`ops-todo-icon ${item.tone ? `tone-${item.tone}` : ""}`} />
-                    <span className="ops-todo-copy">
-                      <strong>{item.title}</strong>
-                      <small>{item.meta}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </article>
-
-            <article className="ops-panel">
-              <div className="ops-panel-head">
-                <div>
-                  <p className="ops-kicker">Activity</p>
-                  <h3>运营动态</h3>
-                </div>
-                <button className="ops-link-button" type="button" onClick={onLoadWeek} disabled={busy}>
-                  + 加载本周
-                </button>
-              </div>
-
-              <div className="ops-activity-list">
-                {activityItems.map((item) => (
-                  <div key={item.label} className="ops-activity-item">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </section>
-
-          <section className="ops-panel ops-workbench">
-            <div className="ops-panel-head">
-              <div>
-                <p className="ops-kicker">Workbench</p>
-                <h3>{activeTabLabel}</h3>
-              </div>
-              <div className="ops-action-row no-print">
-                <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>
-                  加载/创建本周
-                </button>
-                <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>
-                  预览周报
-                </button>
-              </div>
-            </div>
-
-            <div className="ops-inline-tabs no-print">
-              <TabNav items={tabItems} activeTab={activeTab} onChange={onTabChange} />
-            </div>
-
-            <div className="ops-workbench-body">
-              {moduleContent}
-            </div>
-          </section>
-
-          <footer className="ops-footer-legal no-print">
-            <p>Copyright © 裴荣康 保留所有权利</p>
-            <p>
-              <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noreferrer">
-                苏ICP备2026030758号-1
-              </a>
-            </p>
-            <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
-          </footer>
-        </div>
+        <footer className="ops-footer-legal no-print">
+          <p>Copyright © 裴荣康 保留所有权利</p>
+          <p>
+            <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noreferrer">
+              苏ICP备2026030758号-1
+            </a>
+          </p>
+          <p>若在使用过程中遇到填报、系统故障等问题，欢迎及时联系反馈。</p>
+        </footer>
       </main>
     </div>
   );
