@@ -7,6 +7,7 @@ import { DailyTab } from "./components/DailyTab";
 import { HandoverTab } from "./components/HandoverTab";
 import { LoginPanel } from "./components/LoginPanel";
 import { ReflectionTab } from "./components/ReflectionTab";
+import { PrototypeOpsTabs } from "./components/PrototypeOpsTabs";
 import { Sidebar } from "./components/Sidebar";
 import { TabNav } from "./components/TabNav";
 import { TrainingTasksTab } from "./components/TrainingTasksTab";
@@ -119,10 +120,10 @@ const initialState = {
 };
 
 function defaultTabForLevel(level) {
-  if (level === "P3") return "training_tasks";
-  if (level === "P2") return "manager_dashboard";
-  if (level === "T1") return "supervisor_dashboard";
-  if (level === "P1") return "leader_dashboard";
+  if (level === "P3") return "prototype_overview";
+  if (level === "P2") return "prototype_overview";
+  if (level === "T1") return "prototype_overview";
+  if (level === "P1") return "prototype_overview";
   return "daily";
 }
 
@@ -1988,6 +1989,13 @@ function App() {
   const scopeUserRecord = studentUsers.find((user) => user.username === resolvedScopeUser) || currentUser;
   const dashboardTabItems = (() => {
     const level = currentUser?.level || "";
+    const prototype = [
+      { key: "prototype_overview", label: "今日总览" },
+      { key: "prototype_attendance", label: "签到签退" },
+      { key: "prototype_inventory", label: "库存物料" },
+      { key: "prototype_finance", label: "财务管理" },
+      { key: "prototype_students", label: "学生状态" },
+    ];
     const base = [
       { key: "creative", label: "创意策划" },
       { key: "daily", label: "日常运营" },
@@ -2002,16 +2010,17 @@ function App() {
     ];
 
     if (level === "P3") {
-      return [training[0], ...base, training[3]];
+      return [...prototype, training[0], ...base, training[3]];
     }
     if (level === "P2") {
-      return [{ key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
+      return [...prototype, { key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
     }
     if (level === "T1") {
-      return [{ key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
+      return [...prototype, { key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
     }
     if (level === "P1") {
       return [
+        ...prototype,
         { key: "leader_dashboard", label: "领导驾驶舱" },
         training[2],
         training[1],
@@ -2022,7 +2031,7 @@ function App() {
         { key: "accounts", label: "账号管理" },
       ];
     }
-    return [...base, training[3]];
+    return [...prototype, ...base, training[3]];
   })();
   const activeTabItem = dashboardTabItems.find((item) => item.key === app.activeTab) || null;
   const activeDashboardTabLabel = dashboardTabItems.find((item) => item.key === app.activeTab)?.label || "运营工作台";
@@ -2131,6 +2140,17 @@ function App() {
   ];
   const moduleContent = (
     <>
+      {["prototype_overview", "prototype_attendance", "prototype_inventory", "prototype_finance", "prototype_students"].includes(app.activeTab) ? (
+        <PrototypeOpsTabs
+          activeTab={app.activeTab}
+          currentDayData={currentDayData}
+          studentUsers={studentUsers}
+          onNavigate={handleTabChange}
+          onLoadWeek={handleLoadWeek}
+          onPreviewReport={handlePreviewReport}
+        />
+      ) : null}
+
       {showWeekLoadingState ? (
         <section className="soft-card">
           <p className="module-kicker">Week Loading</p>
