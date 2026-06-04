@@ -3,6 +3,11 @@ import { TabNav } from "./TabNav";
 import { TeacherNoticeBoard } from "./TeacherNoticeBoard";
 
 const NAV_ICON_MAP = {
+  prototype_overview: "⌂",
+  prototype_attendance: "◷",
+  prototype_inventory: "▦",
+  prototype_finance: "¥",
+  prototype_students: "◎",
   leader_dashboard: "⌂",
   supervisor_dashboard: "◎",
   manager_dashboard: "◉",
@@ -163,6 +168,8 @@ export function DashboardShell({
   busy,
   loginProps,
 }) {
+  const isPrototypeTab = String(activeTab || "").startsWith("prototype_");
+
   if (!loggedIn) {
     return (
       <div className="ops-shell ops-shell-public">
@@ -242,7 +249,7 @@ export function DashboardShell({
           <div className="prototype-top-actions no-print">
             <span className="ops-status-badge">{statusLabel}</span>
             <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>导出日报</button>
-            <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>加载本周</button>
+            <button className="btn-primary" type="button" onClick={() => onTabChange("prototype_attendance")} disabled={busy}>今日签到</button>
           </div>
         </header>
 
@@ -266,33 +273,41 @@ export function DashboardShell({
           ))}
         </section>
 
-        <section className="prototype-work-grid">
-          <PrototypeTaskFlow todoItems={todoItems} />
-          <PrototypeStatusPanel activityItems={activityItems} />
-        </section>
-
-        <TeacherNoticeBoard {...noticeBoardProps} loggedIn />
-
-        <section className="prototype-panel prototype-workbench">
-          <div className="prototype-panel-head">
-            <div>
-              <p className="ops-kicker">Workbench</p>
-              <h2>{activeTabLabel}</h2>
-            </div>
-            <div className="ops-action-row no-print">
-              <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>加载/创建本周</button>
-              <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>预览周报</button>
-            </div>
-          </div>
-
-          <div className="ops-inline-tabs no-print">
-            <TabNav items={tabItems} activeTab={activeTab} onChange={onTabChange} />
-          </div>
-
-          <div className="ops-workbench-body">
+        {isPrototypeTab ? (
+          <section className="prototype-linked-stage">
             {moduleContent}
-          </div>
-        </section>
+          </section>
+        ) : (
+          <>
+            <section className="prototype-work-grid">
+              <PrototypeTaskFlow todoItems={todoItems} />
+              <PrototypeStatusPanel activityItems={activityItems} />
+            </section>
+
+            <TeacherNoticeBoard {...noticeBoardProps} loggedIn />
+
+            <section className="prototype-panel prototype-workbench">
+              <div className="prototype-panel-head">
+                <div>
+                  <p className="ops-kicker">Workbench</p>
+                  <h2>{activeTabLabel}</h2>
+                </div>
+                <div className="ops-action-row no-print">
+                  <button className="btn-primary" type="button" onClick={onLoadWeek} disabled={busy}>加载/创建本周</button>
+                  <button className="btn-secondary" type="button" onClick={onPreviewReport} disabled={busy || !canPreviewReport}>预览周报</button>
+                </div>
+              </div>
+
+              <div className="ops-inline-tabs no-print">
+                <TabNav items={tabItems} activeTab={activeTab} onChange={onTabChange} />
+              </div>
+
+              <div className="ops-workbench-body">
+                {moduleContent}
+              </div>
+            </section>
+          </>
+        )}
 
         <footer className="ops-footer-legal no-print">
           <p>Copyright © 裴荣康 保留所有权利</p>
