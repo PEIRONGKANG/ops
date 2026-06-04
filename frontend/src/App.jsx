@@ -2079,9 +2079,9 @@ function App() {
         tone: "emerald",
       },
       {
-        label: "损耗预警",
+        label: "损耗记录",
         value: formatCurrency(currentDayData?.lossAmount),
-        meta: currentDayData?.lossDesc ? "已填写损耗说明" : "暂未记录异常损耗",
+        meta: currentDayData?.lossDesc ? "已填写损耗说明" : "暂未记录损耗事项",
         tone: "indigo",
       },
     ]
@@ -2143,6 +2143,7 @@ function App() {
       {["prototype_overview", "prototype_attendance", "prototype_inventory", "prototype_finance", "prototype_students"].includes(app.activeTab) ? (
         <PrototypeOpsTabs
           activeTab={app.activeTab}
+          currentUserLevel={currentUser?.level || ""}
           currentDayData={currentDayData}
           studentUsers={studentUsers}
           onNavigate={handleTabChange}

@@ -9,7 +9,6 @@ const SUMMARY_LABELS = [
   ["overdue_count", "超时未完成"],
   ["today_submissions", "今日提交数"],
   ["average_score", "平均得分"],
-  ["risk_students", "风险学生数"],
 ];
 
 function formatTime(value) {
@@ -96,7 +95,7 @@ export function LeaderDashboardTab() {
               <tbody>
                 {(data.student_progress || []).map((student) => (
                   <tr key={student.student_no} className="border-t border-slate-100">
-                    <td className="py-3 font-medium text-slate-900">{student.name}{student.risk ? <span className="ml-2 status-pill is-warn">风险</span> : null}</td>
+                    <td className="py-3 font-medium text-slate-900">{student.name}</td>
                     <td className="py-3 text-slate-600">{student.student_no}</td>
                     <td className="py-3">{student.training_progress}%</td>
                     <td className="py-3">{student.completed_tasks}/{student.total_tasks}</td>
@@ -109,29 +108,15 @@ export function LeaderDashboardTab() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="soft-card">
-            <h3 className="panel-title">风险预警</h3>
-            <div className="mt-4 space-y-2">
-              {(data.risk_alerts || []).length ? data.risk_alerts.map((alert, index) => (
-                <div key={`${alert.type}-${index}`} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <div className="font-semibold text-amber-900">{alert.title}</div>
-                  <div className="mt-1 text-sm text-amber-800">{alert.meta}</div>
-                </div>
-              )) : <p className="status-line">暂无风险预警。</p>}
-            </div>
-          </div>
-
-          <div className="soft-card">
-            <h3 className="panel-title">最新动态</h3>
-            <div className="mt-4 space-y-3">
-              {(data.recent_activities || []).length ? data.recent_activities.map((item, index) => (
-                <div key={`${item.type}-${index}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-                  <div className="font-medium text-slate-900">{item.title}</div>
-                  <div className="text-sm text-slate-500">{item.actor || "-"} · {item.target || "-"} · {formatTime(item.time)}</div>
-                </div>
-              )) : <p className="status-line">暂无动态。</p>}
-            </div>
+        <div className="soft-card">
+          <h3 className="panel-title">最新动态</h3>
+          <div className="mt-4 space-y-3">
+            {(data.recent_activities || []).length ? data.recent_activities.map((item, index) => (
+              <div key={`${item.type}-${index}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                <div className="font-medium text-slate-900">{item.title}</div>
+                <div className="text-sm text-slate-500">{item.actor || "-"} · {item.target || "-"} · {formatTime(item.time)}</div>
+              </div>
+            )) : <p className="status-line">暂无动态。</p>}
           </div>
         </div>
       </div>
