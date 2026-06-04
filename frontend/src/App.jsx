@@ -391,7 +391,7 @@ function App() {
     const groupedUsers = getGroupedScopeUsers(source, preferredStartDate);
     const hasValidScopeUser = source.activeScopeUser
       && source.users.some((item) => item.username === source.activeScopeUser && item.level === "P3");
-    if (hasValidScopeUser && (source.scopeUserPinned || !groupedUsers.length || groupedUsers.includes(source.activeScopeUser))) {
+    if (hasValidScopeUser && (!groupedUsers.length || groupedUsers.includes(source.activeScopeUser))) {
       return source.activeScopeUser;
     }
     if (groupedUsers.length) {

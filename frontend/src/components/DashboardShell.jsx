@@ -70,10 +70,57 @@ function PrototypeSidebar({ tabItems, activeTab, onTabChange, sidebarProps }) {
         ))}
       </nav>
 
-      <div className="prototype-sidebar-card">
+      <div className="prototype-sidebar-card prototype-sidebar-controls">
         <small>当前会话</small>
         <strong>{displayName}</strong>
         <span>{roleLabel}</span>
+
+        <div className="prototype-control-group">
+          <label>教学周次</label>
+          <select
+            value={sidebarProps?.teachingWeek || ""}
+            onChange={(event) => sidebarProps?.onTeachingWeekChange?.(event.target.value)}
+            disabled={sidebarProps?.busy}
+          >
+            {(sidebarProps?.teachingWeekOptions || []).map((item) => (
+              <option key={item.value || "manual"} value={item.value}>{item.text}</option>
+            ))}
+          </select>
+        </div>
+
+        {sidebarProps?.canViewAllScopes ? (
+          <div className="prototype-control-group">
+            <label>查看学生</label>
+            <select
+              value={sidebarProps?.activeScopeUser || ""}
+              onChange={(event) => sidebarProps?.onScopeChange?.(event.target.value)}
+              disabled={sidebarProps?.busy || !(sidebarProps?.studentUsers || []).length}
+            >
+              {(sidebarProps?.studentUsers || []).map((user) => (
+                <option key={user.username} value={user.username}>{`${user.displayName || user.username}（${user.username}）`}</option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        {sidebarProps?.groupedStudentUsers?.length ? (
+          <div className="prototype-group-chips">
+            {sidebarProps.groupedStudentUsers.map((user) => (
+              <button
+                key={user.username}
+                type="button"
+                className={sidebarProps.activeScopeUser === user.username ? "is-active" : ""}
+                onClick={() => sidebarProps?.onScopeChange?.(user.username)}
+                disabled={sidebarProps?.busy}
+              >
+                <span>{user.groupLabel}</span>
+                <strong>{user.displayName}</strong>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <p className="prototype-sidebar-hint">{sidebarProps?.groupHint || sidebarProps?.sessionInfo}</p>
         <button type="button" className="prototype-logout" onClick={sidebarProps?.onLogout}>退出登录</button>
       </div>
     </aside>
