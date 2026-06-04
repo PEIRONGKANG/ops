@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 const ROLE_META = {
-  P1: { label: "P1 领导", hint: "进入领导驾驶舱", tone: "purple" },
-  T1: { label: "T1 督导", hint: "进入督导工作台", tone: "blue" },
+  P1: { label: "P1教学督查", hint: "进入教学督查工作台", tone: "purple" },
+  T1: { label: "T1运营督查", hint: "进入运营督查工作台", tone: "blue" },
   P2: { label: "P2 值班经理", hint: "进入值班经理工作台", tone: "cyan" },
   P3: { label: "P3 学生", hint: "进入我的实训任务", tone: "pink" },
 };

@@ -47,7 +47,7 @@ const STATUS_LABELS = {
   done: "已完成",
   p2_confirmed: "P2 已确认",
   returned: "P2 已退回",
-  pending_t1: "待 T1 督导",
+  pending_t1: "待 T1运营督查",
   t1_reviewed: "T1 已评价",
   revision_required: "T1 要求整改",
   overdue: "超时未完成",
@@ -209,7 +209,7 @@ export function CompletionMatrixTab({ selectedWeekStart, users }) {
     ["reflection", "总结复盘"],
     ["poster", "海报上传"],
     ["p2", "P2 确认"],
-    ["t1", "T1 督导"],
+    ["t1", "T1运营督查"],
     ["report", "周报导出"],
     ["training", "实训任务完成度"],
   ];
@@ -229,7 +229,7 @@ export function CompletionMatrixTab({ selectedWeekStart, users }) {
             <span className="status-pill">草稿中</span>
             <span className="status-pill is-warn">待确认</span>
             <span className="status-pill is-good">已完成/已确认</span>
-            <span className="status-pill bg-violet-50 text-violet-700 border-violet-200">T1 督导</span>
+            <span className="status-pill bg-violet-50 text-violet-700 border-violet-200">T1运营督查</span>
             <span className="status-pill bg-rose-50 text-rose-700 border-rose-200">退回/超时/整改</span>
           </div>
         </div>
@@ -249,7 +249,7 @@ export function CompletionMatrixTab({ selectedWeekStart, users }) {
           <option value="">全部记录</option>
           <option value="unfinished">只看未完成</option>
           <option value="pending_p2">只看待 P2 确认</option>
-          <option value="pending_t1">只看待 T1 督导</option>
+          <option value="pending_t1">只看待 T1运营督查</option>
           <option value="overdue">只看超时</option>
           <option value="exportable">只看可导出周报</option>
         </select>

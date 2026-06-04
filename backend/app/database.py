@@ -108,7 +108,7 @@ DEFAULT_USERS = [
     {"username": "2401280120", "password": "2401280120", "role": "student", "level": "P3", "display_name": "刘月", "owner_type": "Student"},
     {"username": "103085", "password": "103085", "role": "admin", "level": "P1", "display_name": "周欣", "owner_type": "Teacher"},
     {"username": "122019", "password": "122019", "role": "admin", "level": "P1", "display_name": "裴荣康", "owner_type": "Teacher"},
-    {"username": "t1_teacher", "password": "t1_teacher", "role": "supervisor", "level": "T1", "display_name": "督导教师测试账号", "owner_type": "Supervisor"},
+    {"username": "t1_teacher", "password": "t1_teacher", "role": "supervisor", "level": "T1", "display_name": "运营督查测试账号", "owner_type": "Supervisor"},
     {"username": "2301180107", "password": "2301180107", "role": "manager", "level": "P2", "display_name": "史燕香", "owner_type": "OM(Operations Manager)"},
     {"username": "425021", "password": "425021", "role": "admin", "level": "P1", "display_name": "王谦", "owner_type": "Teacher"},
 ]

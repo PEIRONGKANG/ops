@@ -67,8 +67,8 @@ export function normalizeTeacherNotice(noticeLike = {}) {
 }
 
 export function levelLabel(level) {
-  if (level === "P1") return "P1 最高权限";
-  if (level === "T1") return "T1 督导教师";
+  if (level === "P1") return "P1教学督查";
+  if (level === "T1") return "T1运营督查";
   if (level === "P2") return "P2 运营经理";
   return "P3 学生";
 }

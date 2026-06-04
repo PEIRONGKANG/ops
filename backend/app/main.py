@@ -680,7 +680,7 @@ async def create_semester(payload: dict = Body(default_factory=dict), current_us
 @app.get("/api/dashboard/p1")
 async def p1_dashboard(current_user: dict = Depends(require_current_user)) -> dict:
     if current_user.get("level") != "P1":
-        raise HTTPException(status_code=403, detail="仅 P1 可访问领导驾驶舱。")
+        raise HTTPException(status_code=403, detail="仅 P1教学督查 可访问该工作台。")
 
     users = list_users()
     p2_users = [user for user in users if user.get("level") == "P2"]

@@ -2018,13 +2018,13 @@ function App() {
       return [...prototype, jobAssignment, { key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
     }
     if (level === "T1") {
-      return [...prototype, jobAssignment, { key: "supervisor_dashboard", label: "督导概览" }, training[2], training[1], ...base, training[3]];
+      return [...prototype, jobAssignment, { key: "supervisor_dashboard", label: "运营督查概览" }, training[2], training[1], ...base, training[3]];
     }
     if (level === "P1") {
       return [
         ...prototype,
         jobAssignment,
-        { key: "leader_dashboard", label: "领导驾驶舱" },
+        { key: "leader_dashboard", label: "教学督查工作台" },
         training[2],
         training[1],
         { key: "training_tasks", label: "实训任务管理" },
@@ -2336,8 +2336,8 @@ function App() {
   const sidebarProps = {
     currentUser,
     roleLabel: currentUser ? ({
-      P1: "教学主管",
-      T1: "督导教师",
+      P1: "P1教学督查",
+      T1: "T1运营督查",
       P2: "运营经理",
       P3: "轮值学员",
     }[currentUser.level] || currentUser.level) : "",

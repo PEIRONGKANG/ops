@@ -75,7 +75,7 @@ export function AccountsTab({
                 <label className="field-label">权限等级</label>
                 <select className="field-input" value={newUserForm.level} onChange={(event) => onNewUserChange("level", event.target.value)}>
                   <option value="P3">P3 学生</option>
-                  <option value="T1">T1 督导教师</option>
+                  <option value="T1">T1运营督查</option>
                   <option value="P2">P2 运营经理</option>
                   <option value="P1">P1 最高权限</option>
                 </select>
@@ -134,7 +134,7 @@ export function AccountsTab({
               <select className="field-input" value={editForm.level} onChange={(event) => onEditFormChange("level", event.target.value)}>
                 <option value="P3">P3 学生</option>
                 <option value="P2">P2 运营经理</option>
-                <option value="T1">T1 督导教师</option>
+                <option value="T1">T1运营督查</option>
                 <option value="P1">P1 最高权限</option>
               </select>
             </div>

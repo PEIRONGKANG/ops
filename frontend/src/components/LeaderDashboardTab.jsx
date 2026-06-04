@@ -5,7 +5,7 @@ const SUMMARY_LABELS = [
   ["students_total", "学生总数"],
   ["overall_progress", "整体完成率", "%"],
   ["pending_p2_confirm", "待 P2 确认"],
-  ["pending_t1_review", "待 T1 督导"],
+  ["pending_t1_review", "待 T1运营督查"],
   ["overdue_count", "超时未完成"],
   ["today_submissions", "今日提交数"],
   ["average_score", "平均得分"],
@@ -30,7 +30,7 @@ export function LeaderDashboardTab() {
         if (alive) setData(resp);
       })
       .catch((err) => {
-        if (alive) setError(err.message || "领导驾驶舱加载失败。");
+        if (alive) setError(err.message || "教学督查工作台加载失败。");
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -41,11 +41,11 @@ export function LeaderDashboardTab() {
   }, []);
 
   if (loading) {
-    return <section className="soft-card"><p className="status-line">正在加载领导驾驶舱...</p></section>;
+    return <section className="soft-card"><p className="status-line">正在加载教学督查工作台...</p></section>;
   }
 
   if (error) {
-    return <section className="soft-card"><p className="module-kicker">Dashboard Error</p><h2 className="section-title mt-2">领导驾驶舱暂不可用</h2><p className="status-line mt-3">{error}</p></section>;
+    return <section className="soft-card"><p className="module-kicker">Dashboard Error</p><h2 className="section-title mt-2">教学督查工作台暂不可用</h2><p className="status-line mt-3">{error}</p></section>;
   }
 
   const summary = data?.summary || {};
@@ -56,9 +56,9 @@ export function LeaderDashboardTab() {
       <div className="soft-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="module-kicker">Leader Dashboard</p>
-            <h2 className="section-title mt-2">领导驾驶舱</h2>
-            <p className="status-line mt-3">实训基地学期运行、学生进度与督导数据总览</p>
+            <p className="module-kicker">Teaching Inspection</p>
+            <h2 className="section-title mt-2">P1教学督查工作台</h2>
+            <p className="status-line mt-3">实训基地学期运行、学生进度与运营督查数据总览</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="status-pill is-good">{semester.display_name || "2025-2026 学年 第二学期（春季学期）"}</span>
@@ -131,11 +131,11 @@ export function LeaderDashboardTab() {
           </div>
         </div>
         <div className="soft-card">
-          <h3 className="panel-title">T1 督导教师工作情况</h3>
+          <h3 className="panel-title">T1运营督查工作情况</h3>
           <div className="mt-4 space-y-2">
             {(data.t1_supervision || []).length ? (data.t1_supervision || []).map((item) => (
               <div key={item.username} className="status-line">{item.name}：已评价 {item.reviewed}，待评价 {item.pending}，负责范围 {item.scope}</div>
-            )) : <p className="status-line">暂无 T1 督导数据，请先在账号管理中创建 T1 账号并初始化督导记录。</p>}
+            )) : <p className="status-line">暂无 T1运营督查数据，请先在账号管理中创建 T1 账号并初始化督查记录。</p>}
           </div>
         </div>
       </div>
