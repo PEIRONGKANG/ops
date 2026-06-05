@@ -239,7 +239,15 @@ export function PrototypeOpsTabs({
         <Panel
           eyebrow="财务管理"
           title="费用审批与流水"
-          actions={<button className="btn-primary" type="button" onClick={onRecordSave} disabled={!recordEditable}>保存财务记录</button>}
+          actions={recordEditable ? (
+            <button className="btn-primary" type="button" onClick={onRecordSave}>
+              保存财务记录
+            </button>
+          ) : (
+            <button className="btn-primary" type="button" onClick={() => onNavigate?.("daily")}>
+              {currentUserLevel === "P2" ? "进入财务确认" : "查看日常运营"}
+            </button>
+          )}
         >
           <div className="prototype-finance-form">
             {financeFields.map((field) => (
