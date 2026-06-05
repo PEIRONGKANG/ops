@@ -311,6 +311,16 @@ function App() {
     }
   };
 
+  const resolveP3InitialWeekStart = async (fallbackStart = todayISO()) => {
+    try {
+      const resp = await api.myWeekHistory();
+      const weeks = Array.isArray(resp?.weeks) ? resp.weeks : [];
+      return weeks[0]?.startDate || fallbackStart;
+    } catch {
+      return fallbackStart;
+    }
+  };
+
   const getCurrentUserRecord = (source = stateRef.current) => {
     const current = source.currentUser;
     if (!current) return null;
@@ -908,7 +918,13 @@ function App() {
           } catch {
             // Authenticated notice fetch is best-effort during session restore.
           }
-          await loadWeekForCurrentScope(next.selectedWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
+          const restoreWeekStart = stateRef.current.currentUser?.level === "P3"
+            ? await resolveP3InitialWeekStart(next.selectedWeekStart)
+            : next.selectedWeekStart;
+          await loadWeekForCurrentScope(restoreWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
+          if (stateRef.current.currentUser?.level === "P3") {
+            patchState({ activeTab: "my_history" });
+          }
         }
       } catch (error) {
         replaceState({
@@ -1222,13 +1238,21 @@ function App() {
         // Ignore; notice endpoints require a valid login token.
       }
 
+      const initialWeekStart = first.user.level === "P3"
+        ? await resolveP3InitialWeekStart(todayISO())
+        : todayISO();
       await loadWeekForCurrentScope(
-        todayISO(),
-        sessionUsers.length > 1
-          ? "双人登录成功。已自动加载本周轮值并同步到本组账号。"
-          : "登录成功。已自动加载本周轮值。",
+        initialWeekStart,
+        first.user.level === "P3"
+          ? "登录成功。已自动加载本人最近的实训周记录。"
+          : (sessionUsers.length > 1
+              ? "双人登录成功。已自动加载本周轮值并同步到本组账号。"
+              : "登录成功。已自动加载本周轮值。"),
         { forceGroupedScope: true },
       );
+      if (first.user.level === "P3") {
+        patchState({ activeTab: "my_history" });
+      }
       patchState({ loading: false });
     } catch (error) {
       if (stateRef.current.currentUser) {
