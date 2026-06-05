@@ -16,6 +16,17 @@ function hasApprovalStamp(approval) {
   );
 }
 
+function hasInventoryItems(items) {
+  return Array.isArray(items) && items.some((item) => hasText(
+    item?.item,
+    item?.location,
+    item?.current,
+    item?.safe,
+    item?.unit,
+    item?.note,
+  ));
+}
+
 export function hasDailyRecordPayload(record) {
   if (!record) return false;
   return hasText(
@@ -42,6 +53,7 @@ export function hasDailyRecordPayload(record) {
       record.inventoryImgs,
       record.receiptImgs,
     ].some(hasImages)
+    || hasInventoryItems(record.inventoryItems)
     || Object.values(record.approvals || {}).some(hasApprovalStamp)
     || Object.values(record.studentConfirmations || {}).some(hasApprovalStamp);
 }
@@ -84,6 +96,9 @@ export function cloneDailyRecord(record) {
     closingBar: [...normalized.closingBar],
     lossImgs: [...normalized.lossImgs],
     inventoryImgs: [...normalized.inventoryImgs],
+    inventoryItems: Array.isArray(normalized.inventoryItems)
+      ? normalized.inventoryItems.map((item) => ({ ...item }))
+      : [],
     receiptImgs: [...normalized.receiptImgs],
     managerNotes: { ...normalized.managerNotes },
     approvals: Object.fromEntries(

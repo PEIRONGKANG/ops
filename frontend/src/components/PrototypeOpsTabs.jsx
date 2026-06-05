@@ -75,15 +75,36 @@ function buildAttendanceRows(studentUsers, currentDayData, assignedRoles = {}) {
   ];
 }
 
+const DEFAULT_INVENTORY_ITEMS = [
+  { id: "coffee-beans", item: "埃塞浅烘咖啡豆", location: "吧台 A-01", current: "3", safe: "8", unit: "袋", note: "" },
+  { id: "milk-950", item: "鲜奶 950ml", location: "冷藏柜 C-02", current: "9", safe: "20", unit: "瓶", note: "" },
+  { id: "cup-lids", item: "一次性杯盖", location: "耗材柜 B-03", current: "120", safe: "200", unit: "个", note: "" },
+  { id: "matcha", item: "抹茶粉", location: "吧台 A-04", current: "6", safe: "5", unit: "罐", note: "" },
+  { id: "syrup-pump", item: "糖浆泵头", location: "工具柜 T-01", current: "18", safe: "10", unit: "个", note: "" },
+];
+
+function normalizeInventoryItems(currentDayData) {
+  const source = Array.isArray(currentDayData?.inventoryItems) && currentDayData.inventoryItems.length
+    ? currentDayData.inventoryItems
+    : DEFAULT_INVENTORY_ITEMS;
+  return source.map((row, index) => ({
+    id: row.id || `inventory-${index}`,
+    item: row.item || "",
+    location: row.location || "",
+    current: String(row.current ?? ""),
+    safe: String(row.safe ?? ""),
+    unit: row.unit || "",
+    note: row.note || "",
+  }));
+}
+
 function buildInventoryRows(currentDayData) {
-  const desc = currentDayData?.inventoryDesc || "";
-  return [
-    { item: "埃塞浅烘咖啡豆", location: "吧台 A-01", current: 3, safe: 8, unit: "袋", risk: true, note: desc },
-    { item: "鲜奶 950ml", location: "冷藏柜 C-02", current: 9, safe: 20, unit: "瓶", risk: true, note: desc },
-    { item: "一次性杯盖", location: "耗材柜 B-03", current: 120, safe: 200, unit: "个", risk: true, note: desc },
-    { item: "抹茶粉", location: "吧台 A-04", current: 6, safe: 5, unit: "罐", risk: false, note: desc },
-    { item: "糖浆泵头", location: "工具柜 T-01", current: 18, safe: 10, unit: "个", risk: false, note: desc },
-  ];
+  return normalizeInventoryItems(currentDayData).map((row) => ({
+    ...row,
+    currentNumber: Number(row.current || 0),
+    safeNumber: Number(row.safe || 0),
+    risk: Number(row.current || 0) < Number(row.safe || 0),
+  }));
 }
 
 function buildFinanceRows(currentDayData, studentUsers) {
@@ -132,6 +153,25 @@ export function PrototypeOpsTabs({
 
   const isManagementRole = ["P1", "T1", "P2"].includes(currentUserLevel);
   const assignedRoles = useMemo(() => buildAssignedRoleMap(jobAssignments), [jobAssignments]);
+  const inventoryEditable = Boolean(recordEditable);
+  const updateInventoryItem = (id, field, value) => {
+    const nextRows = normalizeInventoryItems(currentDayData).map((row) => (
+      row.id === id ? { ...row, [field]: value } : row
+    ));
+    onRecordFieldChange?.("inventoryItems", nextRows);
+  };
+  const addInventoryItem = () => {
+    const nextRows = normalizeInventoryItems(currentDayData).concat({
+      id: `custom-${Date.now()}`,
+      item: "",
+      location: "",
+      current: "",
+      safe: "",
+      unit: "",
+      note: "",
+    });
+    onRecordFieldChange?.("inventoryItems", nextRows);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -206,7 +246,7 @@ export function PrototypeOpsTabs({
       <Panel
         eyebrow="库存管理"
         title="物料安全线"
-        actions={<><input className="prototype-search" value={inventoryQuery} onChange={(e) => setInventoryQuery(e.target.value)} placeholder="搜索物料或仓位" /><select className="prototype-select" value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value)}><option value="all">全部库存</option><option value="risk">仅看需补充</option><option value="normal">库存正常</option></select><button className="btn-primary" type="button" onClick={onRecordSave} disabled={!recordEditable}>保存库存记录</button></>}
+        actions={<><input className="prototype-search" value={inventoryQuery} onChange={(e) => setInventoryQuery(e.target.value)} placeholder="搜索物料或仓位" /><select className="prototype-select" value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value)}><option value="all">全部库存</option><option value="risk">仅看需补充</option><option value="normal">库存正常</option></select>{inventoryEditable ? <button className="btn-secondary" type="button" onClick={addInventoryItem}>新增物料</button> : null}<button className="btn-primary" type="button" onClick={inventoryEditable ? onRecordSave : () => onNavigate?.("daily")} disabled={false}>{inventoryEditable ? "保存库存记录" : "查看库存确认"}</button></>}
       >
         <div className="prototype-inline-editor">
           <label>
@@ -220,7 +260,48 @@ export function PrototypeOpsTabs({
             />
           </label>
         </div>
-        <div className="prototype-inventory-list">{inventoryRows.map((row) => { const percent = Math.min(100, Math.round((row.current / row.safe) * 100)); return <article key={row.item} className={`prototype-inventory-card ${row.risk && !isManagementRole ? "risk" : ""}`}><div><strong>{row.item}</strong><p>{row.location} · 安全线 {row.safe}{row.unit}</p></div><div className="prototype-stock-bar"><span style={{ width: `${percent}%` }} /></div><button className={`prototype-data-tag ${row.risk ? (isManagementRole ? "warning" : "risk") : "normal"}`} onClick={() => onNavigate?.("daily")}>{row.current}{row.unit}</button></article>; })}</div>
+        <div className="prototype-inventory-list">{inventoryRows.map((row) => {
+          const percent = row.safeNumber > 0 ? Math.min(100, Math.round((row.currentNumber / row.safeNumber) * 100)) : 0;
+          return (
+            <article key={row.id} className={`prototype-inventory-card ${row.risk && !isManagementRole ? "risk" : ""}`}>
+              <div className="prototype-inventory-edit-grid">
+                <label>
+                  <span>物料名称</span>
+                  <input className="prototype-search" value={row.item} onChange={(event) => updateInventoryItem(row.id, "item", event.target.value)} readOnly={!inventoryEditable} placeholder="例如：咖啡豆" />
+                </label>
+                <label>
+                  <span>仓位</span>
+                  <input className="prototype-search" value={row.location} onChange={(event) => updateInventoryItem(row.id, "location", event.target.value)} readOnly={!inventoryEditable} placeholder="例如：吧台 A-01" />
+                </label>
+                <label>
+                  <span>当前数量</span>
+                  <input className="prototype-search" type="number" min="0" value={row.current} onChange={(event) => updateInventoryItem(row.id, "current", event.target.value)} readOnly={!inventoryEditable} />
+                </label>
+                <label>
+                  <span>安全线</span>
+                  <input className="prototype-search" type="number" min="0" value={row.safe} onChange={(event) => updateInventoryItem(row.id, "safe", event.target.value)} readOnly={!inventoryEditable} />
+                </label>
+                <label>
+                  <span>单位</span>
+                  <input className="prototype-search" value={row.unit} onChange={(event) => updateInventoryItem(row.id, "unit", event.target.value)} readOnly={!inventoryEditable} placeholder="袋 / 瓶 / 个" />
+                </label>
+              </div>
+              <div className="prototype-stock-bar"><span style={{ width: `${percent}%` }} /></div>
+              <div className="prototype-inventory-footer">
+                <textarea
+                  className="prototype-finance-textarea"
+                  value={row.note}
+                  onChange={(event) => updateInventoryItem(row.id, "note", event.target.value)}
+                  placeholder="补货建议、损耗原因、盘点备注"
+                  readOnly={!inventoryEditable}
+                />
+                <button className={`prototype-data-tag ${row.risk ? (isManagementRole ? "warning" : "risk") : "normal"}`} type="button" onClick={() => onNavigate?.("daily")}>
+                  {row.risk ? `低于安全线 ${row.current}${row.unit}` : `库存正常 ${row.current}${row.unit}`}
+                </button>
+              </div>
+            </article>
+          );
+        })}</div>
       </Panel>
     );
   }

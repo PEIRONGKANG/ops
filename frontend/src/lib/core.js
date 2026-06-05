@@ -166,6 +166,7 @@ export function ensureDayOnWeek(week, day) {
       lossDesc: "",
       lossImgs: [],
       inventoryDesc: "",
+      inventoryItems: [],
       inventoryImgs: [],
       receiptDesc: "",
       receiptImgs: [],

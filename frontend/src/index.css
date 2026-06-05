@@ -3582,13 +3582,34 @@ table tbody tr:hover {
 
 .prototype-inventory-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 320px) auto;
-  align-items: center;
-  gap: 18px;
+  gap: 14px;
   border: 1px solid rgba(102, 116, 204, 0.16);
   border-radius: 20px;
   background: rgba(255,255,255,.76);
   padding: 18px;
+}
+
+.prototype-inventory-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(170px, 1fr) repeat(3, minmax(90px, 0.55fr));
+  gap: 12px;
+}
+
+.prototype-inventory-edit-grid label,
+.prototype-inventory-footer {
+  display: grid;
+  gap: 8px;
+}
+
+.prototype-inventory-edit-grid span {
+  color: #6d75a8;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.prototype-inventory-footer {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
 }
 
 .prototype-inventory-card strong,
@@ -3793,6 +3814,11 @@ table tbody tr:hover {
   }
 
   .prototype-inventory-card {
+    grid-template-columns: 1fr;
+  }
+
+  .prototype-inventory-edit-grid,
+  .prototype-inventory-footer {
     grid-template-columns: 1fr;
   }
 }
