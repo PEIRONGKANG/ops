@@ -153,7 +153,7 @@ export function PrototypeOpsTabs({
 
   const isManagementRole = ["P1", "T1", "P2"].includes(currentUserLevel);
   const assignedRoles = useMemo(() => buildAssignedRoleMap(jobAssignments), [jobAssignments]);
-  const inventoryEditable = Boolean(recordEditable);
+  const inventoryEditable = Boolean(recordEditable || currentUserLevel === "P2");
   const updateInventoryItem = (id, field, value) => {
     const nextRows = normalizeInventoryItems(currentDayData).map((row) => (
       row.id === id ? { ...row, [field]: value } : row
@@ -256,7 +256,7 @@ export function PrototypeOpsTabs({
               value={currentDayData?.inventoryDesc || ""}
               onChange={(event) => onRecordFieldChange?.("inventoryDesc", event.target.value)}
               placeholder="填写关键库存余量、缺货预警、补货建议和盘点人"
-              readOnly={!recordEditable}
+              readOnly={!inventoryEditable}
             />
           </label>
         </div>
