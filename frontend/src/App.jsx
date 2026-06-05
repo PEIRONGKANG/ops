@@ -7,6 +7,7 @@ import { DailyTab } from "./components/DailyTab";
 import { HandoverTab } from "./components/HandoverTab";
 import { JobAssignmentTab } from "./components/JobAssignmentTab";
 import { LoginPanel } from "./components/LoginPanel";
+import { MyHistoryTab } from "./components/MyHistoryTab";
 import { ReflectionTab } from "./components/ReflectionTab";
 import { PrototypeOpsTabs } from "./components/PrototypeOpsTabs";
 import { Sidebar } from "./components/Sidebar";
@@ -2012,7 +2013,7 @@ function App() {
     const jobAssignment = { key: "job_assignments", label: level === "P3" ? "我的岗位" : "岗位定岗" };
 
     if (level === "P3") {
-      return [...prototype, jobAssignment, training[0], ...base, training[3]];
+      return [...prototype, jobAssignment, { key: "my_history", label: "我的历史记录" }, training[0], ...base, training[3]];
     }
     if (level === "P2") {
       return [...prototype, jobAssignment, { key: "manager_dashboard", label: "值班经理工作台" }, ...base, training[1], training[2], training[3]];
@@ -2189,6 +2190,10 @@ function App() {
 
       {app.activeTab === "job_assignments" ? (
         <JobAssignmentTab currentUser={currentUser} studentUsers={studentUsers} />
+      ) : null}
+
+      {app.activeTab === "my_history" ? (
+        <MyHistoryTab currentUser={currentUser} />
       ) : null}
 
       {app.activeTab === "semester_management" ? (

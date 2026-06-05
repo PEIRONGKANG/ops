@@ -228,6 +228,9 @@ export const api = {
       method: "DELETE",
     });
   },
+  myWeekHistory() {
+    return request("/my-week-history");
+  },
   fetchWeek(scopeUser, startDate, options = {}) {
     const params = new URLSearchParams();
     if (options.includeMedia === false) {

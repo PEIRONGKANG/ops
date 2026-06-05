@@ -9,6 +9,7 @@ const NAV_ICON_MAP = {
   prototype_finance: "¥",
   prototype_students: "◎",
   job_assignments: "▣",
+  my_history: "◴",
   leader_dashboard: "⌂",
   supervisor_dashboard: "◎",
   manager_dashboard: "◉",

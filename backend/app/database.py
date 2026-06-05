@@ -706,6 +706,37 @@ def list_week_scopes(start_date: str) -> list[str]:
     return [row["scope_user"] for row in rows]
 
 
+def list_user_week_summaries(scope_user: str) -> list[dict]:
+    """List a user's saved week records without embedding media payloads."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT scope_user, start_date, updated_at
+            FROM weeks
+            WHERE scope_user = ?
+            ORDER BY start_date DESC
+            """,
+            (scope_user,),
+        ).fetchall()
+
+    summaries = []
+    for row in rows:
+        week = get_week_summary(row["scope_user"], row["start_date"])
+        if not week:
+            continue
+        summaries.append({
+            "scopeUser": row["scope_user"],
+            "startDate": row["start_date"],
+            "endDate": week.get("endDate", ""),
+            "teachingWeek": week.get("teachingWeek", ""),
+            "members": week.get("members", {}),
+            "nextGroup": week.get("nextGroup", ""),
+            "daily": week.get("daily", {}),
+            "updatedAt": row["updated_at"],
+        })
+    return summaries
+
+
 def get_week_group(start_date: str) -> dict | None:
     with get_connection() as connection:
         row = connection.execute(

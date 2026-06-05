@@ -29,6 +29,7 @@ from .database import (
     get_week_summary,
     get_week_group,
     init_db,
+    list_user_week_summaries,
     list_week_scopes,
     list_users,
     list_users_for_client,
@@ -841,6 +842,15 @@ def upsert_week_group(start_date: str, payload: WeekGroupPayload) -> dict:
 def week_scopes(start_date: str) -> dict:
     corrected = normalize_week_start(start_date)
     return {"scopes": list_week_scopes(corrected)}
+
+
+@app.get("/api/my-week-history")
+def my_week_history(current_user: dict = Depends(require_current_user)) -> dict:
+    # P3 students use this endpoint to review their own completed training records.
+    # Management users may call it too, but it still defaults to their own account unless
+    # future role-scoped history review is added intentionally.
+    username = current_user.get("username", "")
+    return {"weeks": list_user_week_summaries(username)}
 
 
 @app.get("/api/weeks/{scope_user}/{start_date}")

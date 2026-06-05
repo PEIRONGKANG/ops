@@ -4090,3 +4090,108 @@ table tbody tr:hover {
     max-height: none;
   }
 }
+
+.history-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.history-hero,
+.history-day-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.history-selector-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 14px;
+}
+
+.history-selector-grid label {
+  display: grid;
+  gap: 7px;
+  color: #68709d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-day-card {
+  display: grid;
+  gap: 18px;
+}
+
+.history-section {
+  border: 1px solid rgba(124, 60, 255, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 16px;
+}
+
+.history-section h3 {
+  margin: 0 0 12px;
+  color: #15102f;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.history-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-field {
+  border: 1px solid rgba(124, 60, 255, 0.1);
+  border-radius: 15px;
+  background: rgba(248, 250, 255, 0.84);
+  padding: 10px 12px;
+}
+
+.history-field span,
+.history-images p {
+  display: block;
+  margin: 0 0 6px;
+  color: #68709d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-field strong {
+  display: block;
+  min-height: 22px;
+  color: #15102f;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.history-image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.history-images {
+  border: 1px dashed rgba(124, 60, 255, 0.14);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 10px;
+}
+
+@media (max-width: 900px) {
+  .history-hero,
+  .history-day-head {
+    flex-direction: column;
+  }
+
+  .history-selector-grid,
+  .history-field-grid,
+  .history-image-grid {
+    grid-template-columns: 1fr;
+  }
+}
