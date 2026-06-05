@@ -3643,6 +3643,21 @@ table tbody tr:hover {
   gap: 14px;
 }
 
+.prototype-inline-editor {
+  margin-bottom: 16px;
+}
+
+.prototype-inline-editor label {
+  display: grid;
+  gap: 8px;
+}
+
+.prototype-inline-editor label span {
+  color: #6674cc;
+  font-size: 13px;
+  font-weight: 950;
+}
+
 .prototype-finance-form label {
   display: grid;
   gap: 8px;

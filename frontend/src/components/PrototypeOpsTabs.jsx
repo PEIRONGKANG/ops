@@ -114,9 +114,9 @@ export function PrototypeOpsTabs({
   currentUserLevel,
   currentDayData,
   studentUsers,
-  financeEditable = false,
-  onFinanceFieldChange,
-  onFinanceSave,
+  recordEditable = false,
+  onRecordFieldChange,
+  onRecordSave,
   onNavigate,
   onLoadWeek,
   onPreviewReport,
@@ -206,8 +206,20 @@ export function PrototypeOpsTabs({
       <Panel
         eyebrow="库存管理"
         title="物料安全线"
-        actions={<><input className="prototype-search" value={inventoryQuery} onChange={(e) => setInventoryQuery(e.target.value)} placeholder="搜索物料或仓位" /><select className="prototype-select" value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value)}><option value="all">全部库存</option><option value="risk">仅看需补充</option><option value="normal">库存正常</option></select></>}
+        actions={<><input className="prototype-search" value={inventoryQuery} onChange={(e) => setInventoryQuery(e.target.value)} placeholder="搜索物料或仓位" /><select className="prototype-select" value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value)}><option value="all">全部库存</option><option value="risk">仅看需补充</option><option value="normal">库存正常</option></select><button className="btn-primary" type="button" onClick={onRecordSave} disabled={!recordEditable}>保存库存记录</button></>}
       >
+        <div className="prototype-inline-editor">
+          <label>
+            <span>库存盘点说明</span>
+            <textarea
+              className="prototype-finance-textarea"
+              value={currentDayData?.inventoryDesc || ""}
+              onChange={(event) => onRecordFieldChange?.("inventoryDesc", event.target.value)}
+              placeholder="填写关键库存余量、缺货预警、补货建议和盘点人"
+              readOnly={!recordEditable}
+            />
+          </label>
+        </div>
         <div className="prototype-inventory-list">{inventoryRows.map((row) => { const percent = Math.min(100, Math.round((row.current / row.safe) * 100)); return <article key={row.item} className={`prototype-inventory-card ${row.risk && !isManagementRole ? "risk" : ""}`}><div><strong>{row.item}</strong><p>{row.location} · 安全线 {row.safe}{row.unit}</p></div><div className="prototype-stock-bar"><span style={{ width: `${percent}%` }} /></div><button className={`prototype-data-tag ${row.risk ? (isManagementRole ? "warning" : "risk") : "normal"}`} onClick={() => onNavigate?.("daily")}>{row.current}{row.unit}</button></article>; })}</div>
       </Panel>
     );
@@ -227,7 +239,7 @@ export function PrototypeOpsTabs({
         <Panel
           eyebrow="财务管理"
           title="费用审批与流水"
-          actions={<button className="btn-primary" type="button" onClick={onFinanceSave} disabled={!financeEditable}>保存财务记录</button>}
+          actions={<button className="btn-primary" type="button" onClick={onRecordSave} disabled={!recordEditable}>保存财务记录</button>}
         >
           <div className="prototype-finance-form">
             {financeFields.map((field) => (
@@ -238,9 +250,9 @@ export function PrototypeOpsTabs({
                   type={field.type}
                   step="0.01"
                   value={currentDayData?.[field.key] || ""}
-                  onChange={(event) => onFinanceFieldChange?.(field.key, event.target.value)}
+                  onChange={(event) => onRecordFieldChange?.(field.key, event.target.value)}
                   placeholder={field.placeholder}
-                  readOnly={!financeEditable}
+                  readOnly={!recordEditable}
                 />
               </label>
             ))}
@@ -249,9 +261,9 @@ export function PrototypeOpsTabs({
               <textarea
                 className="prototype-finance-textarea"
                 value={currentDayData?.lossDesc || ""}
-                onChange={(event) => onFinanceFieldChange?.("lossDesc", event.target.value)}
+                onChange={(event) => onRecordFieldChange?.("lossDesc", event.target.value)}
                 placeholder="填写损耗品项、原因、数量和处置方式"
-                readOnly={!financeEditable}
+                readOnly={!recordEditable}
               />
             </label>
             <label className="prototype-finance-wide">
@@ -259,9 +271,9 @@ export function PrototypeOpsTabs({
               <textarea
                 className="prototype-finance-textarea"
                 value={currentDayData?.inventoryDesc || ""}
-                onChange={(event) => onFinanceFieldChange?.("inventoryDesc", event.target.value)}
+                onChange={(event) => onRecordFieldChange?.("inventoryDesc", event.target.value)}
                 placeholder="填写关键库存余量、缺货预警和补货建议"
-                readOnly={!financeEditable}
+                readOnly={!recordEditable}
               />
             </label>
             <label className="prototype-finance-wide">
@@ -269,9 +281,9 @@ export function PrototypeOpsTabs({
               <textarea
                 className="prototype-finance-textarea"
                 value={currentDayData?.receiptDesc || ""}
-                onChange={(event) => onFinanceFieldChange?.("receiptDesc", event.target.value)}
+                onChange={(event) => onRecordFieldChange?.("receiptDesc", event.target.value)}
                 placeholder="填写签收品项、数量、签收人、票据或凭证说明"
-                readOnly={!financeEditable}
+                readOnly={!recordEditable}
               />
             </label>
           </div>
