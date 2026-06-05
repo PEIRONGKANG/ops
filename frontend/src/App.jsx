@@ -2351,6 +2351,7 @@ function App() {
           editable={canEditCurrentScopeData()}
           approveDisabled={handoverApproveDisabled}
           studentUsers={studentUsers}
+          currentUser={currentUser}
           onFieldChange={handleHandoverFieldChange}
           onAddImages={addHandoverImages}
           onSave={saveHandover}
@@ -2842,6 +2843,7 @@ function App() {
                     editable={canEditCurrentScopeData()}
                     approveDisabled={handoverApproveDisabled}
                     studentUsers={studentUsers}
+                    currentUser={currentUser}
                     onFieldChange={handleHandoverFieldChange}
                     onAddImages={addHandoverImages}
                     onSave={saveHandover}

@@ -56,11 +56,23 @@ export function HandoverTab({
   onSave,
   onApprove,
   studentUsers = [],
+  currentUser,
 }) {
   const [query, setQuery] = useState("");
+  const safeStudentUsers = useMemo(() => {
+    const currentUsername = normalizeText(currentUser?.username);
+    const seen = new Set();
+    return studentUsers
+      .filter((student) => {
+        const username = normalizeText(student.username);
+        if (!username || username === currentUsername || seen.has(username)) return false;
+        seen.add(username);
+        return true;
+      });
+  }, [currentUser?.username, studentUsers]);
   const selectedStudents = useMemo(
-    () => resolveSelectedStudents(data.nextGroup, studentUsers),
-    [data.nextGroup, studentUsers],
+    () => resolveSelectedStudents(data.nextGroup, safeStudentUsers),
+    [data.nextGroup, safeStudentUsers],
   );
   const selectedUsernames = useMemo(
     () => new Set(selectedStudents.map((student) => student.username)),
@@ -69,7 +81,7 @@ export function HandoverTab({
   const normalizedQuery = normalizeText(query).toLowerCase();
   const candidateStudents = useMemo(() => {
     if (!editable || selectedStudents.length >= MAX_HANDOVER_STUDENTS) return [];
-    return studentUsers
+    return safeStudentUsers
       .filter((student) => !selectedUsernames.has(student.username))
       .filter((student) => {
         if (!normalizedQuery) return true;
@@ -81,7 +93,7 @@ export function HandoverTab({
         return haystack.includes(normalizedQuery);
       })
       .slice(0, 8);
-  }, [editable, normalizedQuery, selectedStudents.length, selectedUsernames, studentUsers]);
+  }, [editable, normalizedQuery, safeStudentUsers, selectedStudents.length, selectedUsernames]);
   const unresolvedText = selectedStudents.length ? "" : normalizeText(data.nextGroup);
 
   function commitStudents(nextStudents) {
