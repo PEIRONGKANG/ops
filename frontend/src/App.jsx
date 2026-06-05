@@ -857,7 +857,8 @@ function App() {
         next.teacherNotices = teacherNotices.map(normalizeTeacherNotice);
         next.selectedWeekStart = trim(storedSession?.selectedWeekStart) || adjustToWednesday(todayISO());
         if (storedSession?.currentUser) {
-          const found = normalizedUsers.find((user) => user.username === trim(storedSession.currentUser.username));
+          const found = normalizedUsers.find((user) => user.username === trim(storedSession.currentUser.username))
+            || normalizeUser(storedSession.currentUser);
           if (found) {
             next.currentUser = {
               username: found.username,
@@ -871,6 +872,11 @@ function App() {
               : (found.level === "P3" ? [found.username] : []);
             next.activeScopeUser = found.level === "P3" ? found.username : (storedSession.activeScopeUser || "");
             next.scopeUserPinned = found.level === "P3" ? true : Boolean(storedSession.scopeUserPinned);
+            if (found.level === "P3") {
+              const allowed = new Set((next.currentSessionUsers.length ? next.currentSessionUsers : [found.username]).filter(Boolean));
+              next.users = normalizedUsers.filter((user) => allowed.has(user.username));
+              if (!next.users.some((user) => user.username === found.username)) next.users.push(found);
+            }
           }
         }
         syncEditForms(next);
@@ -882,8 +888,14 @@ function App() {
             const resp = await api.listAccounts();
             if (Array.isArray(resp?.users) && resp.users.length) {
               const refreshed = resp.users.map(normalizeUser);
-              // Only replace the global user list when we actually got the full dataset (P1).
-              if (refreshed.length >= normalizedUsers.length) {
+              if (stateRef.current.currentUser?.level === "P3") {
+                const allowed = new Set((stateRef.current.currentSessionUsers.length
+                  ? stateRef.current.currentSessionUsers
+                  : [stateRef.current.currentUser.username]).filter(Boolean));
+                const scoped = refreshed.filter((user) => allowed.has(user.username));
+                replaceState({ ...stateRef.current, users: scoped.length ? scoped : refreshed });
+              } else if (stateRef.current.currentUser?.level === "P1" || refreshed.length >= normalizedUsers.length) {
+                // P1 receives the full dataset. Non-P1 users keep the bootstrapped list for legacy manager views.
                 replaceState({ ...stateRef.current, users: refreshed });
               }
             }
@@ -1142,6 +1154,7 @@ function App() {
       const first = await api.login({ username: trim(username), password: trim(password) });
       if (first?.token) setAuthToken(first.token);
       let sessionUsers = [];
+      let secondUser = null;
 
       if (trim(secondUsername) || trim(secondPassword)) {
         if (!trim(secondUsername) || !trim(secondPassword)) {
@@ -1154,12 +1167,18 @@ function App() {
         if (first.user.level !== "P3" || second.user.level !== "P3") {
           throw new Error("双人登录仅支持学生账号。");
         }
+        secondUser = second.user;
         sessionUsers = [first.user.username, second.user.username];
       } else if (first.user.level === "P3") {
         sessionUsers = [first.user.username];
       }
 
+      const scopedLoginUsers = first.user.level === "P3"
+        ? [first.user, secondUser].filter(Boolean).map(normalizeUser)
+        : null;
+
       patchState({
+        ...(scopedLoginUsers ? { users: scopedLoginUsers } : {}),
         currentUser: {
           username: first.user.username,
           role: first.user.role,
@@ -1182,8 +1201,14 @@ function App() {
         const resp = await api.listAccounts();
         if (Array.isArray(resp?.users) && resp.users.length) {
           const refreshed = resp.users.map(normalizeUser);
-          // Only replace the global user list when it looks like the full dataset (P1).
-          if (refreshed.length >= stateRef.current.users.length) {
+          if (stateRef.current.currentUser?.level === "P3") {
+            const merged = new Map((scopedLoginUsers || []).map((user) => [user.username, user]));
+            refreshed.forEach((user) => {
+              if (sessionUsers.includes(user.username)) merged.set(user.username, user);
+            });
+            patchState({ users: Array.from(merged.values()) });
+          } else if (stateRef.current.currentUser?.level === "P1" || refreshed.length >= stateRef.current.users.length) {
+            // P1 receives the full dataset. Manager/supervisor legacy views keep the bootstrapped list if scoped.
             patchState({ users: refreshed });
           }
         }
@@ -1331,7 +1356,9 @@ function App() {
     replaceState(next);
     // Teaching week selection is primarily a viewing operation. Persist only the group metadata
     // to avoid accidentally overwriting existing student weeks with empty payloads.
-    await persistWeekGroupOnly(next, targetWeekStart);
+    if (canViewAllScopes(next)) {
+      await persistWeekGroupOnly(next, targetWeekStart);
+    }
     await loadWeekForCurrentScope(
       targetWeekStart,
       `已切换到 ${value || "手动分组"}，并自动带入当周第一天数据。`,
@@ -1360,6 +1387,9 @@ function App() {
 
   const handleSaveGroup = async () => runAction(async () => {
     const source = stateRef.current;
+    if (!canViewAllScopes(source)) {
+      throw new Error("仅管理账号可以保存本周分组。");
+    }
     const startDate = adjustToWednesday(source.selectedWeekStart || todayISO());
     const next = buildWeekGroupScopedState(source, startDate);
     applyWeekGroupToLoadedWeeks(next, startDate);

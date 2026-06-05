@@ -153,6 +153,72 @@ def _safe_user(user: dict | None) -> dict:
     return safe
 
 
+def _token_matches_user(user: dict | None, token: str | None) -> bool:
+    value = str(token or "").strip()
+    if not user or not value:
+        return False
+    return value in {
+        str(user.get("username") or "").strip(),
+        str(user.get("displayName") or "").strip(),
+        str(user.get("display_name") or "").strip(),
+    }
+
+
+def _find_p3_by_token(token: str | None) -> dict | None:
+    value = str(token or "").strip()
+    if not value:
+        return None
+    for user in list_users():
+        if user.get("level") == "P3" and _token_matches_user(user, value):
+            return user
+    return None
+
+
+def _extract_week_member_tokens(payload: dict | None) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    members = payload.get("members") if isinstance(payload.get("members"), dict) else payload
+    return [
+        str(members.get("a") or "").strip(),
+        str(members.get("b") or "").strip(),
+    ]
+
+
+def _p3_visible_week_scopes(current_user: dict, start_date: str) -> set[str]:
+    """Return the P3 accounts visible to the current student for one teaching week."""
+    username = str(current_user.get("username") or "").strip()
+    visible = {username} if username else set()
+
+    group = get_week_group(start_date) or {}
+    group_tokens = _extract_week_member_tokens(group)
+    if any(_token_matches_user(current_user, token) for token in group_tokens):
+        for token in group_tokens:
+            matched = _find_p3_by_token(token)
+            if matched:
+                visible.add(matched["username"])
+
+    for scope_user in list_week_scopes(start_date):
+        summary = get_week_summary(scope_user, start_date) or {}
+        member_tokens = _extract_week_member_tokens(summary)
+        if any(_token_matches_user(current_user, token) for token in member_tokens):
+            visible.add(scope_user)
+            for token in member_tokens:
+                matched = _find_p3_by_token(token)
+                if matched:
+                    visible.add(matched["username"])
+
+    return visible
+
+
+def _require_week_scope_access(scope_user: str, start_date: str, current_user: dict) -> None:
+    level = current_user.get("level") or ""
+    if level in {"P1", "T1", "P2"}:
+        return
+    if level == "P3" and scope_user in _p3_visible_week_scopes(current_user, start_date):
+        return
+    raise HTTPException(status_code=403, detail="P3 只能访问本人或本周同组协同记录。")
+
+
 def _merge_account_payload(existing: dict, payload: dict) -> dict:
     merged = {**existing}
     for key, value in payload.items():
@@ -322,11 +388,9 @@ async def pocketbase_proxy(full_path: str, request: Request):
 
 @app.get("/api/bootstrap")
 def bootstrap() -> dict:
-    # Public bootstrap: return only non-sensitive fields; login requires /api/login anyway.
-    users = []
-    for user in list_users():
-        users.append(_safe_user(user))
-    return {"users": users, "teacherNotices": []}
+    # Public bootstrap must not expose account rosters. Authenticated role-scoped
+    # users are returned by /api/accounts after login.
+    return {"users": [], "teacherNotices": []}
 
 
 @app.post("/api/login")
@@ -352,7 +416,13 @@ def accounts(current_user: dict = Depends(require_current_user)) -> dict:
     level = current_user.get("level") or ""
     if level == "P1":
         return {"users": list_users_for_client(include_passwords=False)}
-    # Non-P1 users can only see their own non-sensitive profile.
+    if level in {"T1", "P2"}:
+        users = [_safe_user(user) for user in list_users() if user.get("level") == "P3"]
+        own = _safe_user(get_user(current_user["username"]))
+        if own and not any(user.get("username") == own.get("username") for user in users):
+            users.insert(0, own)
+        return {"users": users}
+    # P3 users can only see their own non-sensitive profile.
     user = get_user(current_user["username"])
     safe = _safe_user(user)
     return {"users": [safe] if safe else []}
@@ -828,20 +898,37 @@ async def p1_dashboard(current_user: dict = Depends(require_current_user)) -> di
 
 
 @app.get("/api/week-groups/{start_date}")
-def fetch_week_group(start_date: str) -> dict:
+def fetch_week_group(start_date: str, current_user: dict = Depends(require_current_user)) -> dict:
     corrected = normalize_week_start(start_date)
-    return {"group": get_week_group(corrected)}
+    group = get_week_group(corrected)
+    if current_user.get("level") == "P3":
+        tokens = _extract_week_member_tokens(group)
+        if not any(_token_matches_user(current_user, token) for token in tokens):
+            return {"group": {"a": "", "b": "", "teachingWeek": ""}}
+    return {"group": group}
 
 
 @app.put("/api/week-groups/{start_date}")
-def upsert_week_group(start_date: str, payload: WeekGroupPayload) -> dict:
+def upsert_week_group(
+    start_date: str,
+    payload: WeekGroupPayload,
+    current_user: dict = Depends(require_current_user),
+) -> dict:
+    if current_user.get("level") not in {"P1", "P2"}:
+        raise HTTPException(status_code=403, detail="仅 P1/P2 可修改本周分组。")
     corrected = normalize_week_start(start_date)
     return {"group": save_week_group(corrected, payload.group)}
 
 @app.get("/api/week-scopes/{start_date}")
-def week_scopes(start_date: str) -> dict:
+def week_scopes(start_date: str, current_user: dict = Depends(require_current_user)) -> dict:
     corrected = normalize_week_start(start_date)
-    return {"scopes": list_week_scopes(corrected)}
+    scopes = list_week_scopes(corrected)
+    if current_user.get("level") == "P3":
+        visible = _p3_visible_week_scopes(current_user, corrected)
+        scopes = [scope for scope in scopes if scope in visible]
+        if current_user.get("username") and current_user["username"] not in scopes:
+            scopes = [current_user["username"], *scopes]
+    return {"scopes": scopes}
 
 
 @app.get("/api/my-week-history")
@@ -854,16 +941,28 @@ def my_week_history(current_user: dict = Depends(require_current_user)) -> dict:
 
 
 @app.get("/api/weeks/{scope_user}/{start_date}")
-def fetch_week(scope_user: str, start_date: str, include_media: bool = True) -> dict:
+def fetch_week(
+    scope_user: str,
+    start_date: str,
+    include_media: bool = True,
+    current_user: dict = Depends(require_current_user),
+) -> dict:
     corrected = normalize_week_start(start_date)
+    _require_week_scope_access(scope_user, corrected, current_user)
     if include_media:
         return {"week": get_week(scope_user, corrected)}
     return {"week": get_week_summary(scope_user, corrected)}
 
 
 @app.put("/api/weeks/{scope_user}/{start_date}")
-def upsert_week(scope_user: str, start_date: str, payload: WeekPayload) -> dict:
+def upsert_week(
+    scope_user: str,
+    start_date: str,
+    payload: WeekPayload,
+    current_user: dict = Depends(require_current_user),
+) -> dict:
     corrected = normalize_week_start(start_date)
+    _require_week_scope_access(scope_user, corrected, current_user)
     return {"week": save_week(scope_user, corrected, payload.week)}
 
 
