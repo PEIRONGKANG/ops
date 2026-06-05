@@ -922,7 +922,7 @@ function App() {
             ? await resolveP3InitialWeekStart(next.selectedWeekStart)
             : next.selectedWeekStart;
           await loadWeekForCurrentScope(restoreWeekStart, "已恢复上次会话。", { forceGroupedScope: true });
-          if (stateRef.current.currentUser?.level === "P3") {
+          if (stateRef.current.currentUser?.level === "P3" && stateRef.current.activeTab === defaultTabForLevel("P3")) {
             patchState({ activeTab: "my_history" });
           }
         }
@@ -1250,7 +1250,7 @@ function App() {
               : "登录成功。已自动加载本周轮值。"),
         { forceGroupedScope: true },
       );
-      if (first.user.level === "P3") {
+      if (first.user.level === "P3" && stateRef.current.activeTab === defaultTabForLevel("P3")) {
         patchState({ activeTab: "my_history" });
       }
       patchState({ loading: false });
