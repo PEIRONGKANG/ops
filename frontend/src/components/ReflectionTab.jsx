@@ -16,15 +16,6 @@ export function ReflectionTab({
         <h2 className="section-title mt-2">总结与反思（周结束）</h2>
       </div>
 
-      <div className="module-banner-strip" data-tone="reflection">
-        <div>
-          <p className="module-kicker">Weekly Reflection</p>
-          <p className="mt-3 max-w-2xl text-sm leading-7">
-            围绕个人成长、小组优化方案与运营经理评语完成收尾，为导出实训报告提供更完整的课程成果表达。
-          </p>
-        </div>
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="soft-card">
           <label className="field-label">学员 A 自评与收获</label>

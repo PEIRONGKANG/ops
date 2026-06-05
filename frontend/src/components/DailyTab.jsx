@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../services/api.js";
-import { assetUrl } from "../lib/assets";
 import { FilePickerButton, ImagePreviewGrid } from "./MediaBlocks";
 
 function formatClock(date) {
@@ -160,7 +159,6 @@ export function DailyTab({
         <p className="module-kicker">Daily Operations & Execution</p>
         <h2 className="section-title mt-2">每日打卡与运营执行</h2>
       </div>
-      <img src={assetUrl("assets/hygiene-ai.svg")} alt="AI 卫生检查图" className="module-banner" />
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="soft-card">

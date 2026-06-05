@@ -1,5 +1,4 @@
 import { FilePickerButton, ImagePreviewGrid } from "./MediaBlocks";
-import { assetUrl } from "../lib/assets";
 
 export function CreativeTab({
   data,
@@ -18,7 +17,6 @@ export function CreativeTab({
         <p className="module-kicker">Wednesday Signature Planning</p>
         <h2 className="section-title mt-2">创意饮品策划提交（周三）</h2>
       </div>
-      <img src={assetUrl("assets/poster-ai.svg")} alt="AI海报模板" className="module-banner" />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="soft-card">
