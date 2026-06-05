@@ -3637,6 +3637,53 @@ table tbody tr:hover {
   background: linear-gradient(90deg, #7c3cff, #3577ff, #20d6ff);
 }
 
+.prototype-finance-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prototype-finance-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.prototype-finance-form label span {
+  color: #6674cc;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.prototype-finance-wide {
+  grid-column: 1 / -1;
+}
+
+.prototype-finance-textarea {
+  min-height: 92px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(102, 116, 204, 0.18);
+  border-radius: 18px;
+  background: rgba(255,255,255,.86);
+  color: #15102f;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.6;
+  outline: none;
+  padding: 14px 16px;
+}
+
+.prototype-finance-textarea:focus {
+  border-color: rgba(124, 60, 255, .42);
+  box-shadow: 0 0 0 4px rgba(124, 60, 255, .1);
+}
+
+.prototype-finance-textarea[readonly],
+.prototype-finance-form input[readonly] {
+  background: rgba(245,247,255,.82);
+  color: #6d75a8;
+}
+
 .prototype-student-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3725,7 +3772,8 @@ table tbody tr:hover {
 
 @media (max-width: 1180px) {
   .prototype-split-grid,
-  .prototype-student-grid {
+  .prototype-student-grid,
+  .prototype-finance-form {
     grid-template-columns: 1fr;
   }
 

@@ -2216,6 +2216,9 @@ function App() {
           currentUserLevel={currentUser?.level || ""}
           currentDayData={currentDayData}
           studentUsers={roleScopedStudentUsers}
+          financeEditable={canEditDailyContent()}
+          onFinanceFieldChange={handleDailyFieldChange}
+          onFinanceSave={saveDaily}
           onNavigate={handleTabChange}
           onLoadWeek={handleLoadWeek}
           onPreviewReport={handlePreviewReport}

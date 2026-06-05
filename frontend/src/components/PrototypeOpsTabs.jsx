@@ -109,7 +109,18 @@ function buildStudentCards(studentUsers, assignedRoles = {}) {
   }));
 }
 
-export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, studentUsers, onNavigate, onLoadWeek, onPreviewReport }) {
+export function PrototypeOpsTabs({
+  activeTab,
+  currentUserLevel,
+  currentDayData,
+  studentUsers,
+  financeEditable = false,
+  onFinanceFieldChange,
+  onFinanceSave,
+  onNavigate,
+  onLoadWeek,
+  onPreviewReport,
+}) {
   const [taskFilter, setTaskFilter] = useState("all");
   const [attendanceQuery, setAttendanceQuery] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState("all");
@@ -203,14 +214,83 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
   }
 
   if (activeTab === "prototype_finance") {
+    const financeFields = [
+      { key: "sales", label: "今日营业额（元）", type: "number", placeholder: "例如 3286" },
+      { key: "cost", label: "采购成本（元）", type: "number", placeholder: "例如 486" },
+      { key: "lossAmount", label: "损耗金额（元）", type: "number", placeholder: "例如 126" },
+    ];
+    const usedBudget = Number(currentDayData?.cost || 0) + Number(currentDayData?.lossAmount || 0);
+    const budgetTotal = 20000;
+    const budgetPercent = Math.max(0, Math.min(100, Math.round((usedBudget / budgetTotal) * 100)));
     return (
       <div className="prototype-split-grid">
-        <Panel eyebrow="财务管理" title="费用审批与流水" actions={<button className="btn-primary" onClick={() => onNavigate?.("daily")}>新增费用</button>}>
-          <div className="prototype-table-wrap"><table className="prototype-table"><thead><tr><th>单号</th><th>用途</th><th>申请人</th><th>金额</th><th>状态</th><th>下一步</th></tr></thead><tbody>{financeRows.map((row) => <tr key={row.id}><td><strong>{row.id}</strong></td><td>{row.use}</td><td>{row.owner}</td><td>{row.amount}</td><td><Tag status={statusClass(row.status, isManagementRole)}>{row.status}</Tag></td><td><button className="prototype-line-button" onClick={() => onNavigate?.("daily")}>{row.next}</button></td></tr>)}</tbody></table></div>
+        <Panel
+          eyebrow="财务管理"
+          title="费用审批与流水"
+          actions={<button className="btn-primary" type="button" onClick={onFinanceSave} disabled={!financeEditable}>保存财务记录</button>}
+        >
+          <div className="prototype-finance-form">
+            {financeFields.map((field) => (
+              <label key={field.key}>
+                <span>{field.label}</span>
+                <input
+                  className="prototype-search"
+                  type={field.type}
+                  step="0.01"
+                  value={currentDayData?.[field.key] || ""}
+                  onChange={(event) => onFinanceFieldChange?.(field.key, event.target.value)}
+                  placeholder={field.placeholder}
+                  readOnly={!financeEditable}
+                />
+              </label>
+            ))}
+            <label className="prototype-finance-wide">
+              <span>损耗说明</span>
+              <textarea
+                className="prototype-finance-textarea"
+                value={currentDayData?.lossDesc || ""}
+                onChange={(event) => onFinanceFieldChange?.("lossDesc", event.target.value)}
+                placeholder="填写损耗品项、原因、数量和处置方式"
+                readOnly={!financeEditable}
+              />
+            </label>
+            <label className="prototype-finance-wide">
+              <span>库存盘点说明</span>
+              <textarea
+                className="prototype-finance-textarea"
+                value={currentDayData?.inventoryDesc || ""}
+                onChange={(event) => onFinanceFieldChange?.("inventoryDesc", event.target.value)}
+                placeholder="填写关键库存余量、缺货预警和补货建议"
+                readOnly={!financeEditable}
+              />
+            </label>
+            <label className="prototype-finance-wide">
+              <span>签收与票据说明</span>
+              <textarea
+                className="prototype-finance-textarea"
+                value={currentDayData?.receiptDesc || ""}
+                onChange={(event) => onFinanceFieldChange?.("receiptDesc", event.target.value)}
+                placeholder="填写签收品项、数量、签收人、票据或凭证说明"
+                readOnly={!financeEditable}
+              />
+            </label>
+          </div>
+          <div className="prototype-table-wrap mt-4">
+            <table className="prototype-table">
+              <thead><tr><th>单号</th><th>用途</th><th>申请人</th><th>金额</th><th>状态</th><th>下一步</th></tr></thead>
+              <tbody>{financeRows.map((row) => (
+                <tr key={row.id}>
+                  <td><strong>{row.id}</strong></td><td>{row.use}</td><td>{row.owner}</td><td>{row.amount}</td><td><Tag status={statusClass(row.status, isManagementRole)}>{row.status}</Tag></td>
+                  <td><button className="prototype-line-button" type="button" onClick={() => onNavigate?.("daily")}>{isManagementRole ? "去确认" : "去上传凭证"}</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
         </Panel>
         <Panel eyebrow="预算使用" title="本周额度" side>
-          <div className="prototype-budget"><span style={{ width: "68%" }} /></div>
-          <p className="prototype-budget-text">已使用 ¥ 13,620 / ¥ 20,000</p>
+          <div className="prototype-budget"><span style={{ width: `${budgetPercent}%` }} /></div>
+          <p className="prototype-budget-text">已使用 ¥ {usedBudget.toLocaleString()} / ¥ {budgetTotal.toLocaleString()}</p>
+          <p className="status-line mt-4">财务页现在可直接填写并保存。图片凭证仍在“日常运营”中上传，以便周报统一导出。</p>
         </Panel>
       </div>
     );
