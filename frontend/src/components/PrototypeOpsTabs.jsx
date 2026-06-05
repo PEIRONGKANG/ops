@@ -117,6 +117,7 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
   const [inventoryFilter, setInventoryFilter] = useState("all");
   const [studentQuery, setStudentQuery] = useState("");
   const [jobAssignments, setJobAssignments] = useState([]);
+  const [myWeeks, setMyWeeks] = useState([]);
 
   const isManagementRole = ["P1", "T1", "P2"].includes(currentUserLevel);
   const assignedRoles = useMemo(() => buildAssignedRoleMap(jobAssignments), [jobAssignments]);
@@ -129,9 +130,25 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
       })
       .catch(() => {
         if (!cancelled) setJobAssignments([]);
-      });
+    });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (isManagementRole) {
+      setMyWeeks([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.myWeekHistory()
+      .then((resp) => {
+        if (!cancelled) setMyWeeks(Array.isArray(resp?.weeks) ? resp.weeks.slice(0, 3) : []);
+      })
+      .catch(() => {
+        if (!cancelled) setMyWeeks([]);
+      });
+    return () => { cancelled = true; };
+  }, [isManagementRole]);
   const tasks = useMemo(() => [
     { step: 1, title: "学生签到并确认岗位", meta: isManagementRole ? "使用服务器时间完成签到/签退记录" : "使用服务器时间签到/签退，需补充说明时进入日常运营", status: currentDayData?.checkIn ? "done" : "pending", label: currentDayData?.checkIn ? "已完成" : "待跟进", tab: "daily" },
     { step: 2, title: "开店前卫生与设备检查", meta: "吧台、公区、制冰机照片上传后等待 P2 确认", status: "pending", label: "待确认", tab: "daily" },
@@ -212,10 +229,32 @@ export function PrototypeOpsTabs({ activeTab, currentUserLevel, currentDayData, 
       <Panel eyebrow="今日进度" title="实训任务流" actions={<div className="prototype-segmented"><button className={taskFilter === "all" ? "active" : ""} onClick={() => setTaskFilter("all")}>全部</button><button className={taskFilter === "risk" ? "active" : ""} onClick={() => setTaskFilter("risk")}>待跟进</button><button className={taskFilter === "done" ? "active" : ""} onClick={() => setTaskFilter("done")}>已完成</button></div>}>
         <div className="prototype-timeline">{filteredTasks.map((task) => <button key={task.title} type="button" className="prototype-task-card" onClick={() => onNavigate?.(task.tab)}><span className="prototype-task-index">{task.step}</span><span className="prototype-task-copy"><strong>{task.title}</strong><small>{task.meta}</small></span><em className={`prototype-tag ${task.status === "done" ? "emerald" : "indigo"}`}>{task.label}</em></button>)}</div>
       </Panel>
-      <Panel eyebrow="班级状态" title="学生分布" side>
-        <div className="prototype-donut"><span>82%</span></div>
-        <div className="prototype-legend"><span><i className="purple" />在岗 42</span><span><i className="blue" />迟到 4</span><span><i className="pink" />请假 2</span></div>
-        <div className="prototype-side-actions"><button className="prototype-line-button" onClick={onLoadWeek}>加载本周</button><button className="prototype-line-button" onClick={onPreviewReport}>导出日报</button></div>
+      <Panel eyebrow={isManagementRole ? "班级状态" : "个人实训档案"} title={isManagementRole ? "学生分布" : "我的进度入口"} side>
+        {isManagementRole ? (
+          <>
+            <div className="prototype-donut"><span>82%</span></div>
+            <div className="prototype-legend"><span><i className="purple" />在岗 42</span><span><i className="blue" />迟到 4</span><span><i className="pink" />请假 2</span></div>
+            <div className="prototype-side-actions"><button className="prototype-line-button" onClick={onLoadWeek}>加载本周</button><button className="prototype-line-button" onClick={onPreviewReport}>导出日报</button></div>
+          </>
+        ) : (
+          <div className="prototype-student-focus">
+            <p>系统只显示本人实训周、签到记录、运营填写与教师反馈。</p>
+            <div className="prototype-student-actions">
+              <button type="button" className="prototype-line-button" onClick={() => onNavigate?.("my_history")}>查看历史记录</button>
+              <button type="button" className="prototype-line-button" onClick={() => onNavigate?.("daily")}>填写今日运营</button>
+              <button type="button" className="prototype-line-button" onClick={() => onNavigate?.("training_tasks")}>进入实训任务</button>
+            </div>
+            <div className="prototype-history-list">
+              <strong>最近实训周</strong>
+              {myWeeks.length ? myWeeks.map((week) => (
+                <button key={week.startDate} type="button" onClick={() => onNavigate?.("my_history")}>
+                  <span>{week.teachingWeek || "未标注周次"}</span>
+                  <small>{week.startDate} 至 {week.endDate || "-"}</small>
+                </button>
+              )) : <small>暂无历史周记录，完成填写后会在这里出现。</small>}
+            </div>
+          </div>
+        )}
       </Panel>
     </div>
   );

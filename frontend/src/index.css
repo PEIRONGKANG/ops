@@ -3658,6 +3658,67 @@ table tbody tr:hover {
   margin-top: 18px;
 }
 
+.prototype-student-focus {
+  display: grid;
+  gap: 16px;
+}
+
+.prototype-student-focus p {
+  margin: 0;
+  color: #6d75a8;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.7;
+}
+
+.prototype-student-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.prototype-student-actions .prototype-line-button {
+  width: 100%;
+  border-color: rgba(124, 60, 255, 0.18);
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(228,238,255,.78));
+}
+
+.prototype-history-list {
+  display: grid;
+  gap: 10px;
+  border-radius: 20px;
+  background: rgba(245, 247, 255, 0.78);
+  padding: 14px;
+}
+
+.prototype-history-list strong {
+  color: #15102f;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.prototype-history-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid rgba(102, 116, 204, 0.14);
+  border-radius: 16px;
+  background: rgba(255,255,255,.86);
+  color: #3c3f75;
+  padding: 12px;
+  text-align: left;
+}
+
+.prototype-history-list button span {
+  color: #15102f;
+  font-weight: 950;
+}
+
+.prototype-history-list button small,
+.prototype-history-list > small {
+  color: #6d75a8;
+  font-weight: 750;
+}
+
 .prototype-tag.risk { background: #ffe1ec; color: #ff477e; }
 .prototype-tag.emerald { background: #d9fff0; color: #047857; }
 .prototype-tag.indigo { background: #fff1c7; color: #a16207; }
