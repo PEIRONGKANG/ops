@@ -1985,6 +1985,18 @@ function App() {
     ...groupedStudentUsers.map((user) => studentUsers.find((item) => item.username === user.username)).filter(Boolean),
     ...studentUsers.filter((user) => !groupedStudentUsers.some((item) => item.username === user.username)),
   ];
+  const p3VisibleUsernames = currentUser?.level === "P3"
+    ? new Set((getCurrentSessionUsers().length ? getCurrentSessionUsers() : [currentUser.username]).filter(Boolean))
+    : null;
+  const roleScopedStudentUsers = p3VisibleUsernames
+    ? studentUsers.filter((user) => p3VisibleUsernames.has(user.username))
+    : studentUsers;
+  const roleScopedGroupedStudentUsers = p3VisibleUsernames
+    ? groupedStudentUsers.filter((user) => p3VisibleUsernames.has(user.username))
+    : groupedStudentUsers;
+  const roleScopedPrioritizedStudentUsers = p3VisibleUsernames
+    ? prioritizedStudentUsers.filter((user) => p3VisibleUsernames.has(user.username))
+    : prioritizedStudentUsers;
   const resolvedScopeUser = currentUser
     ? (canViewAllScopes() ? resolveScopeUser(createScopeResolutionSource(app)) : currentUser.username)
     : "";
@@ -2149,7 +2161,7 @@ function App() {
           activeTab={app.activeTab}
           currentUserLevel={currentUser?.level || ""}
           currentDayData={currentDayData}
-          studentUsers={studentUsers}
+          studentUsers={roleScopedStudentUsers}
           onNavigate={handleTabChange}
           onLoadWeek={handleLoadWeek}
           onPreviewReport={handlePreviewReport}
@@ -2189,7 +2201,7 @@ function App() {
       ) : null}
 
       {app.activeTab === "job_assignments" ? (
-        <JobAssignmentTab currentUser={currentUser} studentUsers={studentUsers} />
+        <JobAssignmentTab currentUser={currentUser} studentUsers={roleScopedStudentUsers} />
       ) : null}
 
       {app.activeTab === "my_history" ? (
@@ -2351,8 +2363,8 @@ function App() {
     activeTab: app.activeTab,
     onNavigate: handleTabChange,
     canViewAllScopes: canViewAllScopes(),
-    groupedStudentUsers,
-    studentUsers: prioritizedStudentUsers,
+    groupedStudentUsers: roleScopedGroupedStudentUsers,
+    studentUsers: roleScopedPrioritizedStudentUsers,
     activeScopeUser: resolvedScopeUser,
     weekStart: app.selectedWeekStart,
     weekEnd: displayedWeekEnd,
