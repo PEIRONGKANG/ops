@@ -1,0 +1,5 @@
+.worktrees/
+apps/backend/target/
+.env
+.idea/
+.DS_Store

@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: beverage-ops-backend
+  jpa:
+    open-in-view: false
+
+identity-access:
+  bootstrap:
+    p1-login-id: ${AUTH_BOOTSTRAP_P1_LOGIN_ID:}
+    temporary-password: ${AUTH_BOOTSTRAP_P1_TEMP_PASSWORD:}
+    claim-secret: ${AUTH_BOOTSTRAP_P1_CLAIM_SECRET:}
+  jwt-secret: ${AUTH_JWT_SECRET:}
+  token-hmac-secret: ${AUTH_TOKEN_HMAC_SECRET:}
+  trusted-origins: ${AUTH_TRUSTED_ORIGINS:http://localhost:5173}
+  secure-cookies: ${AUTH_SECURE_COOKIES:true}

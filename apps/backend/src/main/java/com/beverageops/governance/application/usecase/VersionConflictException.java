@@ -1,0 +1,8 @@
+package com.beverageops.governance.application.usecase;
+
+public class VersionConflictException extends RuntimeException {
+
+    public VersionConflictException(String message) {
+        super(message);
+    }
+}

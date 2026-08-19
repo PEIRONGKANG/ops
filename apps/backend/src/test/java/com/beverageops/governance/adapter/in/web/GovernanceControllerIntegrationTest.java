@@ -1,0 +1,364 @@
+package com.beverageops.governance.adapter.in.web;
+
+import java.util.UUID;
+
+import com.beverageops.support.PostgresIntegrationTestBase;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
+
+    private static final UUID P1_ID = UUID.fromString("40000000-0000-0000-0000-000000000001");
+    private static final UUID P2_ID = UUID.fromString("40000000-0000-0000-0000-000000000002");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void createActors() {
+        createActor(P1_ID, "GOVP1", "P1");
+        createActor(P2_ID, "GOVP2", "P2");
+    }
+
+    @Test
+    void p1CanCreateTermStoreAndPublishAnImmutableTemplateVersionWithAuditHistory() throws Exception {
+        var term = mockMvc.perform(post("/api/v1/admin/terms")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"2026-AUTUMN","name":"2026 秋季实训","startDate":"2026-09-01","endDate":"2027-01-20"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.version").value(1))
+                .andReturn();
+        var termId = json(term).path("id").asText();
+
+        var store = mockMvc.perform(post("/api/v1/admin/stores")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"DRINK-LAB\",\"name\":\"饮品实训门店\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.version").value(1))
+                .andReturn();
+        var storeId = json(store).path("id").asText();
+
+        var template = mockMvc.perform(post("/api/v1/admin/template-versions")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "termId":"%s",
+                                  "storeId":"%s",
+                                  "templateCode":"DRINK-DAILY",
+                                  "name":"饮品门店日常运营",
+                                  "effectiveFrom":"2026-09-01",
+                                  "configuration":{"roles":[{"code":"BARISTA","name":"吧台"}],"tasks":[],"milestones":[]}
+                                }
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.templateRevision").value(1))
+                .andReturn();
+        var templateId = json(template).path("id").asText();
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/{templateId}/publish", templateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}", templateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"不应覆盖历史模板\",\"version\":2}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STATE_CONFLICT"));
+
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from audit_events
+                where resource_type in ('TERM', 'STORE', 'TEMPLATE_VERSION')
+                """, Integer.class)).isEqualTo(4);
+    }
+
+    @Test
+    void nonP1CannotCreateGovernanceResources() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/terms")
+                        .with(user(P2_ID.toString()).roles("P2"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"2026-AUTUMN","name":"2026 秋季实训","startDate":"2026-09-01","endDate":"2027-01-20"}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void certificationRuleMustDeclareACompleteExecutablePolicy() throws Exception {
+        var termId = createTerm("2026-CERT-RULE", "认证规则校验学期");
+        var storeId = createStore("CERT-RULE-LAB", "认证规则校验门店");
+        var templateId = json(createTemplate(termId, storeId, "CERT-RULE", "认证规则模板")).path("id").asText();
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/{templateId}/certification-rules", templateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"INVALID-CERT","name":"无效认证规则",
+                                 "configuration":{"authorizedDecisionRoles":[],"evidenceRequired":true,
+                                                  "minimumEvidenceCount":1,"retestRequired":false}}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void p1CanConfigureTermTeamMembershipAndReadOnlyAuditHistory() throws Exception {
+        var termId = createTerm("2026-SPRING", "2026 春季实训");
+
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/publish", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        var team = mockMvc.perform(post("/api/v1/admin/teams")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"termId":"%s","code":"TEAM-A","name":"创意 A 组"}
+                                """.formatted(termId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andReturn();
+        var teamId = json(team).path("id").asText();
+
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/memberships", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"accountId":"%s","teamId":"%s"}
+                                """.formatted(P2_ID, teamId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        mockMvc.perform(get("/api/v1/admin/terms/{termId}/memberships", termId)
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].accountId").value(P2_ID.toString()))
+                .andExpect(jsonPath("$[0].teamId").value(teamId));
+
+        var membershipId = jdbcTemplate.queryForObject("""
+                select id from gov_term_memberships where term_id = ? and account_id = ?
+                """, UUID.class, UUID.fromString(termId), P2_ID);
+        mockMvc.perform(delete("/api/v1/admin/terms/{termId}/memberships/{membershipId}", termId, membershipId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(get("/api/v1/admin/audit-events?resourceType=TERM")
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].resourceType").value("TERM"))
+                .andExpect(jsonPath("$[0].actorAccountId").value(P1_ID.toString()))
+                .andExpect(jsonPath("$[0].passwordHash").doesNotExist())
+                .andExpect(jsonPath("$[0].loginId").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/admin/change-records?resourceType=TERM")
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].resourceType").value("TERM"));
+
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/archive", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":2,\"reason\":\"教学周期已结束\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ARCHIVED"))
+                .andExpect(jsonPath("$.version").value(3));
+    }
+
+    @Test
+    void draftTemplateCanBeChangedAndARepeatedCodeCreatesTheNextImmutableVersion() throws Exception {
+        var termId = createTerm("2026-SUMMER", "2026 夏季实训");
+        var storeId = createStore("SUMMER-LAB", "夏季实训门店");
+        var firstTemplate = createTemplate(termId, storeId, "DAILY", "日常运营 v1");
+        var firstTemplateId = json(firstTemplate).path("id").asText();
+
+        mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}", firstTemplateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"日常运营 v1 修订","effectiveUntil":"2026-12-31",
+                                 "configuration":{"roles":[{"code":"BARISTA","name":"吧台"}],"tasks":[{"code":"OPEN"}]},"version":1}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("日常运营 v1 修订"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}", firstTemplateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"旧版本\",\"version\":1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
+
+        var secondTemplate = mockMvc.perform(post("/api/v1/admin/template-versions")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"termId":"%s","storeId":"%s","templateCode":"DAILY","name":"日常运营 v2",
+                                 "effectiveFrom":"2027-01-01","configuration":{"roles":[],"tasks":[]}}
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.templateRevision").value(2))
+                .andReturn();
+
+        mockMvc.perform(get("/api/v1/admin/template-versions?termId={termId}&storeId={storeId}", termId, storeId)
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/{templateId}/publish", firstTemplateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":2}"))
+                .andExpect(status().isOk());
+
+        var secondTemplateId = json(secondTemplate).path("id").asText();
+        mockMvc.perform(post("/api/v1/admin/template-versions/{templateId}/roles", secondTemplateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"BARISTA\",\"name\":\"吧台\",\"configuration\":{\"required\":true}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.componentType").value("ROLE"));
+
+        mockMvc.perform(get("/api/v1/admin/template-versions/{templateId}/roles", secondTemplateId)
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("BARISTA"));
+    }
+
+    @Test
+    void p1CanConfigureTeachingWeeksInsideTheTermDates() throws Exception {
+        var termId = createTerm("2026-WINTER", "2026 冬季实训");
+
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/teaching-weeks", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"weekNumber":1,"name":"导入与准备","startDate":"2026-09-01","endDate":"2026-09-07","phaseCode":"PREPARATION"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.weekNumber").value(1))
+                .andExpect(jsonPath("$.phaseCode").value("PREPARATION"));
+
+        mockMvc.perform(get("/api/v1/admin/terms/{termId}/teaching-weeks", termId)
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("导入与准备"));
+
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/teaching-weeks", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"weekNumber":2,"name":"无效周","startDate":"2026-08-31","endDate":"2026-09-06"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void membershipDeactivationMustUseTheMembershipTerm() throws Exception {
+        var firstTermId = createTerm("2026-FALL-A", "第一学期");
+        var secondTermId = createTerm("2026-FALL-B", "第二学期");
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/memberships", firstTermId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accountId\":\"%s\"}".formatted(P2_ID)))
+                .andExpect(status().isCreated());
+        var membershipId = jdbcTemplate.queryForObject("""
+                select id from gov_term_memberships where term_id = ? and account_id = ?
+                """, UUID.class, UUID.fromString(firstTermId), P2_ID);
+
+        mockMvc.perform(delete("/api/v1/admin/terms/{termId}/memberships/{membershipId}", secondTermId, membershipId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    private String createTerm(String code, String name) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/admin/terms")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"%s","name":"%s","startDate":"2026-09-01","endDate":"2027-01-20"}
+                                """.formatted(code, name)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return json(result).path("id").asText();
+    }
+
+    private String createStore(String code, String name) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/admin/stores")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"%s\",\"name\":\"%s\"}".formatted(code, name)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return json(result).path("id").asText();
+    }
+
+    private org.springframework.test.web.servlet.MvcResult createTemplate(String termId, String storeId, String code,
+                                                                           String name) throws Exception {
+        return mockMvc.perform(post("/api/v1/admin/template-versions")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"termId":"%s","storeId":"%s","templateCode":"%s","name":"%s",
+                                 "effectiveFrom":"2026-09-01","configuration":{"roles":[],"tasks":[]}}
+                                """.formatted(termId, storeId, code, name)))
+                .andExpect(status().isCreated())
+                .andReturn();
+    }
+
+    private void createActor(UUID id, String loginId, String role) {
+        jdbcTemplate.update("""
+                insert into iam_accounts (id, login_id, display_name, status, password_hash)
+                values (?, ?, ?, 'ACTIVE', '$argon2id$placeholder')
+                """, id, loginId, loginId);
+        jdbcTemplate.update("""
+                insert into iam_role_assignments (id, account_id, role_code)
+                values (?, ?, ?)
+                """, UUID.randomUUID(), id, role);
+    }
+
+    private JsonNode json(org.springframework.test.web.servlet.MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+}
