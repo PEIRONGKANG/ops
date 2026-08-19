@@ -12,6 +12,10 @@ public interface EvidenceMediaStoragePort {
 
     InputStream open(String relativePath);
 
+    InputStream open(String relativePath, long offset, long length);
+
+    long size(String relativePath);
+
     boolean delete(String relativePath);
 
     record Upload(UUID evidenceId, long fileVersion, String originalFilename, String declaredMimeType, InputStream content) {

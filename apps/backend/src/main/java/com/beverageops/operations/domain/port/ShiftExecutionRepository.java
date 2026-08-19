@@ -52,11 +52,15 @@ public interface ShiftExecutionRepository {
 
     Optional<Evidence> lockEvidence(UUID evidenceId);
 
+    Optional<Evidence> findEvidence(UUID evidenceId);
+
     long nextEvidenceFileVersion(UUID evidenceId);
 
     EvidenceFileVersion insertCurrentEvidenceFileVersion(NewEvidenceFileVersion version);
 
     Optional<EvidenceFileVersion> lockCurrentEvidenceFileVersion(UUID evidenceId);
+
+    Optional<EvidenceFileVersion> findCurrentEvidenceFileVersion(UUID evidenceId);
 
     List<EvidenceFileVersion> findEvidenceFileVersions(UUID evidenceId);
 

@@ -15,6 +15,7 @@ import com.beverageops.operations.application.usecase.KeyApprovalRequiredExcepti
 import com.beverageops.operations.application.usecase.BlockingIncidentException;
 import com.beverageops.operations.application.usecase.HandoverRequiredException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -56,6 +57,12 @@ class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ApiErrorWriter.ApiError> handleValidation(IllegalArgumentException exception) {
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", exception.getMessage());
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiErrorWriter.ApiError> handleMissingParameter(MissingServletRequestParameterException exception) {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Required parameter '" + exception.getParameterName()
+                + "' is missing.");
     }
 
     @ExceptionHandler(IllegalStateException.class)

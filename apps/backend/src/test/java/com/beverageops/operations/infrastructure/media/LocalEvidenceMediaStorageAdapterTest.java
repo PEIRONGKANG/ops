@@ -112,6 +112,20 @@ class LocalEvidenceMediaStorageAdapterTest {
         assertNoFiles(mediaRoot);
     }
 
+    @Test
+    void opensOnlyTheRequestedRangeWithoutLoadingTheWholeFile() throws Exception {
+        var adapter = adapter();
+        var evidenceId = UUID.randomUUID();
+        var content = mp4();
+        var stored = adapter.stageAndPublish(new EvidenceMediaStoragePort.Upload(evidenceId, 1L, "close.mp4", "video/mp4",
+                new ByteArrayInputStream(content)));
+
+        try (var range = adapter.open(stored.relativePath(), 4, 8)) {
+            assertThat(range.readAllBytes()).isEqualTo(java.util.Arrays.copyOfRange(content, 4, 12));
+        }
+        assertThat(adapter.size(stored.relativePath())).isEqualTo(content.length);
+    }
+
     private LocalEvidenceMediaStorageAdapter adapter() {
         return new LocalEvidenceMediaStorageAdapter(new MediaStorageProperties(mediaRoot, ".staging", "0 0 2 * * *", false));
     }

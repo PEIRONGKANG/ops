@@ -64,6 +64,29 @@ public class LocalEvidenceMediaStorageAdapter implements EvidenceMediaStoragePor
     }
 
     @Override
+    public InputStream open(String relativePath, long offset, long length) {
+        if (offset < 0 || length < 0) {
+            throw new EvidenceMediaValidationException("Evidence read range is invalid.");
+        }
+        try {
+            var input = Files.newInputStream(resolveRelativePath(relativePath));
+            input.skipNBytes(offset);
+            return new BoundedInputStream(input, length);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to read evidence file.", exception);
+        }
+    }
+
+    @Override
+    public long size(String relativePath) {
+        try {
+            return Files.size(resolveRelativePath(relativePath));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to read evidence file metadata.", exception);
+        }
+    }
+
+    @Override
     public boolean delete(String relativePath) {
         try {
             return Files.deleteIfExists(resolveRelativePath(relativePath));
@@ -162,5 +185,45 @@ public class LocalEvidenceMediaStorageAdapter implements EvidenceMediaStoragePor
     }
 
     private record StagedFile(long byteSize, String sha256) {
+    }
+
+    private static final class BoundedInputStream extends InputStream {
+
+        private final InputStream delegate;
+        private long remaining;
+
+        private BoundedInputStream(InputStream delegate, long remaining) {
+            this.delegate = delegate;
+            this.remaining = remaining;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (remaining == 0) {
+                return -1;
+            }
+            var value = delegate.read();
+            if (value != -1) {
+                remaining--;
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) throws IOException {
+            if (remaining == 0) {
+                return -1;
+            }
+            var count = delegate.read(bytes, offset, (int) Math.min(length, remaining));
+            if (count != -1) {
+                remaining -= count;
+            }
+            return count;
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
     }
 }

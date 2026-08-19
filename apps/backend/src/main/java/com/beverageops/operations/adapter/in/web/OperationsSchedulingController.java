@@ -1,5 +1,6 @@
 package com.beverageops.operations.adapter.in.web;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -8,9 +9,13 @@ import java.util.UUID;
 import com.beverageops.identityaccess.domain.port.AccessTokenPort;
 import com.beverageops.operations.application.usecase.OperationsSchedulingUseCase;
 import com.beverageops.operations.application.usecase.ShiftExecutionUseCase;
+import com.beverageops.operations.domain.port.EvidenceMediaStoragePort;
 import com.beverageops.operations.domain.port.OperationsSchedulingRepository;
 import com.beverageops.operations.domain.port.ShiftExecutionRepository;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -28,10 +34,13 @@ class OperationsSchedulingController {
 
     private final OperationsSchedulingUseCase scheduling;
     private final ShiftExecutionUseCase execution;
+    private final EvidenceMediaStoragePort mediaStorage;
 
-    OperationsSchedulingController(OperationsSchedulingUseCase scheduling, ShiftExecutionUseCase execution) {
+    OperationsSchedulingController(OperationsSchedulingUseCase scheduling, ShiftExecutionUseCase execution,
+                                   EvidenceMediaStoragePort mediaStorage) {
         this.scheduling = scheduling;
         this.execution = execution;
+        this.mediaStorage = mediaStorage;
     }
 
     @PostMapping("/admin/operation-scope-grants")
@@ -177,6 +186,49 @@ class OperationsSchedulingController {
                         hasRole(authentication, "P3")))));
     }
 
+    @PostMapping(value = "/evidence/{evidenceId}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<EvidenceFileResponse> uploadEvidenceFile(@PathVariable UUID evidenceId, @RequestParam("file") MultipartFile file,
+                                                             Authentication authentication) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(evidenceFile(execution.uploadEvidenceFile(evidenceId,
+                evidenceFileUpload(file, authentication))));
+    }
+
+    @GetMapping("/evidence/{evidenceId}/files")
+    List<EvidenceFileResponse> evidenceFiles(@PathVariable UUID evidenceId, Authentication authentication) {
+        return execution.evidenceFiles(evidenceId, evidenceFileActor(authentication)).stream().map(this::evidenceFile).toList();
+    }
+
+    @GetMapping("/evidence/{evidenceId}/files/current")
+    ResponseEntity<?> downloadEvidenceFile(@PathVariable UUID evidenceId,
+                                           @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.RANGE,
+                                                   required = false) String range,
+                                           Authentication authentication) throws IOException {
+        var current = execution.currentEvidenceFileForRead(evidenceId, evidenceFileActor(authentication));
+        if (current.mediaType().rangeSupported() && range != null) {
+            return rangedVideo(current, range);
+        }
+        var length = mediaStorage.size(current.relativePath());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(current.originalFilename()))
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .contentType(MediaType.parseMediaType(current.detectedMimeType()))
+                .contentLength(length)
+                .body(new InputStreamResource(mediaStorage.open(current.relativePath())));
+    }
+
+    @PostMapping(value = "/evidence/{evidenceId}/files/replace", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    EvidenceFileResponse replaceEvidenceFile(@PathVariable UUID evidenceId, @RequestParam("file") MultipartFile file,
+                                             @RequestParam("reason") String reason, Authentication authentication) throws IOException {
+        return evidenceFile(execution.replaceEvidenceFile(evidenceId, reason, evidenceFileUpload(file, authentication)));
+    }
+
+    @PostMapping(value = "/evidence/{evidenceId}/files/withdraw", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    EvidenceFileResponse withdrawEvidenceFile(@PathVariable UUID evidenceId, @RequestParam("reason") String reason,
+                                              Authentication authentication) {
+        return evidenceFile(execution.withdrawEvidenceFile(evidenceId, reason, evidenceFileActor(authentication)));
+    }
+
     @PostMapping("/shifts/{shiftId}/schedule")
     ShiftResponse schedule(@PathVariable UUID shiftId, @RequestBody VersionRequest request, Authentication authentication) {
         return shift(scheduling.scheduleShift(shiftId, new OperationsSchedulingUseCase.VersionCommand(request.version(),
@@ -273,6 +325,73 @@ class OperationsSchedulingController {
                 evidence.kind().name(), evidence.occurredAt(), evidence.submittedByAccountId(), evidence.version(), evidence.updatedAt());
     }
 
+    private EvidenceFileResponse evidenceFile(ShiftExecutionRepository.EvidenceFileVersion file) {
+        return new EvidenceFileResponse(file.id(), file.evidenceId(), file.fileVersion(), file.relativePath(),
+                file.originalFilename(), file.mediaType().mimeType(), file.detectedMimeType(), file.byteSize(), file.sha256(),
+                file.status().name(), file.reason(), file.createdAt(), file.purgeAfter(), file.purgedAt(), file.purgeResult());
+    }
+
+    private ShiftExecutionUseCase.EvidenceFileUploadCommand evidenceFileUpload(MultipartFile file,
+                                                                                 Authentication authentication) throws IOException {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("Evidence file must not be empty.");
+        }
+        return new ShiftExecutionUseCase.EvidenceFileUploadCommand(file.getOriginalFilename(), file.getContentType(),
+                file.getInputStream(), actorId(authentication), hasRole(authentication, "P1"), hasRole(authentication, "P2"),
+                hasRole(authentication, "P3"));
+    }
+
+    private ShiftExecutionUseCase.EvidenceFileActor evidenceFileActor(Authentication authentication) {
+        return new ShiftExecutionUseCase.EvidenceFileActor(actorId(authentication), hasRole(authentication, "P1"),
+                hasRole(authentication, "P2"), hasRole(authentication, "P3"));
+    }
+
+    private ResponseEntity<?> rangedVideo(ShiftExecutionRepository.EvidenceFileVersion file, String range) {
+        var length = mediaStorage.size(file.relativePath());
+        var requested = parseRange(range, length);
+        if (requested == null) {
+            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+                    .header(HttpHeaders.CONTENT_RANGE, "bytes */" + length)
+                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .build();
+        }
+        var responseLength = requested.end() - requested.start() + 1;
+        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(file.originalFilename()))
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .header(HttpHeaders.CONTENT_RANGE, "bytes " + requested.start() + "-" + requested.end() + "/" + length)
+                .contentType(MediaType.parseMediaType(file.detectedMimeType()))
+                .contentLength(responseLength)
+                .body(new InputStreamResource(mediaStorage.open(file.relativePath(), requested.start(), responseLength)));
+    }
+
+    private ByteRange parseRange(String range, long length) {
+        if (range == null || !range.startsWith("bytes=") || range.contains(",")) {
+            return null;
+        }
+        var values = range.substring("bytes=".length()).split("-", -1);
+        if (values.length != 2 || values[0].isBlank()) {
+            return null;
+        }
+        try {
+            long start = Long.parseLong(values[0]);
+            long end = values[1].isBlank() ? length - 1L : Long.parseLong(values[1]);
+            if (start < 0 || start >= length || end < start) {
+                return null;
+            }
+            return new ByteRange(start, Math.min(end, length - 1L));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private String contentDisposition(String originalFilename) {
+        return "attachment; filename=\"" + originalFilename.replace("\"", "") + "\"";
+    }
+
     private ShiftExecutionUseCase.VersionCommand executionVersion(long version, Authentication authentication) {
         return new ShiftExecutionUseCase.VersionCommand(version, actorId(authentication), hasRole(authentication, "P1"),
                 hasRole(authentication, "P2"), hasRole(authentication, "P3"));
@@ -345,6 +464,15 @@ class OperationsSchedulingController {
 
     record EvidenceResponse(UUID id, UUID shiftId, UUID taskCompletionId, UUID milestoneSubmissionId, String kind,
                             OffsetDateTime occurredAt, UUID submittedByAccountId, long version, OffsetDateTime updatedAt) {
+    }
+
+    record EvidenceFileResponse(UUID id, UUID evidenceId, long fileVersion, String relativePath, String originalFilename,
+                                String declaredMimeType, String detectedMimeType, long byteSize, String sha256, String status,
+                                String reason, OffsetDateTime createdAt, OffsetDateTime purgeAfter, OffsetDateTime purgedAt,
+                                String purgeResult) {
+    }
+
+    private record ByteRange(long start, long end) {
     }
 
     record PersonalShiftResponse(UUID shiftId, UUID operatingDayId, UUID termId, UUID storeId, LocalDate operatingDate,

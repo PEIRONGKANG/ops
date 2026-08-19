@@ -244,7 +244,7 @@ public class ShiftExecutionUseCase {
 
     @Transactional(readOnly = true)
     public List<ShiftExecutionRepository.EvidenceFileVersion> evidenceFiles(UUID evidenceId, EvidenceFileActor actor) {
-        var evidence = lockEvidence(evidenceId);
+        var evidence = findEvidence(evidenceId);
         requireEvidenceAuthorised(actor.actorId(), actor.p1(), actor.p2(), actor.p3(), shift(evidence.shiftId()),
                 evidenceTaskOwner(evidence));
         return execution.findEvidenceFileVersions(evidenceId);
@@ -252,10 +252,10 @@ public class ShiftExecutionUseCase {
 
     @Transactional
     public ShiftExecutionRepository.EvidenceFileVersion currentEvidenceFileForRead(UUID evidenceId, EvidenceFileActor actor) {
-        var evidence = lockEvidence(evidenceId);
+        var evidence = findEvidence(evidenceId);
         requireEvidenceAuthorised(actor.actorId(), actor.p1(), actor.p2(), actor.p3(), shift(evidence.shiftId()),
                 evidenceTaskOwner(evidence));
-        var current = currentEvidenceFile(evidenceId);
+        var current = findCurrentEvidenceFile(evidenceId);
         audit("EVIDENCE_FILE_ACCESSED", "EVIDENCE_FILE", current.id(), actor.actorId(), null, null, null);
         return current;
     }
@@ -310,6 +310,11 @@ public class ShiftExecutionUseCase {
 
     private ShiftExecutionRepository.EvidenceFileVersion currentEvidenceFile(UUID evidenceId) {
         return execution.lockCurrentEvidenceFileVersion(evidenceId)
+                .orElseThrow(() -> new EvidenceFileNotCurrentException("The evidence does not have a current file."));
+    }
+
+    private ShiftExecutionRepository.EvidenceFileVersion findCurrentEvidenceFile(UUID evidenceId) {
+        return execution.findCurrentEvidenceFileVersion(evidenceId)
                 .orElseThrow(() -> new EvidenceFileNotCurrentException("The evidence does not have a current file."));
     }
 
@@ -372,6 +377,10 @@ public class ShiftExecutionUseCase {
 
     private ShiftExecutionRepository.Evidence lockEvidence(UUID id) {
         return execution.lockEvidence(id).orElseThrow(() -> new ResourceNotFoundException("Evidence not found."));
+    }
+
+    private ShiftExecutionRepository.Evidence findEvidence(UUID id) {
+        return execution.findEvidence(id).orElseThrow(() -> new ResourceNotFoundException("Evidence not found."));
     }
 
     private EvidenceKind evidenceKind(String value) {

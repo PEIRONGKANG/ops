@@ -163,11 +163,12 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
 
     @Override
     public Optional<Evidence> lockEvidence(UUID evidenceId) {
-        return jdbcTemplate.query("""
-                        select id, shift_id, task_completion_id, milestone_submission_id, kind, occurred_at,
-                               submitted_by_account_id, version, updated_at
-                        from ops_evidence where id = ? for update
-                        """, resultSet -> resultSet.next() ? Optional.of(evidence(resultSet)) : Optional.empty(), evidenceId);
+        return evidenceById(evidenceId, " for update");
+    }
+
+    @Override
+    public Optional<Evidence> findEvidence(UUID evidenceId) {
+        return evidenceById(evidenceId, "");
     }
 
     @Override
@@ -198,8 +199,12 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
 
     @Override
     public Optional<EvidenceFileVersion> lockCurrentEvidenceFileVersion(UUID evidenceId) {
-        return jdbcTemplate.query(evidenceFileVersionSelect() + " where evidence_id = ? and status = 'CURRENT' for update",
-                resultSet -> resultSet.next() ? Optional.of(evidenceFileVersion(resultSet)) : Optional.empty(), evidenceId);
+        return currentEvidenceFileVersion(evidenceId, " for update");
+    }
+
+    @Override
+    public Optional<EvidenceFileVersion> findCurrentEvidenceFileVersion(UUID evidenceId) {
+        return currentEvidenceFileVersion(evidenceId, "");
     }
 
     @Override
@@ -296,6 +301,20 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
                                   purged_at, purge_result
                         """, (resultSet, rowNumber) -> evidenceFileVersion(resultSet), status.name(), reason, actorId,
                 purgeAfter, evidenceId);
+    }
+
+    private Optional<Evidence> evidenceById(UUID evidenceId, String lockingClause) {
+        return jdbcTemplate.query("""
+                        select id, shift_id, task_completion_id, milestone_submission_id, kind, occurred_at,
+                               submitted_by_account_id, version, updated_at
+                        from ops_evidence where id = ?
+                        """ + lockingClause, resultSet -> resultSet.next() ? Optional.of(evidence(resultSet)) : Optional.empty(),
+                evidenceId);
+    }
+
+    private Optional<EvidenceFileVersion> currentEvidenceFileVersion(UUID evidenceId, String lockingClause) {
+        return jdbcTemplate.query(evidenceFileVersionSelect() + " where evidence_id = ? and status = 'CURRENT'" + lockingClause,
+                resultSet -> resultSet.next() ? Optional.of(evidenceFileVersion(resultSet)) : Optional.empty(), evidenceId);
     }
 
     private String evidenceFileVersionSelect() {
