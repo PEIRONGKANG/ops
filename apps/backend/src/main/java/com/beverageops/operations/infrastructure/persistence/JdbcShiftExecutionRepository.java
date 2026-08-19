@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.beverageops.operations.domain.model.EvidenceKind;
+import com.beverageops.operations.domain.model.EvidenceFileStatus;
+import com.beverageops.operations.domain.model.EvidenceMediaType;
 import com.beverageops.operations.domain.model.MilestoneDecision;
 import com.beverageops.operations.domain.model.TaskCompletionStatus;
 import com.beverageops.operations.domain.port.ShiftExecutionRepository;
@@ -160,6 +162,89 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
     }
 
     @Override
+    public Optional<Evidence> lockEvidence(UUID evidenceId) {
+        return jdbcTemplate.query("""
+                        select id, shift_id, task_completion_id, milestone_submission_id, kind, occurred_at,
+                               submitted_by_account_id, version, updated_at
+                        from ops_evidence where id = ? for update
+                        """, resultSet -> resultSet.next() ? Optional.of(evidence(resultSet)) : Optional.empty(), evidenceId);
+    }
+
+    @Override
+    public long nextEvidenceFileVersion(UUID evidenceId) {
+        var version = jdbcTemplate.queryForObject("""
+                        select coalesce(max(file_version), 0) + 1
+                        from ops_evidence_file_versions where evidence_id = ?
+                        """, Long.class, evidenceId);
+        return version == null ? 1L : version;
+    }
+
+    @Override
+    public EvidenceFileVersion insertCurrentEvidenceFileVersion(NewEvidenceFileVersion version) {
+        return jdbcTemplate.queryForObject("""
+                        insert into ops_evidence_file_versions
+                            (id, evidence_id, file_version, relative_path, original_filename, safe_extension,
+                             declared_mime_type, detected_mime_type, byte_size, sha256, status, uploaded_by_account_id)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CURRENT', ?)
+                        returning id, evidence_id, file_version, relative_path, original_filename, safe_extension,
+                                  declared_mime_type, detected_mime_type, byte_size, sha256, status, reason,
+                                  uploaded_by_account_id, changed_by_account_id, created_at, updated_at, purge_after,
+                                  purged_at, purge_result
+                        """, (resultSet, rowNumber) -> evidenceFileVersion(resultSet), version.id(), version.evidenceId(),
+                version.fileVersion(), version.relativePath(), version.originalFilename(), version.mediaType().extension(),
+                version.declaredMimeType(), version.detectedMimeType(), version.byteSize(), version.sha256(),
+                version.uploadedByAccountId());
+    }
+
+    @Override
+    public Optional<EvidenceFileVersion> lockCurrentEvidenceFileVersion(UUID evidenceId) {
+        return jdbcTemplate.query(evidenceFileVersionSelect() + " where evidence_id = ? and status = 'CURRENT' for update",
+                resultSet -> resultSet.next() ? Optional.of(evidenceFileVersion(resultSet)) : Optional.empty(), evidenceId);
+    }
+
+    @Override
+    public List<EvidenceFileVersion> findEvidenceFileVersions(UUID evidenceId) {
+        return jdbcTemplate.query(evidenceFileVersionSelect() + " where evidence_id = ? order by file_version desc",
+                (resultSet, rowNumber) -> evidenceFileVersion(resultSet), evidenceId);
+    }
+
+    @Override
+    public EvidenceFileVersion replaceCurrentEvidenceFileVersion(UUID evidenceId, UUID actorId, String reason,
+                                                                  OffsetDateTime purgeAfter) {
+        return transitionCurrentEvidenceFileVersion(evidenceId, actorId, reason, purgeAfter, EvidenceFileStatus.REPLACED);
+    }
+
+    @Override
+    public EvidenceFileVersion withdrawCurrentEvidenceFileVersion(UUID evidenceId, UUID actorId, String reason,
+                                                                   OffsetDateTime purgeAfter) {
+        return transitionCurrentEvidenceFileVersion(evidenceId, actorId, reason, purgeAfter, EvidenceFileStatus.WITHDRAWN);
+    }
+
+    @Override
+    public List<EvidenceFileVersion> lockDueEvidenceFileVersions(OffsetDateTime dueBefore, int limit) {
+        return jdbcTemplate.query(evidenceFileVersionSelect() + """
+                        where status in ('REPLACED', 'WITHDRAWN') and purge_after <= ?
+                        order by purge_after, id
+                        limit ? for update skip locked
+                        """, (resultSet, rowNumber) -> evidenceFileVersion(resultSet), dueBefore, limit);
+    }
+
+    @Override
+    public EvidenceFileVersion markEvidenceFileVersionPurged(UUID evidenceFileVersionId, OffsetDateTime purgedAt,
+                                                              String purgeResult) {
+        return jdbcTemplate.queryForObject("""
+                        update ops_evidence_file_versions
+                        set status = 'PURGED', purged_at = ?, purge_result = ?, updated_at = current_timestamp
+                        where id = ? and status in ('REPLACED', 'WITHDRAWN')
+                        returning id, evidence_id, file_version, relative_path, original_filename, safe_extension,
+                                  declared_mime_type, detected_mime_type, byte_size, sha256, status, reason,
+                                  uploaded_by_account_id, changed_by_account_id, created_at, updated_at, purge_after,
+                                  purged_at, purge_result
+                        """, (resultSet, rowNumber) -> evidenceFileVersion(resultSet), purgedAt, purgeResult,
+                evidenceFileVersionId);
+    }
+
+    @Override
     public boolean hasEvidenceForTask(UUID taskCompletionId) {
         return exists("select exists (select 1 from ops_evidence where task_completion_id = ?)", taskCompletionId);
     }
@@ -199,6 +284,30 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
                 """;
     }
 
+    private EvidenceFileVersion transitionCurrentEvidenceFileVersion(UUID evidenceId, UUID actorId, String reason,
+                                                                      OffsetDateTime purgeAfter, EvidenceFileStatus status) {
+        return jdbcTemplate.queryForObject("""
+                        update ops_evidence_file_versions
+                        set status = ?, reason = ?, changed_by_account_id = ?, purge_after = ?, updated_at = current_timestamp
+                        where evidence_id = ? and status = 'CURRENT'
+                        returning id, evidence_id, file_version, relative_path, original_filename, safe_extension,
+                                  declared_mime_type, detected_mime_type, byte_size, sha256, status, reason,
+                                  uploaded_by_account_id, changed_by_account_id, created_at, updated_at, purge_after,
+                                  purged_at, purge_result
+                        """, (resultSet, rowNumber) -> evidenceFileVersion(resultSet), status.name(), reason, actorId,
+                purgeAfter, evidenceId);
+    }
+
+    private String evidenceFileVersionSelect() {
+        return """
+                select id, evidence_id, file_version, relative_path, original_filename, safe_extension,
+                       declared_mime_type, detected_mime_type, byte_size, sha256, status, reason,
+                       uploaded_by_account_id, changed_by_account_id, created_at, updated_at, purge_after,
+                       purged_at, purge_result
+                from ops_evidence_file_versions
+                """;
+    }
+
     private TaskCompletion task(ResultSet resultSet) throws java.sql.SQLException {
         return new TaskCompletion(resultSet.getObject("id", UUID.class), resultSet.getObject("shift_id", UUID.class),
                 resultSet.getObject("assignment_id", UUID.class), resultSet.getObject("account_id", UUID.class),
@@ -230,5 +339,18 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
                 EvidenceKind.valueOf(resultSet.getString("kind")), resultSet.getObject("occurred_at", OffsetDateTime.class),
                 resultSet.getObject("submitted_by_account_id", UUID.class), resultSet.getLong("version"),
                 resultSet.getObject("updated_at", OffsetDateTime.class));
+    }
+
+    private EvidenceFileVersion evidenceFileVersion(ResultSet resultSet) throws java.sql.SQLException {
+        return new EvidenceFileVersion(resultSet.getObject("id", UUID.class), resultSet.getObject("evidence_id", UUID.class),
+                resultSet.getLong("file_version"), resultSet.getString("relative_path"),
+                resultSet.getString("original_filename"), EvidenceMediaType.fromFilename(
+                        "file." + resultSet.getString("safe_extension")), resultSet.getString("declared_mime_type"),
+                resultSet.getString("detected_mime_type"), resultSet.getLong("byte_size"), resultSet.getString("sha256"),
+                EvidenceFileStatus.valueOf(resultSet.getString("status")), resultSet.getString("reason"),
+                resultSet.getObject("uploaded_by_account_id", UUID.class), resultSet.getObject("changed_by_account_id", UUID.class),
+                resultSet.getObject("created_at", OffsetDateTime.class), resultSet.getObject("updated_at", OffsetDateTime.class),
+                resultSet.getObject("purge_after", OffsetDateTime.class), resultSet.getObject("purged_at", OffsetDateTime.class),
+                resultSet.getString("purge_result"));
     }
 }

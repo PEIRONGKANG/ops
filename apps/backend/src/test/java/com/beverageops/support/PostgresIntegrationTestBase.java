@@ -77,6 +77,7 @@ public abstract class PostgresIntegrationTestBase {
         jdbcTemplate.update("delete from ops_incident_history");
         jdbcTemplate.update("delete from ops_incidents");
         jdbcTemplate.update("delete from ops_operating_summaries");
+        jdbcTemplate.update("delete from ops_evidence_file_versions");
         jdbcTemplate.update("delete from ops_evidence");
         jdbcTemplate.update("delete from ops_milestone_decisions");
         jdbcTemplate.update("delete from ops_milestone_submissions");
