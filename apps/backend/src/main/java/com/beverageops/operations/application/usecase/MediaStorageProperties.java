@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record MediaStorageProperties(Path root, String stagingDirectory, String purgeCron, boolean production) {
 
     public MediaStorageProperties {
-        if (root == null) {
+        if (root == null || root.toString().isBlank()) {
             if (production) {
                 throw new IllegalStateException("BEVERAGE_OPS_MEDIA_ROOT is required in production.");
             }

@@ -23,4 +23,11 @@ class MediaStoragePropertiesTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("BEVERAGE_OPS_MEDIA_ROOT is required in production.");
     }
+
+    @Test
+    void rejectsAnEmptyProductionMediaRoot() {
+        assertThatThrownBy(() -> new MediaStorageProperties(Path.of(""), ".staging", "0 0 2 * * *", true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("BEVERAGE_OPS_MEDIA_ROOT is required in production.");
+    }
 }
