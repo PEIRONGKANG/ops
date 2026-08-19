@@ -24,14 +24,14 @@
 | PRD decision | Implementation boundary | What may proceed now |
 | --- | --- | --- |
 | DQ-01 unified identity | Keep the implemented local account adapter; define no alternative identity login flow. | All business APIs use account UUIDs and server roles. |
-| DQ-02 object storage, backup, media domain | Define `EvidenceObjectStoragePort` and protected evidence metadata/version APIs. A provider adapter and direct upload URL endpoint require the selected provider. | Text, external-link and operating-summary evidence; metadata relationships; controlled access rules; contract tests with an in-memory fake only. |
+| DQ-02 server media storage, no backup | Closed for phase 1: persist media below the configured server root (`/data/beverage-ops/media` in production), store only controlled relative paths and metadata in PostgreSQL, and expose only authorised backend upload/download routes. No object-storage provider, direct public URL, backup service or virus scanner is used. | Implement local filesystem adapter, metadata/version records, multipart validation, authorised stream/range reads and three-day purge of replaced/withdrawn physical files. |
 | DQ-03 pilot term, store and people | No seed business data. P1 creates these through APIs. | All governance CRUD/publish routes. |
 | DQ-04 POS/inventory source and voucher format | Store generic `sourceSystem`, `collectionMethod`, `sourceReference`, collector and timestamp; no POS/inventory integration. | External operating summaries and `PENDING_SUPPLEMENT` todo. |
 | DQ-05 certification/retraining deadlines and scoring weights | Store P1-authored, versioned rules; do not seed a supposedly official threshold, deadline or score. | Rule management and validation based on configured values. |
 | DQ-06 reviewer roster/invite lifetime/public scope | Define invitation and visibility ports/data contracts but do not issue real reviewer invitations until P1 confirms the policy. | Internal portfolio/rubric/result APIs. |
 | DQ-07 long-term archive retention | Encode 5-year minimum and read-only archive transitions; deployment storage/destruction policy remains configuration/operations work. | Archive state, audit/search/export manifest endpoints. |
 
-Before implementing evidence **binary** upload/download or public external-review links, obtain a recorded decision for DQ-02 and DQ-06. No placeholder provider credentials, public buckets or unauthorised local filesystem persistence are allowed.
+DQ-02 is recorded in [server media storage design](2026-08-19-server-media-storage-design.md). Before implementing public external-review links, obtain a recorded decision for DQ-06. No public media directory, client-provided server path, placeholder provider credential or unauthorised filesystem persistence is allowed.
 
 ## 3. API resource contract
 
@@ -52,7 +52,7 @@ All routes begin with `/api/v1`; JSON uses camelCase. Responses from identity, a
 - `POST/GET /shifts`, `GET/PATCH /shifts/{shiftId}`, `POST /shifts/{shiftId}/schedule`, `POST /shifts/{shiftId}/start`, `POST /shifts/{shiftId}/request-close`, `POST /shifts/{shiftId}/close`, `POST /shifts/{shiftId}/reopen`, `POST /shifts/{shiftId}/cancel`
 - `POST/GET/PATCH /shifts/{shiftId}/assignments`; P3 read-only `GET /me/shifts` and `GET /me/shifts/{shiftId}`.
 - `GET /shifts/{shiftId}/tasks`, `POST /task-completions/{id}/submit`, `POST /task-completions/{id}/return` (P2 only for return/acceptance), `POST /task-completions/{id}/accept`.
-- `POST/GET /evidence` metadata and version relations; binary-object transfer deferred under DQ-02.
+- `POST/GET /evidence` metadata and version relations; `POST /evidence/{id}/files`, `POST /evidence/{id}/files/replace`, `POST /evidence/{id}/files/withdraw`, and authorised `GET /evidence/{id}/files/current` implement server-file upload, history and retrieval after Task 10.
 - `POST/GET/PATCH /operating-summaries`, `POST /operating-summaries/{id}/confirm`.
 - `POST/GET/PATCH /incidents`, `POST /incidents/{id}/acknowledge`, `POST /incidents/{id}/assign`, `POST /incidents/{id}/submit-verification`, `POST /incidents/{id}/close`, `POST /incidents/{id}/reopen`, `POST /incidents/{id}/waive-blocking`.
 - `POST/GET/PATCH /handovers`, `POST /handovers/{id}/submit`, `POST /handovers/{id}/accept`, `POST /handovers/{id}/return`, `POST /handovers/{id}/approve`.
@@ -203,18 +203,17 @@ All routes begin with `/api/v1`; JSON uses camelCase. Responses from identity, a
 4. Enforce archive transition no sooner than configured 5-year retention and block all normal mutations after archive.
 5. Test/commit `feat: add external review archive and export contracts`.
 
-### Task 10: Object storage adapter, media access and operational runbooks
+### Task 10: Server filesystem media adapter, access and lifecycle runbooks
 
 **Files:**
-- Create after DQ-02: object storage infrastructure adapter, configuration, integration tests.
-- Modify: evidence controller/use case and `compose.yaml` only if the approved storage service is local development infrastructure.
-- Modify: `docs/runbooks/*`, `README.md`, PRD change log.
+- Create: local filesystem media adapter, media properties, file-version migration, scheduled purge task and integration tests.
+- Modify: evidence controller/use case, evidence repository, `application*.yml`, `.env.example`, `README.md`, runbooks and PRD change log.
 
-1. Do not start this task until DQ-02 specifies provider, bucket/domain, backup and retention policy. Write failing tests for scoped upload/metadata completion/download URL issuance and denied cross-scope access.
-2. Implement provider adapter behind `EvidenceObjectStoragePort`, content-type/size validation, checksum, object key isolation and time-limited read access.
-3. Never make the bucket public, store raw files in PostgreSQL, or serve an evidence object without rechecking resource scope.
-4. Add startup/incident/backup runbooks and Docker health verification.
-5. Test/package/compose verify; commit `feat: add protected evidence object storage`.
+1. DQ-02 is confirmed: production root is `/data/beverage-ops/media`; upload is backend Multipart only; PostgreSQL stores only relative paths and metadata; no backup or virus scanner is added. Write failing tests for allowed/denied types, scoped upload/download, `Range` video reads, replacement/withdrawal history and a purge that never deletes current content.
+2. Implement a local adapter behind an evidence media port. Stage under the configured root, validate extension/MIME/signature and macro-free OOXML container, compute SHA-256, then atomically publish an application-generated relative path. Never accept or return a server filesystem path.
+3. Persist immutable file version metadata. Replaced/withdrawn physical files receive `purge_after = now + 3 days`; current files remain until superseded or withdrawn. A daily task removes only due non-current physical files and preserves the database/audit fact even when a file is already missing.
+4. Stream all reads through a reauthorising controller; no public/static media route. Enforce `nosniff` and `no-store`, force document download, and support standard HTTP range responses for video.
+5. Add server-directory startup/incident/no-backup runbooks. Test/package/compose verify; commit `feat: add protected server media storage`.
 
 ### Task 11: System verification and PRD traceability
 
