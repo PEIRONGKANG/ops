@@ -75,6 +75,8 @@ public interface ShiftExecutionRepository {
     EvidenceFileVersion markEvidenceFileVersionPurged(UUID evidenceFileVersionId, OffsetDateTime purgedAt,
                                                       String purgeResult);
 
+    void recordEvidenceFileVersionPurgeFailure(UUID evidenceFileVersionId, String purgeResult);
+
     boolean hasEvidenceForTask(UUID taskCompletionId);
 
     boolean hasEvidenceForMilestone(UUID milestoneSubmissionId);

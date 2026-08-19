@@ -250,6 +250,15 @@ class JdbcShiftExecutionRepository implements ShiftExecutionRepository {
     }
 
     @Override
+    public void recordEvidenceFileVersionPurgeFailure(UUID evidenceFileVersionId, String purgeResult) {
+        jdbcTemplate.update("""
+                update ops_evidence_file_versions
+                set purge_result = ?, updated_at = current_timestamp
+                where id = ? and status in ('REPLACED', 'WITHDRAWN')
+                """, purgeResult, evidenceFileVersionId);
+    }
+
+    @Override
     public boolean hasEvidenceForTask(UUID taskCompletionId) {
         return exists("select exists (select 1 from ops_evidence where task_completion_id = ?)", taskCompletionId);
     }
