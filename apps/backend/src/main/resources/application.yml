@@ -13,3 +13,10 @@ identity-access:
   token-hmac-secret: ${AUTH_TOKEN_HMAC_SECRET:}
   trusted-origins: ${AUTH_TRUSTED_ORIGINS:http://localhost:5173}
   secure-cookies: ${AUTH_SECURE_COOKIES:true}
+
+beverage-ops:
+  media:
+    root: ${BEVERAGE_OPS_MEDIA_ROOT:}
+    staging-directory: .staging
+    purge-cron: ${BEVERAGE_OPS_MEDIA_PURGE_CRON:0 0 2 * * *}
+    production: ${BEVERAGE_OPS_MEDIA_PRODUCTION:false}
