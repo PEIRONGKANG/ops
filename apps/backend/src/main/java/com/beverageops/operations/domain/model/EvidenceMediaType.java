@@ -58,7 +58,8 @@ public enum EvidenceMediaType {
         if (separator < 1 || separator == normalized.length() - 1) {
             throw new IllegalArgumentException("Unsupported evidence file type.");
         }
-        var extension = normalized.substring(separator + 1);
+        var suppliedExtension = normalized.substring(separator + 1);
+        var extension = "jpeg".equals(suppliedExtension) ? "jpg" : suppliedExtension;
         return Arrays.stream(values())
                 .filter(type -> type.extension.equals(extension))
                 .findFirst()

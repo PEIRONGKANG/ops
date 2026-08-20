@@ -36,7 +36,7 @@
 evidence/{evidenceId}/v{version}/{storageUuid}.{safeExtension}
 ```
 
-后端以 `mediaRoot.resolve(relativePath).normalize()` 解析路径，并在每次读取、移动或删除前确认结果仍位于 `mediaRoot` 内。文件先写入同一文件系统下的 `.staging/{uploadUuid}.part`，校验和计算完成后原子移动到正式路径；失败时仅清理临时文件，绝不产生半完成的数据库当前版本。
+后端以 `mediaRoot.resolve(relativePath).normalize()` 解析路径，并在每次读取、移动或删除前确认结果仍位于 `mediaRoot` 内且路径各层不存在符号链接。文件先写入同一文件系统下的 `.staging/{uploadUuid}.part`，校验和计算完成后原子移动到正式路径；失败时仅清理临时文件，绝不产生半完成的数据库当前版本。数据库事务最终回滚时必须补偿删除刚发布的新文件。
 
 数据库只标识逻辑状态：
 
@@ -63,7 +63,7 @@ CURRENT → WITHDRAWN → PURGED
 | `POST /api/v1/evidence/{evidenceId}/files/withdraw` | 必填撤回原因；当前版本转 `WITHDRAWN` 并在三天后可清理。 |
 | `GET /api/v1/evidence/{evidenceId}/files` | 仅受权角色查看版本元数据与状态；不向 P3 暴露他人无关证据。 |
 
-上传事务采用“先安全落临时文件，再写库，再原子发布文件”的补偿策略：任何数据库失败必须删除暂存/正式新文件；任何发布失败不得创建当前版本。一次请求只允许一个文件。服务端生成 `Content-Disposition`，并设置 `X-Content-Type-Options: nosniff`、`Cache-Control: no-store`。
+上传事务采用“先安全落临时文件，再写库，再原子发布文件”的补偿策略：任何数据库失败必须删除暂存/正式新文件；任何发布失败不得创建当前版本。当前实现通过事务完成回调补偿提交失败；下一次存储适配器演进可将暂存与发布端口完全拆分，以缩短大文件上传期间的数据库锁持有时间。一次请求只允许一个文件。服务端生成 UTF-8 编码的 `Content-Disposition`，并设置 `X-Content-Type-Options: nosniff`、`Cache-Control: no-store`。
 
 ## 5. 清理与运行约束
 

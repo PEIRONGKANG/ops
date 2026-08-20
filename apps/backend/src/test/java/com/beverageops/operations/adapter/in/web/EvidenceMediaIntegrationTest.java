@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,6 +43,9 @@ class EvidenceMediaIntegrationTest extends PostgresIntegrationTestBase {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private MultipartProperties multipartProperties;
 
     @BeforeEach
     void createActors() {
@@ -75,11 +79,34 @@ class EvidenceMediaIntegrationTest extends PostgresIntegrationTestBase {
         mockMvc.perform(get("/api/v1/evidence/{evidenceId}/files/current", evidenceId)
                         .with(user(P3_ID.toString()).roles("P3")))
                 .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"close.pdf\""))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        org.hamcrest.Matchers.allOf(org.hamcrest.Matchers.startsWith("attachment;"),
+                                org.hamcrest.Matchers.containsString("filename*=UTF-8''close.pdf"))))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(content().bytes(pdf()));
+    }
+
+    @Test
+    void configuresMultipartLimitsForTheLargestAllowedVideo() {
+        assertThat(multipartProperties.getMaxFileSize().toBytes()).isEqualTo(500L * 1024 * 1024);
+        assertThat(multipartProperties.getMaxRequestSize().toBytes()).isEqualTo(501L * 1024 * 1024);
+    }
+
+    @Test
+    void encodesNonAsciiDownloadFilenamesInContentDisposition() throws Exception {
+        var evidenceId = objectReferenceEvidence();
+        mockMvc.perform(multipart("/api/v1/evidence/{evidenceId}/files", evidenceId)
+                        .file(pdfFile("班次凭证.pdf"))
+                        .with(user(P3_ID.toString()).roles("P3")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/evidence/{evidenceId}/files/current", evidenceId)
+                        .with(user(P3_ID.toString()).roles("P3")))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        org.hamcrest.Matchers.containsString("filename*=UTF-8''")));
     }
 
     @Test

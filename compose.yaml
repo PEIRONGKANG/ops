@@ -30,11 +30,16 @@ services:
       AUTH_BOOTSTRAP_P1_CLAIM_SECRET: ${AUTH_BOOTSTRAP_P1_CLAIM_SECRET:?AUTH_BOOTSTRAP_P1_CLAIM_SECRET must be set}
       AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-http://localhost:5173}
       AUTH_SECURE_COOKIES: ${AUTH_SECURE_COOKIES:-true}
+      BEVERAGE_OPS_MEDIA_ROOT: /data/beverage-ops/media
+      BEVERAGE_OPS_MEDIA_PURGE_CRON: ${BEVERAGE_OPS_MEDIA_PURGE_CRON:-0 0 2 * * *}
+      BEVERAGE_OPS_MEDIA_PRODUCTION: "true"
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "18080:8080"
+    volumes:
+      - ${BEVERAGE_OPS_MEDIA_HOST_PATH:?BEVERAGE_OPS_MEDIA_HOST_PATH must point to the host media directory}:/data/beverage-ops/media
 
 volumes:
   beverage_ops_postgres_data:

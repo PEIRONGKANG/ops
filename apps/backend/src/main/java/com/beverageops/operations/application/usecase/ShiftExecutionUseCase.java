@@ -22,6 +22,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class ShiftExecutionUseCase {
@@ -185,12 +187,14 @@ public class ShiftExecutionUseCase {
         requireObjectReference(evidence);
         requireEvidenceAuthorised(command.actorId(), command.p1(), command.p2(), command.p3(), shift(evidence.shiftId()),
                 evidenceTaskOwner(evidence));
+        requireShiftExecutionOpen(evidence.shiftId());
         if (execution.lockCurrentEvidenceFileVersion(evidenceId).isPresent()) {
             throw new IllegalStateException("The evidence already has a current file. Use replacement instead.");
         }
         var stored = mediaStorage.stageAndPublish(new EvidenceMediaStoragePort.Upload(evidenceId,
                 execution.nextEvidenceFileVersion(evidenceId), command.originalFilename(), command.declaredMimeType(),
                 command.content()));
+        deleteOnRollback(stored.relativePath());
         try {
             var created = execution.insertCurrentEvidenceFileVersion(newFileVersion(evidenceId, stored,
                     command.declaredMimeType(), command.actorId()));
@@ -209,11 +213,13 @@ public class ShiftExecutionUseCase {
         requireObjectReference(evidence);
         requireEvidenceAuthorised(command.actorId(), command.p1(), command.p2(), command.p3(), shift(evidence.shiftId()),
                 evidenceTaskOwner(evidence));
+        requireShiftExecutionOpen(evidence.shiftId());
         var current = currentEvidenceFile(evidenceId);
         var replacementReason = requiredText(reason, "Replacement reason", 500);
         var newVersion = execution.nextEvidenceFileVersion(evidenceId);
         var stored = mediaStorage.stageAndPublish(new EvidenceMediaStoragePort.Upload(evidenceId, newVersion,
                 command.originalFilename(), command.declaredMimeType(), command.content()));
+        deleteOnRollback(stored.relativePath());
         try {
             execution.replaceCurrentEvidenceFileVersion(evidenceId, command.actorId(), replacementReason, purgeAfter());
             var replacement = execution.insertCurrentEvidenceFileVersion(newFileVersion(evidenceId, stored,
@@ -234,6 +240,7 @@ public class ShiftExecutionUseCase {
         requireObjectReference(evidence);
         requireEvidenceAuthorised(actor.actorId(), actor.p1(), actor.p2(), actor.p3(), shift(evidence.shiftId()),
                 evidenceTaskOwner(evidence));
+        requireShiftExecutionOpen(evidence.shiftId());
         var current = currentEvidenceFile(evidenceId);
         var withdrawalReason = requiredText(reason, "Withdrawal reason", 500);
         var withdrawn = execution.withdrawCurrentEvidenceFileVersion(evidenceId, actor.actorId(), withdrawalReason, purgeAfter());
@@ -300,6 +307,20 @@ public class ShiftExecutionUseCase {
 
     private OffsetDateTime purgeAfter() {
         return OffsetDateTime.ofInstant(clock.instant().plusSeconds(3 * 24 * 60 * 60), clock.getZone());
+    }
+
+    private void deleteOnRollback(String relativePath) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) {
+                    mediaStorage.delete(relativePath);
+                }
+            }
+        });
     }
 
     private void requireObjectReference(ShiftExecutionRepository.Evidence evidence) {

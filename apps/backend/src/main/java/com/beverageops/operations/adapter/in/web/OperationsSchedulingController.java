@@ -389,7 +389,10 @@ class OperationsSchedulingController {
     }
 
     private String contentDisposition(String originalFilename) {
-        return "attachment; filename=\"" + originalFilename.replace("\"", "") + "\"";
+        return org.springframework.http.ContentDisposition.attachment()
+                .filename(originalFilename, java.nio.charset.StandardCharsets.UTF_8)
+                .build()
+                .toString();
     }
 
     private ShiftExecutionUseCase.VersionCommand executionVersion(long version, Authentication authentication) {

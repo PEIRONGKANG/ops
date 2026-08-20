@@ -9,11 +9,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import com.beverageops.operations.application.usecase.MediaStorageProperties;
+import com.beverageops.operations.domain.model.EvidenceMediaType;
 import com.beverageops.operations.domain.port.EvidenceMediaStoragePort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,12 +28,16 @@ class LocalEvidenceMediaStorageAdapterTest {
     @TempDir
     Path mediaRoot;
 
+    @TempDir
+    Path outsideRoot;
+
     @Test
     void publishesEveryAllowedMediaTypeToAServerGeneratedPath() throws Exception {
         var adapter = adapter();
         var evidenceId = UUID.randomUUID();
         var files = List.of(
                 file("close.jpg", "image/jpeg", jpeg()),
+                file("close.jpeg", "image/jpeg", jpeg()),
                 file("close.png", "image/png", png()),
                 file("close.webp", "image/webp", webp()),
                 file("close.pdf", "application/pdf", pdf()),
@@ -47,7 +53,7 @@ class LocalEvidenceMediaStorageAdapterTest {
                     file.mimeType(), new ByteArrayInputStream(file.content())));
 
             assertThat(stored.relativePath()).matches("evidence/" + evidenceId + "/v3/[0-9a-f-]+\\."
-                    + file.filename().substring(file.filename().lastIndexOf('.') + 1));
+                    + EvidenceMediaType.fromFilename(file.filename()).extension());
             assertThat(stored.detectedMimeType()).isEqualTo(file.mimeType());
             assertThat(stored.byteSize()).isEqualTo(file.content().length);
             assertThat(stored.sha256()).isEqualTo(sha256(file.content()));
@@ -61,7 +67,8 @@ class LocalEvidenceMediaStorageAdapterTest {
         var adapter = adapter();
         var evidenceId = UUID.randomUUID();
 
-        for (var rejected : List.of("../close.pdf", "close.doc", "close.xls", "close.ppt", "close.docm", "close.xlsm", "close.pptm")) {
+        for (var rejected : List.of("../close.pdf", "close\r\nX-Unsafe: yes.pdf", "close.doc", "close.xls", "close.ppt",
+                "close.docm", "close.xlsm", "close.pptm")) {
             assertThatThrownBy(() -> adapter.stageAndPublish(new EvidenceMediaStoragePort.Upload(evidenceId, 1L, rejected,
                     "application/pdf", new ByteArrayInputStream(pdf()))))
                     .isInstanceOf(EvidenceMediaValidationException.class);
@@ -100,6 +107,36 @@ class LocalEvidenceMediaStorageAdapterTest {
     }
 
     @Test
+    void rejectsCompressedOoxmlRelationshipBombsWithoutInflatingThemIntoMemory() {
+        var adapter = adapter();
+        var relationshipContent = new byte[2 * 1024 * 1024];
+        java.util.Arrays.fill(relationshipContent, (byte) 'x');
+
+        assertThatThrownBy(() -> adapter.stageAndPublish(new EvidenceMediaStoragePort.Upload(UUID.randomUUID(), 1L,
+                "close.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ooxmlWithEntry("word/_rels/document.xml.rels", relationshipContent))))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("compression");
+
+        assertNoFiles(mediaRoot);
+    }
+
+    @Test
+    void rejectsOoxmlRelationshipEntriesThatExceedTheInspectionLimit() {
+        var adapter = adapter();
+        var relationshipContent = new byte[1024 * 1024 + 1];
+        new Random(1L).nextBytes(relationshipContent);
+
+        assertThatThrownBy(() -> adapter.stageAndPublish(new EvidenceMediaStoragePort.Upload(UUID.randomUUID(), 1L,
+                "close.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ooxmlWithEntry("word/_rels/document.xml.rels", relationshipContent))))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("relationship");
+
+        assertNoFiles(mediaRoot);
+    }
+
+    @Test
     void rejectsFilesOverTheConfiguredTypeLimitWithoutLeavingFiles() {
         var adapter = adapter();
         var content = new OversizedPdfInputStream(50L * 1024 * 1024 + 1);
@@ -124,6 +161,44 @@ class LocalEvidenceMediaStorageAdapterTest {
             assertThat(range.readAllBytes()).isEqualTo(java.util.Arrays.copyOfRange(content, 4, 12));
         }
         assertThat(adapter.size(stored.relativePath())).isEqualTo(content.length);
+    }
+
+    @Test
+    void refusesToPublishThroughASymbolicLinkInsideTheMediaRoot() throws Exception {
+        var adapter = adapter();
+        var evidenceId = UUID.randomUUID();
+        var versionDirectory = mediaRoot.resolve("evidence").resolve(evidenceId.toString());
+        Files.createDirectories(versionDirectory);
+        Files.createSymbolicLink(versionDirectory.resolve("v1"), outsideRoot);
+
+        assertThatThrownBy(() -> adapter.stageAndPublish(new EvidenceMediaStoragePort.Upload(evidenceId, 1L, "close.pdf",
+                "application/pdf", new ByteArrayInputStream(pdf()))))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("symbolic link");
+
+        assertNoFiles(outsideRoot);
+    }
+
+    @Test
+    void refusesToReadOrDeleteThroughASymbolicLinkInsideTheMediaRoot() throws Exception {
+        var adapter = adapter();
+        var relativePath = "evidence/" + UUID.randomUUID() + "/v1/close.pdf";
+        var linkedPath = mediaRoot.resolve(relativePath);
+        var outsideFile = outsideRoot.resolve("close.pdf");
+        Files.write(outsideFile, pdf());
+        Files.createDirectories(linkedPath.getParent());
+        Files.createSymbolicLink(linkedPath, outsideFile);
+
+        assertThatThrownBy(() -> adapter.open(relativePath))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("symbolic link");
+        assertThatThrownBy(() -> adapter.size(relativePath))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("symbolic link");
+        assertThatThrownBy(() -> adapter.delete(relativePath))
+                .isInstanceOf(EvidenceMediaValidationException.class)
+                .hasMessageContaining("symbolic link");
+        assertThat(Files.readAllBytes(outsideFile)).isEqualTo(pdf());
     }
 
     private LocalEvidenceMediaStorageAdapter adapter() {
@@ -165,6 +240,24 @@ class LocalEvidenceMediaStorageAdapterTest {
 
     private InputStream ooxml(String... entries) {
         return new ByteArrayInputStream(ooxmlBytes(entries));
+    }
+
+    private InputStream ooxmlWithEntry(String entry, byte[] content) {
+        try (var bytes = new ByteArrayOutputStream(); var zip = new ZipOutputStream(bytes)) {
+            zip.putNextEntry(new ZipEntry("[Content_Types].xml"));
+            zip.write("<Types/>".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("word/document.xml"));
+            zip.write("<xml/>".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry(entry));
+            zip.write(content);
+            zip.closeEntry();
+            zip.finish();
+            return new ByteArrayInputStream(bytes.toByteArray());
+        } catch (IOException exception) {
+            throw new AssertionError(exception);
+        }
     }
 
     private byte[] ooxmlBytes(String... entries) {

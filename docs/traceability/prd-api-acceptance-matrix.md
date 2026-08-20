@@ -1,6 +1,6 @@
 # PRD 后端实现追踪矩阵
 
-更新时间：2026-08-18
+更新时间：2026-08-20
 
 基线：`docs/plans/2026-08-02-beverage-training-operations-system-design.md`
 
@@ -8,7 +8,7 @@
 
 ## 1. 审计结论
 
-当前后端**尚未完成全部 PRD**。Task 1–5 已形成日常运营主链路；Task 6 已实现反馈、补训、复测和通用岗位认证闭环，但 DQ-05 的正式教学规则与 BR-EDU-04 的红线自动联动尚未确认/实现；Task 7–8 已实现课程筹备、成果包、内部评分及成绩发布闭环。Task 9–11 仍未全部实施。
+当前后端**尚未完成全部 PRD**。Task 1–5 已形成日常运营主链路；Task 6 已实现反馈、补训、复测和通用岗位认证闭环，但 DQ-05 的正式教学规则与 BR-EDU-04 的红线自动联动尚未确认/实现；Task 7–8 已实现课程筹备、成果包、内部评分及成绩发布闭环；Task 10 已实现受控服务器媒体存储，Task 11 的当前后端全量自动化验收已完成。Task 9 与五年归档仍未实施。
 
 本矩阵只认定当前 Java 21、Spring Boot 3.4.5、PostgreSQL/Flyway 模块化单体。系统从空 PostgreSQL 模式启动，不读取、不迁移、不双写、不兼容 SQLite、PocketBase、FastAPI 或旧前端业务数据。
 
@@ -36,8 +36,8 @@
 | BR-OPS-01 | 完成 | `/me/operations-dashboard` | `OperationsDashboardIntegrationTest` | 前端移动端呈现不属于本次后端审计。 |
 | BR-OPS-02 | 部分完成 | 模板 SOP 展开为岗位任务，可配置证据和 P2 验收 | `ShiftExecutionIntegrationTest` | 任务时间段和认证关联尚未形成可查询的正式关系。 |
 | BR-OPS-03 | 完成 | 任务提交、撤回、P2 退回/通过 | `ShiftExecutionIntegrationTest` | — |
-| BR-OPS-04 | 部分完成（DQ-02 已确认，待实施） | 文本、外链、经营摘要引用、对象引用元数据；已确认由服务端目录保存媒体、数据库仅保存相对路径 | `ShiftExecutionIntegrationTest` | Task 10 尚待实现图片/文件/视频二进制上传、内容校验、授权下载与视频 Range；设计见 `2026-08-19-server-media-storage-design.md`。 |
-| BR-OPS-05 | 部分完成 | 任务/节点历史和证据元数据保留 | `ShiftExecutionIntegrationTest` | 现有证据仅创建，无完整证据替换/撤回版本 API。 |
+| BR-OPS-04 | 完成（证据域） | `POST/GET /evidence/{id}/files`、`GET /evidence/{id}/files/current`；服务端目录暂存/原子发布，数据库仅存相对路径 | `LocalEvidenceMediaStorageAdapterTest`（10 项）、`EvidenceMediaIntegrationTest`（6 项） | 本轮仅覆盖运营证据；课程资料与创意成果可复用端口，但尚未新增各自上传 API。 |
+| BR-OPS-05 | 完成（证据域） | 版本列表、替换、撤回、读取审计和三天历史物理文件清理 | `ShiftExecutionEvidenceFileUseCaseTest`（7 项）、`EvidenceFilePurgeJobTest`（3 项）、`EvidenceFileVersionSchemaIntegrationTest`（3 项） | 文件版本元数据与审计长期保留；五年归档制度仍受 DQ-07 约束。 |
 | BR-OPS-06 | 完成 | `/operations/today` | `OperationsDashboardIntegrationTest` | — |
 | BR-DATA-01 | 完成 | 经营摘要及 JSON 摘要行 | `OperationalRiskIntegrationTest` | 金额、成本、损耗等只保存外部摘要，不成为订单/库存事实源。 |
 | BR-DATA-02 | 完成 | 来源系统、采集方式、引用、采集人、时间 | `OperationalRiskIntegrationTest` | — |
@@ -69,15 +69,15 @@
 | --- | --- | --- |
 | Task 1 治理与审计 | 完成 | 学期、周、门店、团队、成员、模板组件和审计已实现。 |
 | Task 2 运营日、班次与排班 | 完成 | 生命周期、范围、冲突、个人班次已实现。 |
-| Task 3 SOP、证据元数据和关键签核 | 完成（待 Task 10 媒体实现） | 文字/链接/引用元数据和关键节点已实现；二进制媒体由已确认的 Task 10 方案补齐。 |
+| Task 3 SOP、证据元数据和关键签核 | 完成 | 文字/链接/引用元数据、关键节点及受控证据媒体已实现。 |
 | Task 4 经营摘要、异常和交接 | 完成 | 运行风险闭环和关闭守卫已实现。 |
 | Task 5 通知、工作台和实时事件 | 完成（有加固项） | 主功能已实现；连接存续期授权撤销需后续加固。 |
 | Task 6 反馈、补训和认证 | 部分完成 | 已交付创建/修改/查询、权限、关联一致性、P2/T1 规则授权、版本冲突和学生成长视图；正式 DQ-05 认证条件/补训时限/量规权重与红线自动补训联动尚未交付。 |
 | Task 7 课程资料、筹备与创意成果 | 完成（媒体复用待后续接入） | 已交付课程资料发布/确认、任务与版本化提交、小组创意成果、教师反馈、发布和个人反思；当前文件只保存对象引用元数据，后续复用 Task 10 的已确认媒体端口。 |
 | Task 8 量规、评分、成果包和成绩 | 完成 | 已交付量规谱系/生效时间、P2/T1 授权维度评分、确定性建议成绩、来源快照成果包、P1 内部发布、更正线性版本、学生只读结果和内部导出清单。 |
 | Task 9 外部评审、归档和导出 | 阻塞/未开始 | 外部评审受 DQ-06 阻塞；内部归档契约仍可在决策后拆分实施。 |
-| Task 10 服务端文件存储与媒体安全访问 | 待实施 | DQ-02 已确认：`/data/beverage-ops/media`，数据库相对路径、后端鉴权访问、无备份/病毒扫描，已替换或撤回文件三天后清理。 |
-| Task 11 全量验收与追踪 | 进行中 | 本矩阵已建立；全量端到端验收须在 Tasks 7–10 完成后关闭。 |
+| Task 10 服务端文件存储与媒体安全访问 | 完成 | `/data/beverage-ops/media`、相对路径元数据、受控 Multipart/下载、视频 Range、内容校验、ZIP/符号链接隔离、不可覆盖版本、三天历史物理文件清理和运行手册已交付。 |
+| Task 11 全量验收与追踪 | 完成（当前后端范围） | 2026-08-20 在 Docker/Testcontainers PostgreSQL 环境执行 `./mvnw test`，24 个测试类共 118 项、0 失败、0 错误；随后 `./mvnw package` 成功生成 JAR。Task 9 仍不在范围。 |
 
 ## 4. 业务验收场景状态
 
@@ -96,11 +96,11 @@
 | 待决项 | 当前影响 |
 | --- | --- |
 | DQ-01 统一身份 | 当前本地账号满足一期；若切学院统一认证，应替换身份适配器，不改业务账号 UUID 边界。 |
-| DQ-02 服务端媒体存储（已关闭，一期） | 已确定 `/data/beverage-ops/media`、后端 Multipart/鉴权读取、相对路径元数据、无备份/病毒扫描和三天历史文件清理；Task 10 仍待实现。 |
+| DQ-02 服务端媒体存储（已关闭，一期） | 已交付 `/data/beverage-ops/media`、后端 Multipart/鉴权读取、相对路径元数据、无备份/病毒扫描和三天历史文件清理；运行约束见 `docs/runbooks/media-storage.md`。 |
 | DQ-03 试点数据 | 不阻塞开发；系统不内置业务种子，P1 通过 API 新建。 |
 | DQ-04 外部经营数据 | 当前用通用摘要契约，不阻塞；真实连接器和凭证格式待定。 |
 | DQ-05 默认规则 | 通用认证规则结构已实现并由 P1 发布（授权角色、证据要求/数量、复测要求）；仍阻塞正式岗位达标条件、补训时限和评分量规权重的确认，不能由开发填充默认值。 |
 | DQ-06 外部评审策略 | 阻塞公开/邀请评审入口。 |
 | DQ-07 五年后制度 | 阻塞最终销毁/续存流程；不应由开发自行假设。 |
 
-下一步可按已确认的 DQ-02 执行 Task 10，但不可自行启动 Task 9 的外部评审，因为 DQ-06 尚未确认。五年归档继续受 DQ-07 约束。Task 8 未填充 DQ-05 默认评分权重，全部权重均由 P1 创建量规时配置。
+下一步不得自行启动 Task 9 的外部评审，因为 DQ-06 尚未确认。五年归档继续受 DQ-07 约束。Task 8 未填充 DQ-05 默认评分权重，全部权重均由 P1 创建量规时配置。

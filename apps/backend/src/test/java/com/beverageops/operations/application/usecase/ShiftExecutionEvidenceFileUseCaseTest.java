@@ -16,6 +16,8 @@ import com.beverageops.operations.domain.port.EvidenceMediaStoragePort;
 import com.beverageops.operations.domain.port.OperationsSchedulingRepository;
 import com.beverageops.operations.domain.port.ShiftExecutionRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -136,7 +138,7 @@ class ShiftExecutionEvidenceFileUseCaseTest {
         var evidenceId = UUID.randomUUID();
         var actorId = UUID.randomUUID();
         var evidence = evidence(evidenceId, EvidenceKind.OBJECT_REFERENCE);
-        when(execution.lockEvidence(evidenceId)).thenReturn(Optional.of(evidence));
+        when(execution.findEvidence(evidenceId)).thenReturn(Optional.of(evidence));
         when(scheduling.findShift(evidence.shiftId())).thenReturn(Optional.of(new OperationsSchedulingRepository.Shift(
                 evidence.shiftId(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), java.time.LocalDate.of(2026, 8, 19),
                 "S1", "Shift", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC), OffsetDateTime.ofInstant(NOW.plusSeconds(3600),
@@ -147,6 +149,66 @@ class ShiftExecutionEvidenceFileUseCaseTest {
                 .isInstanceOf(com.beverageops.identityaccess.application.usecase.ForbiddenException.class);
 
         verify(execution, never()).findEvidenceFileVersions(evidenceId);
+    }
+
+    @Test
+    void rejectsFileMutationsAfterTheShiftIsClosed() {
+        var scheduling = mock(OperationsSchedulingRepository.class);
+        var execution = mock(ShiftExecutionRepository.class);
+        var storage = mock(EvidenceMediaStoragePort.class);
+        var evidenceId = UUID.randomUUID();
+        var actorId = UUID.randomUUID();
+        var evidence = evidence(evidenceId, EvidenceKind.OBJECT_REFERENCE);
+        when(execution.lockEvidence(evidenceId)).thenReturn(Optional.of(evidence));
+        allowAssignedStudentWithStatus(scheduling, actorId, evidence.shiftId(), ShiftStatus.CLOSED);
+
+        assertThatThrownBy(() -> useCase(scheduling, execution, storage).uploadEvidenceFile(evidenceId,
+                upload(actorId, "close.pdf")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not open");
+        assertThatThrownBy(() -> useCase(scheduling, execution, storage).replaceEvidenceFile(evidenceId, "correction",
+                upload(actorId, "close.pdf")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not open");
+        assertThatThrownBy(() -> useCase(scheduling, execution, storage).withdrawEvidenceFile(evidenceId, "correction",
+                actor(actorId)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not open");
+
+        verify(storage, never()).stageAndPublish(any());
+        verify(execution, never()).replaceCurrentEvidenceFileVersion(any(), any(), any(), any());
+        verify(execution, never()).withdrawCurrentEvidenceFileVersion(any(), any(), any(), any());
+    }
+
+    @Test
+    void deletesPublishedContentWhenTheContainingTransactionRollsBack() {
+        var scheduling = mock(OperationsSchedulingRepository.class);
+        var execution = mock(ShiftExecutionRepository.class);
+        var storage = mock(EvidenceMediaStoragePort.class);
+        var evidenceId = UUID.randomUUID();
+        var actorId = UUID.randomUUID();
+        var evidence = evidence(evidenceId, EvidenceKind.OBJECT_REFERENCE);
+        var published = stored(evidenceId, 1);
+        when(execution.lockEvidence(evidenceId)).thenReturn(Optional.of(evidence));
+        when(execution.lockCurrentEvidenceFileVersion(evidenceId)).thenReturn(Optional.empty());
+        when(execution.nextEvidenceFileVersion(evidenceId)).thenReturn(1L);
+        when(storage.stageAndPublish(any())).thenReturn(published);
+        when(execution.insertCurrentEvidenceFileVersion(any())).thenAnswer(invocation -> {
+            var newVersion = invocation.getArgument(0, ShiftExecutionRepository.NewEvidenceFileVersion.class);
+            return fileVersion(newVersion.id(), evidenceId, 1, EvidenceFileStatus.CURRENT, null, null);
+        });
+        allowAssignedStudent(scheduling, actorId, evidence.shiftId());
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            useCase(scheduling, execution, storage).uploadEvidenceFile(evidenceId, upload(actorId, "close.pdf"));
+
+            TransactionSynchronizationManager.getSynchronizations().forEach(synchronization ->
+                    synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+            verify(storage).delete(published.relativePath());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     private ShiftExecutionUseCase useCase(OperationsSchedulingRepository scheduling, ShiftExecutionRepository execution,
@@ -185,10 +247,15 @@ class ShiftExecutionEvidenceFileUseCaseTest {
     }
 
     private void allowAssignedStudent(OperationsSchedulingRepository scheduling, UUID actorId, UUID shiftId) {
+        allowAssignedStudentWithStatus(scheduling, actorId, shiftId, ShiftStatus.IN_PROGRESS);
+    }
+
+    private void allowAssignedStudentWithStatus(OperationsSchedulingRepository scheduling, UUID actorId, UUID shiftId,
+                                                ShiftStatus status) {
         when(scheduling.isAssignedToShift(actorId, shiftId)).thenReturn(true);
         when(scheduling.findShift(shiftId)).thenReturn(Optional.of(new OperationsSchedulingRepository.Shift(shiftId,
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), java.time.LocalDate.of(2026, 8, 19), "S1", "Shift",
                 OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC), OffsetDateTime.ofInstant(NOW.plusSeconds(3600), ZoneOffset.UTC),
-                ShiftStatus.IN_PROGRESS, null, 1L, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))));
+                status, null, 1L, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))));
     }
 }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
@@ -100,7 +101,8 @@ public class LocalEvidenceMediaStorageAdapter implements EvidenceMediaStoragePor
             throw new EvidenceMediaValidationException("Evidence upload metadata is incomplete.");
         }
         if (upload.originalFilename() == null || upload.originalFilename().isBlank() || upload.originalFilename().contains("/")
-                || upload.originalFilename().contains("\\") || upload.originalFilename().contains("..")) {
+                || upload.originalFilename().contains("\\") || upload.originalFilename().contains("..")
+                || upload.originalFilename().chars().anyMatch(Character::isISOControl)) {
             throw new EvidenceMediaValidationException("Evidence filename is invalid.");
         }
     }
@@ -149,6 +151,16 @@ public class LocalEvidenceMediaStorageAdapter implements EvidenceMediaStoragePor
         var resolved = candidate.toAbsolutePath().normalize();
         if (!resolved.startsWith(root)) {
             throw new EvidenceMediaValidationException("Evidence storage path is outside the configured media root.");
+        }
+        var current = root;
+        if (Files.exists(current, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(current)) {
+            throw new EvidenceMediaValidationException("Evidence storage path cannot use a symbolic link.");
+        }
+        for (var segment : root.relativize(resolved)) {
+            current = current.resolve(segment);
+            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(current)) {
+                throw new EvidenceMediaValidationException("Evidence storage path cannot use a symbolic link.");
+            }
         }
         return resolved;
     }

@@ -1,6 +1,10 @@
 spring:
   application:
     name: beverage-ops-backend
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 501MB
   jpa:
     open-in-view: false
 

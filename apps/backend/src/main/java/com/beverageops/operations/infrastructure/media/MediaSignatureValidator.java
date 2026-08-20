@@ -1,6 +1,7 @@
 package com.beverageops.operations.infrastructure.media;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -11,9 +12,14 @@ import com.beverageops.operations.domain.model.EvidenceMediaType;
 
 final class MediaSignatureValidator {
 
+    private static final int MAX_OOXML_ENTRIES = 10_000;
+    private static final long MAX_OOXML_UNCOMPRESSED_BYTES = 200L * 1024 * 1024;
+    private static final long MAX_OOXML_COMPRESSION_RATIO = 100L;
+    private static final int MAX_RELATIONSHIP_BYTES = 1024 * 1024;
+
     String validate(Path file, EvidenceMediaType mediaType) {
         try {
-            var prefix = java.nio.file.Files.readAllBytes(file);
+            var prefix = readPrefix(file);
             var detected = switch (mediaType) {
                 case JPEG -> validateJpeg(prefix);
                 case PNG -> validatePng(prefix);
@@ -35,6 +41,12 @@ final class MediaSignatureValidator {
     private String validateJpeg(byte[] bytes) {
         require(startsAt(bytes, 0, 0xff, 0xd8, 0xff), "Evidence file signature does not match JPEG.");
         return "image/jpeg";
+    }
+
+    private byte[] readPrefix(Path file) throws IOException {
+        try (InputStream input = java.nio.file.Files.newInputStream(file)) {
+            return input.readNBytes(64 * 1024);
+        }
     }
 
     private String validatePng(byte[] bytes) {
@@ -59,8 +71,18 @@ final class MediaSignatureValidator {
             require(zip.getEntry("[Content_Types].xml") != null && zip.stream().anyMatch(entry -> entry.getName().startsWith(requiredPrefix)),
                     "Evidence file signature does not match Office Open XML.");
             var entries = zip.entries();
+            int entryCount = 0;
+            long totalUncompressedBytes = 0;
             while (entries.hasMoreElements()) {
                 var entry = entries.nextElement();
+                if (++entryCount > MAX_OOXML_ENTRIES) {
+                    throw new EvidenceMediaValidationException("Office Open XML evidence contains too many entries.");
+                }
+                verifyOoxmlEntrySize(entry);
+                totalUncompressedBytes += entry.getSize();
+                if (totalUncompressedBytes > MAX_OOXML_UNCOMPRESSED_BYTES) {
+                    throw new EvidenceMediaValidationException("Office Open XML evidence expands beyond the allowed inspection limit.");
+                }
                 var name = entry.getName().toLowerCase(Locale.ROOT);
                 if (name.endsWith("vbaproject.bin")) {
                     throw new EvidenceMediaValidationException("Office Open XML evidence cannot contain macro content.");
@@ -80,9 +102,42 @@ final class MediaSignatureValidator {
 
     private boolean containsMacroReference(ZipFile zip, ZipEntry entry) throws IOException {
         try (var input = zip.getInputStream(entry)) {
-            return new String(input.readAllBytes(), StandardCharsets.UTF_8).toLowerCase(Locale.ROOT)
-                    .contains("macro");
+            var remaining = MAX_RELATIONSHIP_BYTES + 1;
+            var output = new java.io.ByteArrayOutputStream(Math.min(MAX_RELATIONSHIP_BYTES, 8192));
+            var buffer = new byte[8192];
+            for (int count; (count = input.read(buffer, 0, Math.min(buffer.length, remaining))) != -1;) {
+                output.write(buffer, 0, count);
+                remaining -= count;
+                if (remaining == 0) {
+                    throw new EvidenceMediaValidationException("Office Open XML relationship entry exceeds the inspection limit.");
+                }
+            }
+            return output.toString(StandardCharsets.UTF_8).toLowerCase(Locale.ROOT).contains("macro");
         }
+    }
+
+    private void verifyOoxmlEntrySize(ZipEntry entry) {
+        var uncompressed = entry.getSize();
+        var compressed = entry.getCompressedSize();
+        if (uncompressed < 0 || compressed < 0) {
+            throw new EvidenceMediaValidationException("Office Open XML evidence has an invalid ZIP entry size.");
+        }
+        if (uncompressed > MAX_OOXML_UNCOMPRESSED_BYTES || exceedsCompressionRatio(uncompressed, compressed)) {
+            throw new EvidenceMediaValidationException("Office Open XML evidence exceeds the allowed compression ratio.");
+        }
+    }
+
+    private boolean exceedsCompressionRatio(long uncompressed, long compressed) {
+        if (uncompressed == 0) {
+            return false;
+        }
+        if (compressed == 0) {
+            return true;
+        }
+        var quotient = uncompressed / compressed;
+        var remainder = uncompressed % compressed;
+        return quotient > MAX_OOXML_COMPRESSION_RATIO
+                || (quotient == MAX_OOXML_COMPRESSION_RATIO && remainder > 0);
     }
 
     private String validateIsoBaseMedia(byte[] bytes, String mimeType, boolean quickTime) {
