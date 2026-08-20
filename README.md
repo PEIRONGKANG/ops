@@ -7,6 +7,7 @@
 ## 目录
 
 - `apps/backend`：Spring DDD 后端
+- `apps/web`：React + Material 3 风格的新前端（不复用旧前端）
 - `docs/plans`：产品设计、后端交付计划与待决项
 - `docs/traceability`：PRD 到接口、规则和验收测试的追踪矩阵
 - `docs/runbooks`：认证启动和安全事件运行手册
@@ -22,6 +23,17 @@ export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
 ```
 
 需要 PostgreSQL 16（或使用 Testcontainers）。复制 `.env.example` 为 `.env` 后，可通过 `docker compose up --build` 启动全新数据库和后端。
+
+前端开发服务器默认运行在 `http://localhost:5173`，并将 `/api`、`/ws` 代理至 Spring 后端：
+
+```bash
+cd apps/web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+浏览器变量中只能配置后端地址，不得放置访问令牌、刷新令牌、数据库密码或服务器文件路径。
 
 ## 当前交付边界
 

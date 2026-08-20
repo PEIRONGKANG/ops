@@ -1,5 +1,7 @@
 .worktrees/
 apps/backend/target/
+apps/web/node_modules/
+apps/web/dist/
 .env
 .idea/
 .DS_Store
