@@ -1,6 +1,5 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -8,6 +7,7 @@ import { ApiError } from '@/shared/api/ApiError';
 import { MaterialDateField } from '@/shared/ui/components/MaterialDateField';
 import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 import type { GovernanceApi, Store, TemplateVersion, Term } from './governanceApi';
 
@@ -34,8 +34,8 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
   const [termId, setTermId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [latestTemplate, setLatestTemplate] = useState<TemplateVersion | null>(null);
+  const { showToast } = useToast();
   const { control, formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>({
     defaultValues: { effectiveFrom: '', roleCode: '', roleName: '', taskCode: '', taskName: '', templateCode: '', templateName: '' },
   });
@@ -68,7 +68,6 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
 
   const create = async (values: FormValues) => {
     if (!termId || !storeId) return;
-    setSubmitError(null);
     try {
       const template = await api.bootstrapTemplate({
         termId,
@@ -88,20 +87,21 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
         },
       });
       setLatestTemplate(template);
+      showToast({ message: '运营模板草稿已创建，请确认后发布。', severity: 'success' });
     } catch (error) {
-      setSubmitError(messageFor(error));
+      showToast({ message: messageFor(error), severity: 'error' });
     }
   };
 
   const publish = async () => {
     if (!latestTemplate) return;
-    setSubmitError(null);
     try {
       const published = await api.publishTemplate(latestTemplate.id, latestTemplate.version);
       setLatestTemplate(published);
+      showToast({ message: '模板已发布，已可用于排班与班次执行。', severity: 'success' });
       onPublished?.();
     } catch (error) {
-      setSubmitError(messageFor(error));
+      showToast({ message: messageFor(error), severity: 'error' });
     }
   };
 
@@ -129,7 +129,7 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
         </Box>
 
         {latestTemplate ? (
-          <TemplateSummary error={submitError} onPublish={() => { void publish(); }} template={latestTemplate} />
+          <TemplateSummary onPublish={() => { void publish(); }} template={latestTemplate} />
         ) : (
           <Box component="form" noValidate onSubmit={handleSubmit(create)}>
             <Stack gap={embedded ? 2.5 : 4}>
@@ -146,7 +146,6 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
                 <Field errors={errors} label="SOP 代码" name="taskCode" register={register} />
                 <Field errors={errors} label="SOP 名称" name="taskName" register={register} />
               </FormSection>
-              {submitError ? <Alert severity="error">{submitError}</Alert> : null}
               <Box><Button disabled={isSubmitting} type="submit" variant="contained">{isSubmitting ? '正在创建…' : '创建草稿模板'}</Button></Box>
             </Stack>
           </Box>
@@ -156,11 +155,10 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
   );
 }
 
-function TemplateSummary({ error, onPublish, template }: { error: string | null; onPublish: () => void; template: TemplateVersion }) {
+function TemplateSummary({ onPublish, template }: { onPublish: () => void; template: TemplateVersion }) {
   const published = template.status === 'PUBLISHED';
   return (
     <Stack gap={3}>
-      {published ? <Alert icon={<CheckCircleRoundedIcon fontSize="inherit" />} severity="success">模板已发布，已可用于排班与班次执行。</Alert> : null}
       <Box borderBottom={1} borderColor="divider" pb={3}>
         <Stack alignItems={{ sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="space-between">
           <Box>
@@ -171,7 +169,6 @@ function TemplateSummary({ error, onPublish, template }: { error: string | null;
         </Stack>
       </Box>
       {!published ? <Box><Button onClick={onPublish} variant="contained">发布模板</Button></Box> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
     </Stack>
   );
 }

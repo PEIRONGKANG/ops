@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GovernanceApi } from './governanceApi';
+import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
 import { PeopleWorkspacePage } from './PeopleWorkspacePage';
 
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
@@ -26,9 +27,13 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   };
 }
 
+function renderPeople(api: GovernanceApi, embedded = false) {
+  return render(<ToastProvider><PeopleWorkspacePage api={api} embedded={embedded} onBack={vi.fn()} /></ToastProvider>);
+}
+
 describe('PeopleWorkspacePage', () => {
   it('keeps people organization within the shared workspace body when embedded', async () => {
-    render(<PeopleWorkspacePage api={createApi()} embedded />);
+    renderPeople(createApi(), true);
 
     expect(await screen.findByRole('heading', { name: '待审批账号' })).toBeVisible();
     expect(screen.queryByRole('heading', { level: 1, name: '组织实训人员' })).not.toBeInTheDocument();
@@ -39,7 +44,7 @@ describe('PeopleWorkspacePage', () => {
     const user = userEvent.setup();
     const api = createApi();
 
-    render(<PeopleWorkspacePage api={api} onBack={vi.fn()} />);
+    renderPeople(api);
 
     expect(await screen.findByText('陈同学')).toBeVisible();
     await user.type(screen.getByLabelText('审批说明（陈同学）'), '已核验班级名单。');
@@ -47,13 +52,16 @@ describe('PeopleWorkspacePage', () => {
 
     expect(api.approveRegistration).toHaveBeenCalledWith('request-id', { roles: ['P3'], reason: '已核验班级名单。' });
     expect(await screen.findByText('Initial-Password-1')).toBeVisible();
+    const toast = await screen.findByRole('alert');
+    expect(toast).toHaveTextContent('已批准陈同学，临时密码已生成。');
+    expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });
 
   it('creates a team and adds an active account as a term member', async () => {
     const user = userEvent.setup();
     const api = createApi({ listPendingRegistrations: vi.fn().mockResolvedValue([]) });
 
-    render(<PeopleWorkspacePage api={api} onBack={vi.fn()} />);
+    renderPeople(api);
 
     await screen.findByRole('heading', { name: '组织实训人员' });
     await user.type(screen.getByLabelText('团队代码'), 'TEAM-A');
@@ -83,7 +91,7 @@ describe('PeopleWorkspacePage', () => {
       }),
     });
 
-    render(<PeopleWorkspacePage api={api} onBack={vi.fn()} />);
+    renderPeople(api);
 
     expect(await screen.findByText('旧周期团队 · OLD')).toBeVisible();
     await user.click(screen.getByRole('combobox', { name: '实训周期' }));

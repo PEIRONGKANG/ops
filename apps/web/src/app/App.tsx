@@ -7,6 +7,7 @@ import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { createGovernanceApi } from '@/features/governance/governanceApi';
+import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
 
 function AppContent() {
   const { profile, status } = useAuth();
@@ -23,9 +24,11 @@ function AppContent() {
 export function App({ api, store }: Pick<AuthProviderProps, 'api' | 'store'> = {}) {
   return (
     <AppThemeProvider>
-      <AuthProvider api={api} store={store}>
-        <AppContent />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider api={api} store={store}>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
     </AppThemeProvider>
   );
 }

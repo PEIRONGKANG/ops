@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GovernanceApi } from './governanceApi';
+import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
 import { TemplateWorkspacePage } from './TemplateWorkspacePage';
 
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
@@ -26,9 +27,13 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   };
 }
 
+function renderTemplate(api: GovernanceApi, embedded = false) {
+  return render(<ToastProvider><TemplateWorkspacePage api={api} embedded={embedded} onBack={vi.fn()} /></ToastProvider>);
+}
+
 describe('TemplateWorkspacePage', () => {
   it('uses a compact Material calendar field without repeating its page introduction when embedded', async () => {
-    render(<TemplateWorkspacePage api={createApi()} embedded />);
+    renderTemplate(createApi(), true);
 
     expect(await screen.findByRole('heading', { name: '模板版本' })).toBeVisible();
     expect(screen.queryByRole('heading', { level: 1, name: '配置运营模板' })).not.toBeInTheDocument();
@@ -41,7 +46,7 @@ describe('TemplateWorkspacePage', () => {
     const user = userEvent.setup();
     const api = createApi();
 
-    render(<TemplateWorkspacePage api={api} onBack={vi.fn()} />);
+    renderTemplate(api);
 
     expect(await screen.findByRole('heading', { name: '配置运营模板' })).toBeVisible();
     await user.type(screen.getByLabelText('模板代码'), 'DAILY-OPS');
@@ -64,11 +69,17 @@ describe('TemplateWorkspacePage', () => {
       sopTask: { code: 'OPENING-CHECK', name: '开档检查', configuration: { roleCode: 'BARISTA', evidenceRequired: false, requiresP2Acceptance: false } },
     });
     expect(await screen.findByText('草稿')).toBeVisible();
+    const draftToast = await screen.findByRole('alert');
+    expect(draftToast).toHaveTextContent('运营模板草稿已创建，请确认后发布。');
+    await user.click(within(draftToast).getByRole('button'));
 
     await user.click(screen.getByRole('button', { name: '发布模板' }));
 
     expect(api.publishTemplate).toHaveBeenCalledWith('template-id', 1);
     expect(await screen.findByText('已发布')).toBeVisible();
+    const toast = await screen.findByRole('alert');
+    expect(toast).toHaveTextContent('模板已发布，已可用于排班与班次执行。');
+    expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });
 
   it('refreshes the visible template when the governance scope changes', async () => {
@@ -84,7 +95,7 @@ describe('TemplateWorkspacePage', () => {
       }])),
     });
 
-    render(<TemplateWorkspacePage api={api} onBack={vi.fn()} />);
+    renderTemplate(api);
 
     expect(await screen.findByText('秋季运营模板')).toBeVisible();
     await user.click(screen.getByRole('combobox', { name: '实训周期' }));

@@ -1,5 +1,5 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
-import { Alert, Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -7,6 +7,7 @@ import { type RoleCode } from '@/shared/api/authApi';
 import { ApiError } from '@/shared/api/ApiError';
 import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 import type { AccountSummary, GovernanceApi, Membership, PendingRegistration, Team, Term } from './governanceApi';
 
@@ -41,25 +42,25 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
   const [approvalRoles, setApprovalRoles] = useState<Record<string, Exclude<RoleCode, 'EXTERNAL_REVIEWER'>>>({});
   const [issuedCredential, setIssuedCredential] = useState<{ loginId: string; temporaryPassword: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [termLoadError, setTermLoadError] = useState<string | null>(null);
   const [loadingPeople, setLoadingPeople] = useState(false);
+  const { showToast } = useToast();
   const { formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<TeamFormValues>();
 
   const loadTerms = useCallback(async () => {
-    setError(null);
+    setTermLoadError(null);
     try {
       const nextTerms = await api.listTerms();
       setTerms(nextTerms);
       setTermId((current) => current || preferredTerm(nextTerms)?.id || '');
     } catch (loadError) {
-      setError(messageFor(loadError));
+      setTermLoadError(messageFor(loadError));
     }
   }, [api]);
 
   const loadPeople = useCallback(async () => {
     if (!termId) return;
     setLoadingPeople(true);
-    setError(null);
     try {
       const [nextAccounts, nextPending, nextTeams, nextMemberships] = await Promise.all([
         api.listAccounts('ACTIVE'),
@@ -74,11 +75,11 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
       setSelectedAccountId((current) => nextAccounts.some((account) => account.id === current) ? current : nextAccounts[0]?.id || '');
       setSelectedTeamId((current) => nextTeams.some((team) => team.id === current) ? current : nextTeams[0]?.id || '');
     } catch (loadError) {
-      setError(messageFor(loadError));
+      showToast({ action: { label: '重试', onClick: () => { void loadPeople(); } }, message: messageFor(loadError), severity: 'warning' });
     } finally {
       setLoadingPeople(false);
     }
-  }, [api, termId]);
+  }, [api, showToast, termId]);
 
   useEffect(() => { void loadTerms(); }, [loadTerms]);
   useEffect(() => { void loadPeople(); }, [loadPeople]);
@@ -86,45 +87,44 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
   const approve = async (request: PendingRegistration) => {
     const reason = approvalNotes[request.id]?.trim();
     if (!reason) return;
-    setError(null);
     try {
       const result = await api.approveRegistration(request.id, { roles: [approvalRoles[request.id] ?? 'P3'], reason });
       setPending((current) => current.filter((item) => item.id !== request.id));
       setAccounts((current) => [{ ...result.account, status: 'ACTIVE' }, ...current]);
       setSelectedAccountId((current) => current || result.account.id);
       setIssuedCredential({ loginId: result.account.loginId, temporaryPassword: result.temporaryPassword });
+      showToast({ message: `已批准${request.displayName}，临时密码已生成。`, severity: 'success' });
     } catch (approvalError) {
-      setError(messageFor(approvalError));
+      showToast({ message: messageFor(approvalError), severity: 'error' });
     }
   };
 
   const createTeam = async (values: TeamFormValues) => {
     if (!termId) return;
-    setError(null);
     try {
       const team = await api.createTeam({ termId, code: values.code, name: values.name });
       setTeams((current) => [...current, team]);
       setSelectedTeamId(team.id);
       reset();
+      showToast({ message: '团队已创建。', severity: 'success' });
     } catch (teamError) {
-      setError(messageFor(teamError));
+      showToast({ message: messageFor(teamError), severity: 'error' });
     }
   };
 
   const createMembership = async () => {
     if (!termId || !selectedAccountId || !selectedTeamId) return;
-    setError(null);
     try {
       const membership = await api.createMembership(termId, { accountId: selectedAccountId, teamId: selectedTeamId });
       setMemberships((current) => [...current, membership]);
+      showToast({ message: '已加入本期成员。', severity: 'success' });
       onMembershipChanged?.();
     } catch (membershipError) {
-      setError(messageFor(membershipError));
+      showToast({ message: messageFor(membershipError), severity: 'error' });
     }
   };
 
-  if (terms === null) return <PageState kind="loading" title="正在读取实训人员" />;
-  if (error && !termId) return <PageState description={error} kind="error" onRetry={() => { void loadTerms(); }} title="无法读取实训人员" />;
+  if (terms === null) return termLoadError ? <PageState description={termLoadError} kind="error" onRetry={() => { void loadTerms(); }} title="无法读取实训人员" /> : <PageState kind="loading" title="正在读取实训人员" />;
   if (!termId) return <PeopleFrame embedded={embedded} onBack={onBack}><PageState description="请先建立实训周期，再组织本期人员。" kind="empty" title="尚未建立实训周期" /></PeopleFrame>;
   if (loadingPeople && accounts.length === 0 && pending.length === 0) return <PageState kind="loading" title="正在读取人员组织" />;
 
@@ -151,7 +151,7 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
         <Stack gap={embedded ? 3 : 5}>
           <section aria-labelledby="pending-title">
             <SectionHeading compact={embedded} description="批准后会生成一次性临时密码；请在交付后关闭或离开此页面，系统不会在浏览器中保存密码。" id="pending-title" title="待审批账号" />
-            {issuedCredential ? <Alert severity="warning" sx={{ mb: 2 }}>请安全交付临时密码：账号 {issuedCredential.loginId}，临时密码 <strong>{issuedCredential.temporaryPassword}</strong>。首次登录后必须修改。</Alert> : null}
+            {issuedCredential ? <Box aria-label="一次性凭据" borderColor="divider" borderLeft={3} mb={2} p={2}><Typography fontWeight={700}>请安全交付临时密码</Typography><Typography mt={0.5}>账号 {issuedCredential.loginId}，临时密码 <strong>{issuedCredential.temporaryPassword}</strong>。首次登录后必须修改。</Typography></Box> : null}
             {pending.length === 0 ? <Typography color="text.secondary" variant="body2">当前没有待审批账号。</Typography> : <Stack divider={<Divider flexItem />}>
               {pending.map((request) => {
                 const selectedRole = approvalRoles[request.id] ?? 'P3';
@@ -195,7 +195,6 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
             <MembershipList accounts={accounts} memberships={memberships} teams={teams} />
           </section>
         </Stack>
-        {error ? <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert> : null}
       </Box>
     </PeopleFrame>
   );

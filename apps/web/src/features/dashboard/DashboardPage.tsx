@@ -1,5 +1,5 @@
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PeopleWorkspacePage } from '@/features/governance/PeopleWorkspacePage';
@@ -8,6 +8,7 @@ import { TermWorkspacePage } from '@/features/governance/TermWorkspacePage';
 import type { GovernanceApi, Store, Term } from '@/features/governance/governanceApi';
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 interface DashboardPageProps {
   api: GovernanceApi;
@@ -43,12 +44,11 @@ const setupSteps: SetupStep[] = [
 export function DashboardPage({ api, profile }: DashboardPageProps) {
   const [progress, setProgress] = useState<StartupProgress>({ period: false, template: false, people: false });
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const configurationRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(null);
     try {
       const [terms, stores] = await Promise.all([api.listTerms(), api.listStores()]);
       const term = preferredTerm(terms);
@@ -73,11 +73,11 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
         people: memberships.some((membership) => membership.status === 'ACTIVE' && membership.teamId !== null && activeTeamIds.has(membership.teamId) && activeAccountIds.has(membership.accountId)),
       });
     } catch {
-      setLoadError('无法同步启动状态，请检查网络后重试。');
+      showToast({ action: { label: '重试', onClick: () => { void load(); } }, message: '无法同步启动状态，请检查网络后重试。', severity: 'warning' });
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, showToast]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -114,7 +114,6 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
           <section aria-label="启动配置进度"><StartupProgressRail statuses={statuses} /></section>
 
           {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
-          {loadError ? <Alert action={<Button color="inherit" onClick={() => { void load(); }} size="small">重试</Button>} severity="warning">{loadError}</Alert> : null}
 
           <Box component="section" ref={configurationRef} aria-label="当前步骤配置" borderColor="divider" borderTop={1} pt={{ xs: 2.5, md: 3 }}>
             {currentStepIndex === 0 ? <TermWorkspacePage api={api} embedded onInitialized={() => { void load(); }} /> : null}

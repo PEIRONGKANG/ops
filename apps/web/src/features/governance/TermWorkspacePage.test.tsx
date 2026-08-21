@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GovernanceApi } from './governanceApi';
+import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
 import { TermWorkspacePage } from './TermWorkspacePage';
 
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
@@ -26,9 +27,13 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   };
 }
 
+function renderTerm(api: GovernanceApi, embedded = false) {
+  return render(<ToastProvider><TermWorkspacePage api={api} embedded={embedded} onBack={vi.fn()} /></ToastProvider>);
+}
+
 describe('TermWorkspacePage', () => {
   it('keeps the embedded period form compact while retaining Material calendar controls', async () => {
-    render(<TermWorkspacePage api={createApi()} embedded />);
+    renderTerm(createApi(), true);
 
     expect(await screen.findByRole('heading', { name: '实训周期' })).toBeVisible();
     expect(screen.queryByRole('heading', { level: 1, name: '建立实训周期' })).not.toBeInTheDocument();
@@ -47,7 +52,7 @@ describe('TermWorkspacePage', () => {
       }),
     });
 
-    render(<TermWorkspacePage api={api} onBack={vi.fn()} />);
+    renderTerm(api);
 
     expect(await screen.findByRole('heading', { name: '建立实训周期' })).toBeVisible();
     await user.type(screen.getByLabelText('周期代码'), '2026-AUTUMN');
@@ -74,5 +79,8 @@ describe('TermWorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: '2026 秋季实训' })).toBeVisible();
     expect(screen.getByText('饮品实训门店')).toBeVisible();
     expect(screen.getByText('第 1 教学周 · 导入与准备')).toBeVisible();
+    const toast = await screen.findByRole('alert');
+    expect(toast).toHaveTextContent('实训周期已建立。下一步可以配置运营模板。');
+    expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });
 });

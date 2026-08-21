@@ -1,12 +1,12 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
 import { MaterialDateField } from '@/shared/ui/components/MaterialDateField';
 import { PageState } from '@/shared/ui/components/PageState';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 import type { GovernanceApi, InitializationInput, Store, TeachingWeek, Term } from './governanceApi';
 
@@ -46,8 +46,7 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
   const [stores, setStores] = useState<Store[]>([]);
   const [weeks, setWeeks] = useState<TeachingWeek[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  const { showToast } = useToast();
   const { control, formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>({
     defaultValues: {
       firstWeekEndDate: '', firstWeekName: '', firstWeekStartDate: '', storeCode: '', storeName: '', termCode: '', termEndDate: '', termName: '', termStartDate: '',
@@ -70,7 +69,6 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
   useEffect(() => { void load(); }, [load]);
 
   const create = async (values: FormValues) => {
-    setSubmitError(null);
     try {
       const input: InitializationInput = {
         term: { code: values.termCode, name: values.termName, startDate: values.termStartDate, endDate: values.termEndDate },
@@ -86,10 +84,10 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
       setTerms((current) => [result.term, ...(current ?? [])]);
       setStores((current) => [result.store, ...current]);
       setWeeks([result.firstTeachingWeek]);
-      setInitialized(true);
+      showToast({ message: '实训周期已建立。下一步可以配置运营模板。', severity: 'success' });
       onInitialized?.();
     } catch (error) {
-      setSubmitError(messageFor(error));
+      showToast({ message: messageFor(error), severity: 'error' });
     }
   };
 
@@ -103,7 +101,6 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
     return (
       <WorkspaceFrame embedded={embedded} onBack={onBack} title="实训周期">
         <Stack gap={4} maxWidth={880}>
-          {initialized ? <Alert icon={<CheckCircleRoundedIcon fontSize="inherit" />} severity="success">实训周期已建立。下一步可以配置运营模板。</Alert> : null}
           <Box borderBottom={1} borderColor="divider" pb={3}>
             <Typography component="h1" variant="h2">{activeTerm.name}</Typography>
             <Typography color="text.secondary" mt={1}>{activeTerm.code} · {activeTerm.startDate} 至 {activeTerm.endDate}</Typography>
@@ -150,7 +147,6 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
               <DateField control={control} name="firstWeekStartDate" errors={errors} required />
               <DateField control={control} name="firstWeekEndDate" errors={errors} required />
             </FormSection>
-            {submitError ? <Alert severity="error">{submitError}</Alert> : null}
             <Box>
               <Button disabled={isSubmitting} type="submit" variant="contained">{isSubmitting ? '正在创建…' : '创建实训周期'}</Button>
             </Box>

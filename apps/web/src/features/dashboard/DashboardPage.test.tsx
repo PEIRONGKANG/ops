@@ -6,6 +6,7 @@ import type { GovernanceApi, Store, TeachingWeek, Term } from '@/features/govern
 import type { AccountProfile } from '@/shared/api/authApi';
 
 import { DashboardPage } from './DashboardPage';
+import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
 
 const term: Term = {
   id: 'term-id', code: '2026-AUTUMN', name: '2026 秋季实训', startDate: '2026-09-01', endDate: '2027-01-20', status: 'DRAFT', version: 1, updatedAt: '2026-08-21T00:00:00Z',
@@ -41,9 +42,13 @@ function createApi(): GovernanceApi {
 
 const profile: AccountProfile = { id: 'p1-id', loginId: 'P1', displayName: '系统管理员', roles: ['P1'] };
 
+function renderDashboard(api: GovernanceApi) {
+  return render(<ToastProvider><DashboardPage api={api} profile={profile} /></ToastProvider>);
+}
+
 describe('DashboardPage', () => {
   it('uses a two-part startup workspace without duplicate introduction copy', async () => {
-    render(<DashboardPage api={createApi()} profile={profile} />);
+    renderDashboard(createApi());
 
     expect(await screen.findByRole('list', { name: '启动配置流程' })).toBeVisible();
     expect(screen.getByLabelText('当前步骤配置')).toBeVisible();
@@ -56,7 +61,7 @@ describe('DashboardPage', () => {
   });
 
   it('shows the horizontal startup flow and the current configuration form together', async () => {
-    render(<DashboardPage api={createApi()} profile={profile} />);
+    renderDashboard(createApi());
 
     const rail = await screen.findByRole('list', { name: '启动配置流程' });
     expect(rail).toBeVisible();
@@ -78,7 +83,7 @@ describe('DashboardPage', () => {
       return { term, store, firstTeachingWeek };
     });
 
-    render(<DashboardPage api={api} profile={profile} />);
+    renderDashboard(api);
 
     await user.type(await screen.findByRole('textbox', { name: '周期代码' }), term.code);
     await user.type(screen.getByRole('textbox', { name: '周期名称' }), term.name);
@@ -112,11 +117,27 @@ describe('DashboardPage', () => {
     api.listMemberships = vi.fn().mockResolvedValue([{ id: 'membership-id', termId: term.id, accountId: 'disabled-account', teamId: 'team-id', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
     api.listAccounts = vi.fn().mockResolvedValue([]);
 
-    render(<DashboardPage api={api} profile={profile} />);
+    renderDashboard(api);
 
     expect(await screen.findByRole('heading', { name: '组织实训人员' })).toBeVisible();
     const rail = screen.getByRole('list', { name: '启动配置流程' });
     expect(within(rail).getByText('组织实训人员').closest('li')).toHaveAttribute('aria-current', 'step');
     expect(screen.queryByText('启动清单已完成')).not.toBeInTheDocument();
+  });
+
+  it('surfaces startup synchronization errors in a retriable toast', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    const listTerms = vi.fn().mockRejectedValue(new Error('network failure'));
+    api.listTerms = listTerms;
+
+    renderDashboard(api);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('无法同步启动状态，请检查网络后重试。');
+    expect(alert.closest('.MuiSnackbar-root')).toBeInTheDocument();
+    const callsBeforeRetry = listTerms.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: '重试' }));
+    expect(listTerms).toHaveBeenCalledTimes(callsBeforeRetry + 1);
   });
 });

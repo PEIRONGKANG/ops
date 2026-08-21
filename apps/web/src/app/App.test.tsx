@@ -32,6 +32,27 @@ describe('App', () => {
     expect(screen.getByLabelText('密码')).toBeVisible();
   });
 
+  it('shows a failed login in the global toast instead of expanding the form', async () => {
+    const user = userEvent.setup();
+    const api: AuthApi = {
+      login: vi.fn().mockRejectedValue(new ApiError(401, { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' })),
+      changePassword: vi.fn(),
+      refresh: vi.fn().mockRejectedValue(new ApiError(401, { code: 'UNAUTHORIZED', message: 'Refresh cookie is missing.' })),
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    await user.type(await screen.findByRole('textbox', { name: '账号' }), 'P1');
+    await user.type(screen.getByLabelText('密码'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: '登录' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('账号或密码不正确，请重新输入。');
+    expect(alert.closest('.MuiSnackbar-root')).toBeInTheDocument();
+  });
+
   it('shows the required password change screen for a restricted first-login session', async () => {
     const api: AuthApi = {
       login: vi.fn(),

@@ -1,10 +1,10 @@
 import KeyRoundedIcon from '@mui/icons-material/KeyRounded';
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
 import { useAuth } from '@/shared/auth/useAuth';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 interface ChangePasswordValues {
   newPassword: string;
@@ -13,20 +13,22 @@ interface ChangePasswordValues {
 
 export function ChangePasswordPage() {
   const { changePassword } = useAuth();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ChangePasswordValues>({
     defaultValues: { newPassword: '', confirmPassword: '' },
   });
   const newPassword = watch('newPassword');
 
   const submit = handleSubmit(async ({ newPassword: password }) => {
-    setSubmitError(null);
     try {
       await changePassword({ newPassword: password });
     } catch (error) {
-      setSubmitError(error instanceof ApiError && error.status === 400
-        ? error.message
-        : '暂时无法更新密码，请稍后重试。');
+      showToast({
+        message: error instanceof ApiError && error.status === 400
+          ? error.message
+          : '暂时无法更新密码，请稍后重试。',
+        severity: 'error',
+      });
     }
   });
 
@@ -42,9 +44,6 @@ export function ChangePasswordPage() {
             <Typography component="h1" variant="h2">更新登录密码</Typography>
             <Typography color="text.secondary">这是你的初始密码。请设置一个仅你本人知晓的新密码后继续。</Typography>
           </Stack>
-
-          {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-
           <Box component="form" noValidate onSubmit={submit}>
             <Stack gap={2.5}>
               <Controller

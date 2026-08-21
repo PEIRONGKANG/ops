@@ -1,10 +1,10 @@
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
 import { useAuth } from '@/shared/auth/useAuth';
+import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 interface LoginValues {
   loginId: string;
@@ -13,19 +13,21 @@ interface LoginValues {
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginValues>({
     defaultValues: { loginId: '', password: '' },
   });
 
   const submit = handleSubmit(async (values) => {
-    setSubmitError(null);
     try {
       await login(values);
     } catch (error) {
-      setSubmitError(error instanceof ApiError && error.code === 'LOGIN_THROTTLED'
-        ? '尝试次数过多，请稍后再试。'
-        : '账号或密码不正确，请重新输入。');
+      showToast({
+        message: error instanceof ApiError && error.code === 'LOGIN_THROTTLED'
+          ? '尝试次数过多，请稍后再试。'
+          : '账号或密码不正确，请重新输入。',
+        severity: 'error',
+      });
     }
   });
 
@@ -41,9 +43,6 @@ export function LoginPage() {
             <Typography component="h1" variant="h2">登录到饮品实训运营系统</Typography>
             <Typography color="text.secondary">使用学院分配的账号登录，继续你的当班、带教或治理工作。</Typography>
           </Stack>
-
-          {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-
           <Box component="form" noValidate onSubmit={submit}>
             <Stack gap={2.5}>
               <Controller
