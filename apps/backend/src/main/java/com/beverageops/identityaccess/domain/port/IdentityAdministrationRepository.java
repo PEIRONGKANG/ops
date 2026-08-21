@@ -10,6 +10,8 @@ public interface IdentityAdministrationRepository {
 
     List<PendingRegistration> findRegistrationsByStatus(String status);
 
+    List<AccountSummary> findAccountSummaries(String status);
+
     Optional<PendingRegistration> lockPendingRegistration(UUID registrationRequestId);
 
     Optional<ManagedAccount> lockAccount(UUID accountId);
@@ -28,6 +30,9 @@ public interface IdentityAdministrationRepository {
     void appendEvent(String eventType, UUID actorId, UUID subjectAccountId, String reason);
 
     record PendingRegistration(UUID requestId, UUID accountId, String loginId, String displayName) {
+    }
+
+    record AccountSummary(UUID accountId, String loginId, String displayName, String status, List<String> roles) {
     }
 
     record ManagedAccount(UUID accountId, String loginId, String displayName, String status) {

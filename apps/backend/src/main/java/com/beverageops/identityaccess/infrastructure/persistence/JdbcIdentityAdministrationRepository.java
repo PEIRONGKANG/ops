@@ -35,6 +35,21 @@ class JdbcIdentityAdministrationRepository implements IdentityAdministrationRepo
     }
 
     @Override
+    public List<AccountSummary> findAccountSummaries(String status) {
+        return jdbcTemplate.query("""
+                        select id, login_id, display_name, status
+                        from iam_accounts
+                        where (cast(? as varchar) is null or status = cast(? as varchar))
+                        order by login_id
+                        """,
+                (resultSet, rowNumber) -> {
+                    var accountId = resultSet.getObject("id", UUID.class);
+                    return new AccountSummary(accountId, resultSet.getString("login_id"),
+                            resultSet.getString("display_name"), resultSet.getString("status"), rolesFor(accountId));
+                }, status, status);
+    }
+
+    @Override
     public Optional<PendingRegistration> lockPendingRegistration(UUID registrationRequestId) {
         return jdbcTemplate.query("""
                         select r.id, r.account_id, r.login_id, r.display_name
@@ -150,5 +165,15 @@ class JdbcIdentityAdministrationRepository implements IdentityAdministrationRepo
                 set revoked_at = current_timestamp, revoke_reason = ?
                 where account_id = ? and revoked_at is null
                 """, revokeReason, accountId);
+    }
+
+    private List<String> rolesFor(UUID accountId) {
+        return jdbcTemplate.queryForList("""
+                select role_code from iam_role_assignments
+                where account_id = ? and revoked_at is null
+                  and effective_from <= current_timestamp
+                  and (effective_until is null or effective_until > current_timestamp)
+                order by role_code
+                """, String.class, accountId);
     }
 }

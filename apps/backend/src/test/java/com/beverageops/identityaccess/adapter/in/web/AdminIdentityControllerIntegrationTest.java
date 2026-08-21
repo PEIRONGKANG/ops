@@ -218,6 +218,30 @@ class AdminIdentityControllerIntegrationTest extends PostgresIntegrationTestBase
                 .andExpect(jsonPath("$.items[0].temporaryPassword").doesNotExist());
     }
 
+    @Test
+    void p1CanListAccountSummariesWithoutPasswordOrSecurityData() throws Exception {
+        var accountId = createActiveP3("LISTP3");
+
+        mockMvc.perform(get("/api/v1/admin/accounts")
+                        .with(user(P1_ID.toString()).roles("P1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("$.items[0].loginId").value("LISTP3"))
+                .andExpect(jsonPath("$.items[0].displayName").value("P3 student"))
+                .andExpect(jsonPath("$.items[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.items[0].roles[0]").value("P3"))
+                .andExpect(jsonPath("$.items[0].passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.items[0].mustChangePassword").doesNotExist());
+    }
+
+    @Test
+    void nonP1CannotListAccountSummaries() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/accounts")
+                        .with(user(UUID.randomUUID().toString()).roles("P2")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
     private UUID createPendingRegistration(String loginId, String displayName) throws Exception {
         mockMvc.perform(post("/api/v1/auth/registrations")
                         .contentType("application/json")

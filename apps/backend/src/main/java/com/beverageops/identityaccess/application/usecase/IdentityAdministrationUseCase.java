@@ -33,6 +33,11 @@ public class IdentityAdministrationUseCase {
         return administration.findRegistrationsByStatus("PENDING");
     }
 
+    @Transactional(readOnly = true)
+    public List<IdentityAdministrationRepository.AccountSummary> listAccounts(String status) {
+        return administration.findAccountSummaries(normalizedStatus(status));
+    }
+
     @Transactional
     public IssuedAccount approve(ApproveRegistrationCommand command) {
         var registration = administration.lockPendingRegistration(command.registrationRequestId())
@@ -116,6 +121,17 @@ public class IdentityAdministrationUseCase {
             throw new IllegalArgumentException("A reason of 1 to 500 characters is required.");
         }
         return reason.trim();
+    }
+
+    private String normalizedStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        var normalized = status.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.equals("PENDING") && !normalized.equals("ACTIVE") && !normalized.equals("DISABLED")) {
+            throw new IllegalArgumentException("Account status is unsupported.");
+        }
+        return normalized;
     }
 
     public record IssuedAccount(UUID id, String loginId, String displayName, List<RoleCode> roles, String temporaryPassword) {

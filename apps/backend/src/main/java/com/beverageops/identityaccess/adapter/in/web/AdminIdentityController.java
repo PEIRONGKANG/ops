@@ -41,6 +41,15 @@ class AdminIdentityController {
         return new PendingRegistrationsResponse(items);
     }
 
+    @GetMapping("/accounts")
+    AccountSummariesResponse listAccounts(@RequestParam(required = false) String status) {
+        var items = administration.listAccounts(status).stream()
+                .map(account -> new AccountSummaryResponse(account.accountId(), account.loginId(), account.displayName(),
+                        account.status(), account.roles()))
+                .toList();
+        return new AccountSummariesResponse(items);
+    }
+
     @PostMapping("/registration-requests/{requestId}/approve")
     ResponseEntity<ApprovedRegistrationResponse> approve(
             @PathVariable UUID requestId,
@@ -106,6 +115,12 @@ class AdminIdentityController {
     }
 
     record PendingRegistrationResponse(UUID id, String loginId, String displayName) {
+    }
+
+    record AccountSummariesResponse(List<AccountSummaryResponse> items) {
+    }
+
+    record AccountSummaryResponse(UUID id, String loginId, String displayName, String status, List<String> roles) {
     }
 
     record ApprovedRegistrationResponse(AccountResponse account, String temporaryPassword) {
