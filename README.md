@@ -35,6 +35,19 @@ npm run dev
 
 浏览器变量中只能配置后端地址，不得放置访问令牌、刷新令牌、数据库密码或服务器文件路径。
 
+## Docker 启动
+
+Docker Compose 启动全新的 PostgreSQL、Spring 后端和 React 前端。网页服务在同源下代理 `/api` 与 `/ws`，因此认证刷新 Cookie 不会暴露给前端脚本。
+
+```bash
+cp .env.example .env
+# 在 .env 中替换所有密码和密钥，并设置一个本机专用的媒体目录。
+mkdir -p /tmp/beverage-ops-media
+docker compose up --build -d
+```
+
+启动后访问 `http://localhost:5173`；后端健康检查为 `http://localhost:18080/api/v1/health`。本地 HTTP 环境必须使用 `AUTH_SECURE_COOKIES=false`；生产 HTTPS 环境必须改回 `true`。
+
 ## 当前交付边界
 
 已覆盖内部身份、治理、排班与班次执行、证据元数据、异常与交接、通知与实时状态、带教反馈与补训、课程筹备、内部量规评分、成果包和成绩发布。

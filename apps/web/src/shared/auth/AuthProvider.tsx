@@ -31,7 +31,7 @@ function createDefaultDependencies() {
 
 const defaultDependencies = createDefaultDependencies();
 
-interface AuthProviderProps extends PropsWithChildren {
+export interface AuthProviderProps extends PropsWithChildren {
   api?: AuthApi;
   store?: SessionStore;
 }
