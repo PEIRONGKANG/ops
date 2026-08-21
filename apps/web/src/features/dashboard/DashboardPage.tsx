@@ -29,7 +29,7 @@ const setupSteps: SetupStep[] = [
 
 export function DashboardPage({ profile }: DashboardPageProps) {
   return (
-    <AppShell title="运营工作台">
+    <AppShell headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}>
       <Box maxWidth={1120}>
         <Box borderBottom={1} borderColor="divider" pb={{ xs: 3, md: 4 }}>
           <Stack alignItems={{ md: 'flex-end' }} direction={{ xs: 'column', md: 'row' }} gap={2} justifyContent="space-between">
@@ -37,12 +37,6 @@ export function DashboardPage({ profile }: DashboardPageProps) {
               <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
               <Typography component="h1" variant="h2">{profile.displayName}，欢迎回来</Typography>
               <Typography color="text.secondary">当前尚未建立实训周期。完成基础配置后，这里将呈现班次、待办与教学进度。</Typography>
-            </Stack>
-            <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} gap={0.75}>
-              <Typography color="text.secondary" variant="body2">你的工作身份</Typography>
-              <Stack direction="row" flexWrap="wrap" gap={0.75}>
-                {profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}
-              </Stack>
             </Stack>
           </Stack>
         </Box>

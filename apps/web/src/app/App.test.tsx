@@ -65,7 +65,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '更新密码并继续' }));
 
     expect(api.changePassword).toHaveBeenCalledWith({ newPassword: 'ChangedPassword-2026' });
-    expect(await screen.findByRole('heading', { name: '运营工作台' })).toBeVisible();
+    expect(await screen.findByText('运营治理')).toBeVisible();
     expect(screen.getByText('系统管理员，欢迎回来')).toBeVisible();
     expect(screen.getByRole('heading', { name: '启动清单' })).toBeVisible();
     expect(screen.getByText('建立实训周期')).toBeVisible();
@@ -73,6 +73,10 @@ describe('App', () => {
     expect(screen.getByText('组织实训人员')).toBeVisible();
     expect(screen.queryByText('1. 初始化运行环境')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '治理配置即将开放' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '跳到主要内容' })).not.toBeInTheDocument();
+    expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '运营工作台' })).not.toBeInTheDocument();
+    expect(screen.queryByText('你的工作身份')).not.toBeInTheDocument();
   });
 
   afterEach(() => vi.unstubAllGlobals());
