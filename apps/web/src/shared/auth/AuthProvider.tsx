@@ -5,7 +5,7 @@ import { ApiClient } from '@/shared/api/httpClient';
 
 import { createSessionStore, type SessionStore, useSessionSnapshot } from './sessionStore';
 
-interface AuthContextValue {
+export interface AuthContextValue {
   status: ReturnType<typeof useSessionSnapshot>['status'];
   profile: AccountProfile | null;
   login(input: { loginId: string; password: string }): Promise<SessionResponse>;
@@ -71,11 +71,36 @@ export function AuthProvider({ children, api = defaultDependencies.api, store = 
     },
   }), [api, snapshot.profile, snapshot.status, store]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <SessionStoreContext.Provider value={store}>
+      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    </SessionStoreContext.Provider>
+  );
 }
 
 export function useAuthContext() {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider.');
   return context;
+}
+
+export function useAuthenticatedApiClient(): ApiClient {
+  const store = useSessionStoreFromContext();
+  return useMemo(() => new ApiClient({
+    getAccessToken: () => store.getSnapshot().accessToken,
+    refresh: async (): Promise<string | null> => {
+      const session = await refreshSession();
+      store.setAccessToken(session.accessToken, session.tokenType === 'password_change' ? 'password_change' : 'authenticated');
+      return session.accessToken;
+    },
+    clearSession: store.clear,
+  }), [store]);
+}
+
+const SessionStoreContext = createContext<SessionStore | null>(null);
+
+function useSessionStoreFromContext(): SessionStore {
+  const store = useContext(SessionStoreContext);
+  if (!store) throw new Error('useAuthenticatedApiClient must be used within AuthProvider.');
+  return store;
 }

@@ -1,10 +1,13 @@
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
-import { Box, Chip, Divider, List, ListItem, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Divider, List, ListItem, Stack, Typography } from '@mui/material';
 
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
+import type { GovernanceApi } from '@/features/governance/governanceApi';
 
 interface DashboardPageProps {
+  api: GovernanceApi;
+  onOpenTermWorkspace: () => void;
   profile: AccountProfile;
 }
 
@@ -27,7 +30,7 @@ const setupSteps: SetupStep[] = [
   { title: '组织实训人员', description: '审批账号申请，为教师、负责人和学员分配角色。' },
 ];
 
-export function DashboardPage({ profile }: DashboardPageProps) {
+export function DashboardPage({ onOpenTermWorkspace, profile }: DashboardPageProps) {
   return (
     <AppShell headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}>
       <Box maxWidth={1120}>
@@ -50,7 +53,7 @@ export function DashboardPage({ profile }: DashboardPageProps) {
 
             <List disablePadding aria-label="实训基地启动清单">
               {setupSteps.map((step, index) => (
-                <SetupChecklistItem index={index} key={step.title} step={step} />
+                <SetupChecklistItem index={index} key={step.title} onOpen={index === 0 ? onOpenTermWorkspace : undefined} step={step} />
               ))}
             </List>
           </section>
@@ -79,10 +82,11 @@ export function DashboardPage({ profile }: DashboardPageProps) {
 
 interface SetupChecklistItemProps {
   index: number;
+  onOpen?: () => void;
   step: SetupStep;
 }
 
-function SetupChecklistItem({ index, step }: SetupChecklistItemProps) {
+function SetupChecklistItem({ index, onOpen, step }: SetupChecklistItemProps) {
   const isNext = index === 0;
 
   return (
@@ -91,7 +95,7 @@ function SetupChecklistItem({ index, step }: SetupChecklistItemProps) {
         {index + 1}
       </Box>
       <Stack flex={1} gap={0.5} minWidth={0}>
-        <Typography component="h3" variant="subtitle1">{step.title}</Typography>
+        {onOpen ? <Button aria-label={step.title} onClick={onOpen} sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minHeight: 0, p: 0, textAlign: 'left' }} variant="text"><Typography component="h3" variant="subtitle1">{step.title}</Typography></Button> : <Typography component="h3" variant="subtitle1">{step.title}</Typography>}
         <Typography color="text.secondary" variant="body2">{step.description}</Typography>
       </Stack>
       {isNext ? (
