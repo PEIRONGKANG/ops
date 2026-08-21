@@ -1,20 +1,31 @@
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
-import { Box, Button, Chip, Divider, List, ListItem, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, List, ListItem, Stack, Typography } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
 
+import type { GovernanceApi, Store, Term } from '@/features/governance/governanceApi';
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
-import type { GovernanceApi } from '@/features/governance/governanceApi';
 
 interface DashboardPageProps {
   api: GovernanceApi;
+  onOpenPeopleWorkspace: () => void;
+  onOpenTemplateWorkspace: () => void;
   onOpenTermWorkspace: () => void;
   profile: AccountProfile;
 }
+
+type SetupStatus = 'complete' | 'current' | 'blocked';
 
 type SetupStep = {
   description: string;
   title: string;
 };
+
+interface StartupProgress {
+  people: boolean;
+  period: boolean;
+  template: boolean;
+}
 
 const roleLabels: Record<AccountProfile['roles'][number], string> = {
   P1: '运营治理',
@@ -30,7 +41,51 @@ const setupSteps: SetupStep[] = [
   { title: '组织实训人员', description: '审批账号申请，为教师、负责人和学员分配角色。' },
 ];
 
-export function DashboardPage({ onOpenTermWorkspace, profile }: DashboardPageProps) {
+export function DashboardPage({ api, onOpenPeopleWorkspace, onOpenTemplateWorkspace, onOpenTermWorkspace, profile }: DashboardPageProps) {
+  const [progress, setProgress] = useState<StartupProgress>({ period: false, template: false, people: false });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [terms, stores] = await Promise.all([api.listTerms(), api.listStores()]);
+      const term = preferredTerm(terms);
+      const store = preferredStore(stores);
+      const period = Boolean(term && store);
+      if (!term || !store) {
+        setProgress({ period, template: false, people: false });
+        return;
+      }
+
+      const [templates, teams, memberships] = await Promise.all([
+        api.listTemplateVersions({ termId: term.id, storeId: store.id }),
+        api.listTeams(term.id),
+        api.listMemberships(term.id),
+      ]);
+      setProgress({
+        period,
+        template: templates.some((template) => template.status === 'PUBLISHED'),
+        people: teams.some((team) => team.status === 'ACTIVE') && memberships.some((membership) => membership.status === 'ACTIVE' && membership.teamId !== null),
+      });
+    } catch {
+      setLoadError('无法同步启动状态，请检查网络后重试。');
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const statuses: SetupStatus[] = [
+    progress.period ? 'complete' : 'current',
+    progress.template ? 'complete' : progress.period ? 'current' : 'blocked',
+    progress.people ? 'complete' : progress.template ? 'current' : 'blocked',
+  ];
+  const actions = [onOpenTermWorkspace, onOpenTemplateWorkspace, onOpenPeopleWorkspace];
+  const current = currentState(progress, loading);
+
   return (
     <AppShell headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}>
       <Box maxWidth={1120}>
@@ -39,7 +94,7 @@ export function DashboardPage({ onOpenTermWorkspace, profile }: DashboardPagePro
             <Stack gap={0.75}>
               <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
               <Typography component="h1" variant="h2">{profile.displayName}，欢迎回来</Typography>
-              <Typography color="text.secondary">当前尚未建立实训周期。完成基础配置后，这里将呈现班次、待办与教学进度。</Typography>
+              <Typography color="text.secondary">{current.description}</Typography>
             </Stack>
           </Stack>
         </Box>
@@ -51,22 +106,22 @@ export function DashboardPage({ onOpenTermWorkspace, profile }: DashboardPagePro
               <Typography color="text.secondary">按顺序完成以下配置，即可开始安排并运行实训班次。</Typography>
             </Stack>
 
-            <List disablePadding aria-label="实训基地启动清单">
-              {setupSteps.map((step, index) => (
-                <SetupChecklistItem index={index} key={step.title} onOpen={index === 0 ? onOpenTermWorkspace : undefined} step={step} />
-              ))}
+            <List aria-label="实训基地启动清单" disablePadding>
+              {setupSteps.map((step, index) => <SetupChecklistItem action={actions[index]} index={index} key={step.title} status={statuses[index]} step={step} />)}
             </List>
           </section>
 
           <aside aria-labelledby="current-state-title">
-            <Box borderLeft={{ lg: 1 }} borderColor="divider" pl={{ lg: 4 }}>
+            <Box borderColor="divider" borderLeft={{ lg: 1 }} pl={{ lg: 4 }}>
               <Stack gap={2}>
                 <Typography color="text.secondary" component="h2" id="current-state-title" variant="overline">当前状态</Typography>
                 <Stack gap={0.75}>
-                  <Typography variant="h3">正在准备首次运营</Typography>
-                  <Typography color="text.secondary" variant="body2">系统将在创建第一个实训周期后，生成对应的运营上下文和治理入口。</Typography>
+                  <Typography variant="h3">{current.title}</Typography>
+                  <Typography color="text.secondary" variant="body2">{current.detail}</Typography>
                 </Stack>
                 <Divider />
+                {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
+                {loadError ? <Alert action={<Button color="inherit" onClick={() => { void load(); }} size="small">重试</Button>} severity="warning">{loadError}</Alert> : null}
                 <Stack direction="row" gap={1.25}>
                   <CheckCircleOutlineRoundedIcon aria-hidden color="primary" />
                   <Typography color="text.secondary" variant="body2">你已完成账号激活，可以开始配置。</Typography>
@@ -80,29 +135,35 @@ export function DashboardPage({ onOpenTermWorkspace, profile }: DashboardPagePro
   );
 }
 
-interface SetupChecklistItemProps {
-  index: number;
-  onOpen?: () => void;
-  step: SetupStep;
-}
-
-function SetupChecklistItem({ index, onOpen, step }: SetupChecklistItemProps) {
-  const isNext = index === 0;
+function SetupChecklistItem({ action, index, status, step }: { action: () => void; index: number; status: SetupStatus; step: SetupStep }) {
+  const complete = status === 'complete';
+  const available = status !== 'blocked';
+  const stateLabel = complete ? '已完成' : status === 'current' ? '当前步骤' : '完成上一步后可用';
 
   return (
     <ListItem alignItems="flex-start" disableGutters divider={index < setupSteps.length - 1} sx={{ gap: { xs: 1.5, sm: 2 }, py: 2.5 }}>
-      <Box alignItems="center" border={1} borderColor={isNext ? 'primary.main' : 'divider'} borderRadius="50%" color={isNext ? 'primary.main' : 'text.secondary'} display="flex" flexShrink={0} fontWeight={800} height={32} justifyContent="center" mt={0.25} width={32}>
-        {index + 1}
-      </Box>
+      <Box alignItems="center" border={1} borderColor={complete || status === 'current' ? 'primary.main' : 'divider'} borderRadius="50%" color={complete || status === 'current' ? 'primary.main' : 'text.secondary'} display="flex" flexShrink={0} fontWeight={800} height={32} justifyContent="center" mt={0.25} width={32}>{complete ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : index + 1}</Box>
       <Stack flex={1} gap={0.5} minWidth={0}>
-        {onOpen ? <Button aria-label={step.title} onClick={onOpen} sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minHeight: 0, p: 0, textAlign: 'left' }} variant="text"><Typography component="h3" variant="subtitle1">{step.title}</Typography></Button> : <Typography component="h3" variant="subtitle1">{step.title}</Typography>}
+        {available ? <Button aria-label={step.title} onClick={action} sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minHeight: 0, p: 0, textAlign: 'left' }} variant="text"><Typography component="h3" variant="subtitle1">{step.title}</Typography></Button> : <Typography component="h3" variant="subtitle1">{step.title}</Typography>}
         <Typography color="text.secondary" variant="body2">{step.description}</Typography>
       </Stack>
-      {isNext ? (
-        <Chip color="primary" label="当前步骤" size="small" sx={{ flexShrink: 0, mt: 0.5 }} variant="outlined" />
-      ) : (
-        <Typography color="text.secondary" flexShrink={0} mt={0.5} variant="body2">完成上一步后可用</Typography>
-      )}
+      {complete || status === 'current' ? <Chip color={complete ? 'success' : 'primary'} label={stateLabel} size="small" sx={{ flexShrink: 0, mt: 0.5 }} variant="outlined" /> : <Typography color="text.secondary" flexShrink={0} mt={0.5} variant="body2">{stateLabel}</Typography>}
     </ListItem>
   );
+}
+
+function preferredTerm(terms: Term[]): Term | undefined {
+  return terms.find((term) => term.status === 'DRAFT' || term.status === 'PUBLISHED') ?? terms[0];
+}
+
+function preferredStore(stores: Store[]): Store | undefined {
+  return stores.find((store) => store.status === 'ACTIVE') ?? stores[0];
+}
+
+function currentState(progress: StartupProgress, loading: boolean): { description: string; detail: string; title: string } {
+  if (loading) return { title: '正在同步启动状态', description: '正在读取当前周期、模板和人员组织情况。', detail: '状态来自治理服务，读取完成后会自动更新。' };
+  if (!progress.period) return { title: '正在准备首次运营', description: '当前尚未建立实训周期。完成基础配置后，这里将呈现班次、待办与教学进度。', detail: '先建立周期、门店与第一个教学周，形成本期运营范围。' };
+  if (!progress.template) return { title: '等待运营模板发布', description: '实训周期已建立。发布模板后即可明确岗位与日常 SOP。', detail: '当前可配置并发布第一版运营模板。' };
+  if (!progress.people) return { title: '等待组织实训人员', description: '运营模板已发布。接下来审批账号、建立团队并加入本期成员。', detail: '至少建立一个团队，并为本期加入一名成员。' };
+  return { title: '启动清单已完成', description: '基础治理配置已就绪，可继续进入日常门店运营与课程工作。', detail: '周期、模板和人员组织均已由服务端确认。' };
 }

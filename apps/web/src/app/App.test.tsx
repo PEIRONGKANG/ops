@@ -77,6 +77,8 @@ describe('App', () => {
     expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '运营工作台' })).not.toBeInTheDocument();
     expect(screen.queryByText('你的工作身份')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '打开导航' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '通知' })).not.toBeInTheDocument();
   });
 
   afterEach(() => vi.unstubAllGlobals());

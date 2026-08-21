@@ -11,6 +11,7 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
     listTerms: vi.fn().mockResolvedValue([]),
     listStores: vi.fn().mockResolvedValue([]),
     listTeachingWeeks: vi.fn().mockResolvedValue([]),
+    bootstrapTemplate: vi.fn(),
     createTemplate: vi.fn(),
     listTemplateVersions: vi.fn(),
     publishTemplate: vi.fn(),

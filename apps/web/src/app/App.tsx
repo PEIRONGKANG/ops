@@ -7,13 +7,15 @@ import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { TermWorkspacePage } from '@/features/governance/TermWorkspacePage';
+import { TemplateWorkspacePage } from '@/features/governance/TemplateWorkspacePage';
+import { PeopleWorkspacePage } from '@/features/governance/PeopleWorkspacePage';
 import { createGovernanceApi } from '@/features/governance/governanceApi';
 
 function AppContent() {
   const { profile, status } = useAuth();
   const client = useAuthenticatedApiClient();
   const governanceApi = useMemo(() => createGovernanceApi(client), [client]);
-  const [view, setView] = useState<'dashboard' | 'term-workspace'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'term-workspace' | 'template-workspace' | 'people-workspace'>('dashboard');
 
   if (status === 'booting') return <main aria-label="正在初始化会话" />;
   if (status === 'guest') return <LoginPage />;
@@ -22,7 +24,13 @@ function AppContent() {
   if (view === 'term-workspace') {
     return <TermWorkspacePage api={governanceApi} onBack={() => setView('dashboard')} onInitialized={() => setView('dashboard')} />;
   }
-  return <DashboardPage api={governanceApi} onOpenTermWorkspace={() => setView('term-workspace')} profile={profile} />;
+  if (view === 'template-workspace') {
+    return <TemplateWorkspacePage api={governanceApi} onBack={() => setView('dashboard')} />;
+  }
+  if (view === 'people-workspace') {
+    return <PeopleWorkspacePage api={governanceApi} onBack={() => setView('dashboard')} />;
+  }
+  return <DashboardPage api={governanceApi} onOpenPeopleWorkspace={() => setView('people-workspace')} onOpenTemplateWorkspace={() => setView('template-workspace')} onOpenTermWorkspace={() => setView('term-workspace')} profile={profile} />;
 }
 
 export function App({ api, store }: Pick<AuthProviderProps, 'api' | 'store'> = {}) {

@@ -136,6 +136,72 @@ class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void p1CanAtomicallyCreateAStarterTemplateWithExecutableRoleAndSopComponents() throws Exception {
+        var termId = createTerm("2026-TEMPLATE-BOOTSTRAP", "模板启动学期");
+        var storeId = createStore("TEMPLATE-BOOTSTRAP-LAB", "模板启动门店");
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/bootstrap")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "termId":"%s", "storeId":"%s", "templateCode":"DAILY-OPS", "name":"日常运营模板",
+                                  "effectiveFrom":"2026-09-01", "configuration":{"roles":[],"tasks":[]},
+                                  "role":{"code":"BARISTA","name":"吧台制作","configuration":{"required":true}},
+                                  "sopTask":{"code":"OPENING-CHECK","name":"开档检查",
+                                    "configuration":{"roleCode":"BARISTA","evidenceRequired":false,"requiresP2Acceptance":false}}
+                                }
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_versions", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_components where component_type = 'ROLE'", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_components where component_type = 'SOP_TASK'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void starterTemplateCreationRollsBackWhenItsExecutableSopIsInvalid() throws Exception {
+        var termId = createTerm("2026-TEMPLATE-ROLLBACK", "模板回滚学期");
+        var storeId = createStore("TEMPLATE-ROLLBACK-LAB", "模板回滚门店");
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/bootstrap")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"termId":"%s", "storeId":"%s", "templateCode":"ROLLBACK", "name":"无效模板",
+                                 "effectiveFrom":"2026-09-01", "configuration":{},
+                                 "role":{"code":"BARISTA","name":"吧台制作","configuration":{}},
+                                 "sopTask":{"code":"OPENING-CHECK","name":"开档检查","configuration":[]}}
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_versions", Integer.class)).isEqualTo(0);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_components", Integer.class)).isEqualTo(0);
+    }
+
+    @Test
+    void starterTemplateRequiresBothItsRoleAndSopDefinitions() throws Exception {
+        var termId = createTerm("2026-TEMPLATE-REQUIRED", "模板必填项学期");
+        var storeId = createStore("TEMPLATE-REQUIRED-LAB", "模板必填项门店");
+
+        mockMvc.perform(post("/api/v1/admin/template-versions/bootstrap")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"termId":"%s", "storeId":"%s", "templateCode":"REQUIRED", "name":"缺少 SOP 的模板",
+                                 "effectiveFrom":"2026-09-01", "configuration":{},
+                                 "role":{"code":"BARISTA","name":"吧台制作","configuration":{}}}
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_versions", Integer.class)).isEqualTo(0);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_template_components", Integer.class)).isEqualTo(0);
+    }
+
+    @Test
     void certificationRuleMustDeclareACompleteExecutablePolicy() throws Exception {
         var termId = createTerm("2026-CERT-RULE", "认证规则校验学期");
         var storeId = createStore("CERT-RULE-LAB", "认证规则校验门店");

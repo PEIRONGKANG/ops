@@ -161,6 +161,21 @@ class GovernanceController {
                         request.name(), request.effectiveFrom(), configuration, actorId(authentication)))));
     }
 
+    @PostMapping("/template-versions/bootstrap")
+    ResponseEntity<TemplateVersionResponse> bootstrapTemplateVersion(@RequestBody BootstrapTemplateVersionRequest request,
+                                                                      Authentication authentication) {
+        var templateConfiguration = request.configuration() == null ? null : request.configuration().toString();
+        var role = requiredStarterComponent(request.role(), "role");
+        var sopTask = requiredStarterComponent(request.sopTask(), "SOP task");
+        var roleConfiguration = role.configuration() == null ? "{}" : role.configuration().toString();
+        var sopTaskConfiguration = sopTask.configuration() == null ? "{}" : sopTask.configuration().toString();
+        return ResponseEntity.status(HttpStatus.CREATED).body(template(governance.bootstrapTemplateVersion(
+                new GovernanceUseCase.BootstrapTemplateVersionCommand(request.termId(), request.storeId(), request.templateCode(),
+                        request.name(), request.effectiveFrom(), templateConfiguration, role.code(), role.name(),
+                        roleConfiguration, sopTask.code(), sopTask.name(), sopTaskConfiguration,
+                        actorId(authentication)))));
+    }
+
     @GetMapping("/template-versions")
     List<TemplateVersionResponse> listTemplateVersions(@RequestParam(required = false) UUID termId,
                                                         @RequestParam(required = false) UUID storeId) {
@@ -282,6 +297,13 @@ class GovernanceController {
         };
     }
 
+    private CreateTemplateComponentRequest requiredStarterComponent(CreateTemplateComponentRequest component, String label) {
+        if (component == null) {
+            throw new IllegalArgumentException("Starter template " + label + " is required.");
+        }
+        return component;
+    }
+
     record CreateTermRequest(String code, String name, LocalDate startDate, LocalDate endDate) {
     }
 
@@ -318,6 +340,11 @@ class GovernanceController {
 
     record CreateTemplateVersionRequest(UUID termId, UUID storeId, String templateCode, String name,
                                         LocalDate effectiveFrom, JsonNode configuration) {
+    }
+
+    record BootstrapTemplateVersionRequest(UUID termId, UUID storeId, String templateCode, String name,
+                                           LocalDate effectiveFrom, JsonNode configuration,
+                                           CreateTemplateComponentRequest role, CreateTemplateComponentRequest sopTask) {
     }
 
     record VersionRequest(long version) {

@@ -87,11 +87,29 @@ export interface InitializationInput {
   firstTeachingWeek: Pick<TeachingWeek, 'name' | 'startDate' | 'endDate' | 'phaseCode'>;
 }
 
+export interface BootstrapTemplateInput {
+  termId: string;
+  storeId: string;
+  templateCode: string;
+  name: string;
+  effectiveFrom: string;
+  configuration: Record<string, unknown>;
+  role: TemplateComponentInput;
+  sopTask: TemplateComponentInput;
+}
+
+export interface TemplateComponentInput {
+  code: string;
+  name: string;
+  configuration: Record<string, unknown>;
+}
+
 export interface GovernanceApi {
   initialize(input: InitializationInput): Promise<{ term: Term; store: Store; firstTeachingWeek: TeachingWeek }>;
   listTerms(): Promise<Term[]>;
   listStores(): Promise<Store[]>;
   listTeachingWeeks(termId: string): Promise<TeachingWeek[]>;
+  bootstrapTemplate(input: BootstrapTemplateInput): Promise<TemplateVersion>;
   createTemplate(input: {
     termId: string;
     storeId: string;
@@ -120,6 +138,7 @@ export function createGovernanceApi(client: ApiClient): GovernanceApi {
     listTerms: () => client.get<Term[]>('/api/v1/admin/terms'),
     listStores: () => client.get<Store[]>('/api/v1/admin/stores'),
     listTeachingWeeks: (termId) => client.get<TeachingWeek[]>(`/api/v1/admin/terms/${termId}/teaching-weeks`),
+    bootstrapTemplate: (input) => client.post<TemplateVersion>('/api/v1/admin/template-versions/bootstrap', { ...input }),
     createTemplate: (input) => client.post<TemplateVersion>('/api/v1/admin/template-versions', { ...input }),
     listTemplateVersions: (input) => client.get<TemplateVersion[]>(`/api/v1/admin/template-versions${query(input)}`),
     publishTemplate: (templateVersionId, version) => client.post<TemplateVersion>(`/api/v1/admin/template-versions/${templateVersionId}/publish`, { version }),

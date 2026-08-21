@@ -41,6 +41,29 @@ describe('GovernanceApi', () => {
     }));
   });
 
+  it('creates the starter template and executable components atomically on the server', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'template-id', status: 'DRAFT' }), {
+      status: 201, headers: { 'Content-Type': 'application/json' },
+    }));
+    const client = new ApiClient({ fetch, getAccessToken: () => 'access-token', refresh: vi.fn(), clearSession: vi.fn() });
+
+    await createGovernanceApi(client).bootstrapTemplate({
+      termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', name: '日常运营模板', effectiveFrom: '2026-09-01',
+      configuration: { roles: [], tasks: [] },
+      role: { code: 'BARISTA', name: '吧台制作', configuration: { required: true } },
+      sopTask: { code: 'OPENING-CHECK', name: '开档检查', configuration: { roleCode: 'BARISTA', evidenceRequired: false, requiresP2Acceptance: false } },
+    });
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/template-versions/bootstrap', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({
+        termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', name: '日常运营模板', effectiveFrom: '2026-09-01',
+        configuration: { roles: [], tasks: [] },
+        role: { code: 'BARISTA', name: '吧台制作', configuration: { required: true } },
+        sopTask: { code: 'OPENING-CHECK', name: '开档检查', configuration: { roleCode: 'BARISTA', evidenceRequired: false, requiresP2Acceptance: false } },
+      }),
+    }));
+  });
+
   it('uses the governed people and organization endpoints rather than page-local state', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ items: [] }), {
       status: 200, headers: { 'Content-Type': 'application/json' },

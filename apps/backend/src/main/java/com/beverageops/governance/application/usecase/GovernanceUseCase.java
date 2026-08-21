@@ -252,6 +252,17 @@ public class GovernanceUseCase {
         return template;
     }
 
+    @Transactional
+    public GovernanceRepository.TemplateVersion bootstrapTemplateVersion(BootstrapTemplateVersionCommand command) {
+        var template = createTemplateVersion(new CreateTemplateVersionCommand(command.termId(), command.storeId(), command.templateCode(),
+                command.name(), command.effectiveFrom(), command.configurationJson(), command.actorId()));
+        createTemplateComponent(template.id(), new CreateTemplateComponentCommand("ROLE", command.roleCode(), command.roleName(),
+                command.roleConfigurationJson(), command.actorId()));
+        createTemplateComponent(template.id(), new CreateTemplateComponentCommand("SOP_TASK", command.sopTaskCode(), command.sopTaskName(),
+                command.sopTaskConfigurationJson(), command.actorId()));
+        return template;
+    }
+
     @Transactional(readOnly = true)
     public GovernanceRepository.TemplateVersion templateVersion(UUID templateVersionId) {
         return governance.findTemplateVersion(templateVersionId)
@@ -428,6 +439,12 @@ public class GovernanceUseCase {
 
     public record CreateTemplateVersionCommand(UUID termId, UUID storeId, String templateCode, String name,
                                                LocalDate effectiveFrom, String configurationJson, UUID actorId) {
+    }
+
+    public record BootstrapTemplateVersionCommand(UUID termId, UUID storeId, String templateCode, String name,
+                                                  LocalDate effectiveFrom, String configurationJson, String roleCode,
+                                                  String roleName, String roleConfigurationJson, String sopTaskCode,
+                                                  String sopTaskName, String sopTaskConfigurationJson, UUID actorId) {
     }
 
     public record UpdateTemplateVersionCommand(String name, LocalDate effectiveFrom, LocalDate effectiveUntil,
