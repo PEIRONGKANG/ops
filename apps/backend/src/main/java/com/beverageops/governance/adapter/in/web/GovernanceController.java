@@ -38,6 +38,17 @@ class GovernanceController {
                 request.code(), request.name(), request.startDate(), request.endDate(), actorId(authentication)))));
     }
 
+    @PostMapping("/initialization")
+    ResponseEntity<InitializationResponse> initialize(@RequestBody InitializeRequest request, Authentication authentication) {
+        var result = governance.initialize(new GovernanceUseCase.InitializeCommand(
+                request.term().code(), request.term().name(), request.term().startDate(), request.term().endDate(),
+                request.store().code(), request.store().name(), request.firstTeachingWeek().name(),
+                request.firstTeachingWeek().startDate(), request.firstTeachingWeek().endDate(), request.firstTeachingWeek().phaseCode(),
+                actorId(authentication)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new InitializationResponse(term(result.term()), store(result.store()),
+                teachingWeek(result.firstTeachingWeek())));
+    }
+
     @PostMapping("/stores")
     ResponseEntity<StoreResponse> createStore(@RequestBody CreateStoreRequest request, Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED).body(store(governance.createStore(new GovernanceUseCase.CreateStoreCommand(
@@ -274,6 +285,12 @@ class GovernanceController {
     record CreateTermRequest(String code, String name, LocalDate startDate, LocalDate endDate) {
     }
 
+    record InitializeRequest(CreateTermRequest term, CreateStoreRequest store, InitializeTeachingWeekRequest firstTeachingWeek) {
+    }
+
+    record InitializeTeachingWeekRequest(String name, LocalDate startDate, LocalDate endDate, String phaseCode) {
+    }
+
     record CreateStoreRequest(String code, String name) {
     }
 
@@ -315,6 +332,9 @@ class GovernanceController {
 
     record TermResponse(UUID id, String code, String name, LocalDate startDate, LocalDate endDate, String status,
                         long version, OffsetDateTime updatedAt) {
+    }
+
+    record InitializationResponse(TermResponse term, StoreResponse store, TeachingWeekResponse firstTeachingWeek) {
     }
 
     record StoreResponse(UUID id, String code, String name, String status, long version, OffsetDateTime updatedAt) {

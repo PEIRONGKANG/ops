@@ -113,6 +113,29 @@ class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void p1CanAtomicallyInitializeATermStoreAndFirstTeachingWeek() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/initialization")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "term":{"code":"2026-AUTUMN","name":"2026 秋季实训","startDate":"2026-09-01","endDate":"2027-01-20"},
+                                  "store":{"code":"DRINK-LAB","name":"饮品实训门店"},
+                                  "firstTeachingWeek":{"name":"导入与准备","startDate":"2026-09-01","endDate":"2026-09-07","phaseCode":"PREPARATION"}
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.term.status").value("DRAFT"))
+                .andExpect(jsonPath("$.store.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.firstTeachingWeek.weekNumber").value(1))
+                .andExpect(jsonPath("$.firstTeachingWeek.termId").isString());
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_terms", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_stores", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from gov_teaching_weeks", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void certificationRuleMustDeclareACompleteExecutablePolicy() throws Exception {
         var termId = createTerm("2026-CERT-RULE", "认证规则校验学期");
         var storeId = createStore("CERT-RULE-LAB", "认证规则校验门店");

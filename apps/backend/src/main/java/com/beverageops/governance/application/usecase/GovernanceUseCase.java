@@ -38,6 +38,17 @@ public class GovernanceUseCase {
         return term;
     }
 
+    @Transactional
+    public InitializationResult initialize(InitializeCommand command) {
+        var term = createTerm(new CreateTermCommand(command.termCode(), command.termName(), command.termStartDate(),
+                command.termEndDate(), command.actorId()));
+        var store = createStore(new CreateStoreCommand(command.storeCode(), command.storeName(), command.actorId()));
+        var firstTeachingWeek = createTeachingWeek(term.id(), new CreateTeachingWeekCommand(1, command.firstTeachingWeekName(),
+                command.firstTeachingWeekStartDate(), command.firstTeachingWeekEndDate(), command.firstTeachingWeekPhaseCode(),
+                command.actorId()));
+        return new InitializationResult(term, store, firstTeachingWeek);
+    }
+
     @Transactional(readOnly = true)
     public List<GovernanceRepository.Term> listTerms() {
         return governance.findTerms();
@@ -375,6 +386,16 @@ public class GovernanceUseCase {
     }
 
     public record CreateTermCommand(String code, String name, LocalDate startDate, LocalDate endDate, UUID actorId) {
+    }
+
+    public record InitializeCommand(String termCode, String termName, LocalDate termStartDate, LocalDate termEndDate,
+                                    String storeCode, String storeName, String firstTeachingWeekName,
+                                    LocalDate firstTeachingWeekStartDate, LocalDate firstTeachingWeekEndDate,
+                                    String firstTeachingWeekPhaseCode, UUID actorId) {
+    }
+
+    public record InitializationResult(GovernanceRepository.Term term, GovernanceRepository.Store store,
+                                       GovernanceRepository.TeachingWeek firstTeachingWeek) {
     }
 
     public record UpdateTermCommand(String name, LocalDate startDate, LocalDate endDate, long version, UUID actorId) {
