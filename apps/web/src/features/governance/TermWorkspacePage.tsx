@@ -11,7 +11,8 @@ import type { GovernanceApi, InitializationInput, Store, TeachingWeek, Term } fr
 
 interface TermWorkspacePageProps {
   api: GovernanceApi;
-  onBack: () => void;
+  embedded?: boolean;
+  onBack?: () => void;
   onInitialized?: () => void;
 }
 
@@ -39,7 +40,7 @@ const fieldLabels = {
   firstWeekEndDate: '首周结束日期',
 } as const;
 
-export function TermWorkspacePage({ api, onBack, onInitialized }: TermWorkspacePageProps) {
+export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized }: TermWorkspacePageProps) {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [weeks, setWeeks] = useState<TeachingWeek[]>([]);
@@ -95,7 +96,7 @@ export function TermWorkspacePage({ api, onBack, onInitialized }: TermWorkspaceP
     const activeStore = stores[0];
     const firstWeek = weeks.find((week) => week.termId === activeTerm.id && week.weekNumber === 1);
     return (
-      <WorkspaceFrame onBack={onBack} title="实训周期">
+      <WorkspaceFrame embedded={embedded} onBack={onBack} title="实训周期">
         <Stack gap={4} maxWidth={880}>
           {initialized ? <Alert icon={<CheckCircleRoundedIcon fontSize="inherit" />} severity="success">实训周期已建立。下一步可以配置运营模板。</Alert> : null}
           <Box borderBottom={1} borderColor="divider" pb={3}>
@@ -120,7 +121,7 @@ export function TermWorkspacePage({ api, onBack, onInitialized }: TermWorkspaceP
   }
 
   return (
-    <WorkspaceFrame onBack={onBack} title="建立实训周期">
+    <WorkspaceFrame embedded={embedded} onBack={onBack} title="建立实训周期">
       <Box maxWidth={760}>
         <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">建立实训周期</Typography>
@@ -155,12 +156,12 @@ export function TermWorkspacePage({ api, onBack, onInitialized }: TermWorkspaceP
   );
 }
 
-function WorkspaceFrame({ children, onBack, title }: { children: ReactNode; onBack: () => void; title: string }) {
+function WorkspaceFrame({ children, embedded, onBack, title }: { children: ReactNode; embedded: boolean; onBack?: () => void; title: string }) {
+  if (embedded) return <>{children}</>;
+
   return (
     <Stack gap={3}>
-      <Box>
-        <Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button>
-      </Box>
+      <Box><Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button></Box>
       <Typography color="primary" fontWeight={800} variant="overline">运营治理 / {title}</Typography>
       {children}
     </Stack>

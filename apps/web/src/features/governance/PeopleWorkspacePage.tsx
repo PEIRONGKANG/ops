@@ -12,7 +12,8 @@ import type { AccountSummary, GovernanceApi, Membership, PendingRegistration, Te
 
 interface PeopleWorkspacePageProps {
   api: GovernanceApi;
-  onBack: () => void;
+  embedded?: boolean;
+  onBack?: () => void;
   onMembershipChanged?: () => void;
 }
 
@@ -28,7 +29,7 @@ const roleLabels: Record<Exclude<RoleCode, 'EXTERNAL_REVIEWER'>, string> = {
   T1: '带教教师（T1）',
 };
 
-export function PeopleWorkspacePage({ api, onBack, onMembershipChanged }: PeopleWorkspacePageProps) {
+export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershipChanged }: PeopleWorkspacePageProps) {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [termId, setTermId] = useState('');
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
@@ -124,11 +125,11 @@ export function PeopleWorkspacePage({ api, onBack, onMembershipChanged }: People
 
   if (terms === null) return <PageState kind="loading" title="正在读取实训人员" />;
   if (error && !termId) return <PageState description={error} kind="error" onRetry={() => { void loadTerms(); }} title="无法读取实训人员" />;
-  if (!termId) return <PeopleFrame onBack={onBack}><PageState description="请先建立实训周期，再组织本期人员。" kind="empty" title="尚未建立实训周期" /></PeopleFrame>;
+  if (!termId) return <PeopleFrame embedded={embedded} onBack={onBack}><PageState description="请先建立实训周期，再组织本期人员。" kind="empty" title="尚未建立实训周期" /></PeopleFrame>;
   if (loadingPeople && accounts.length === 0 && pending.length === 0) return <PageState kind="loading" title="正在读取人员组织" />;
 
   return (
-    <PeopleFrame onBack={onBack}>
+    <PeopleFrame embedded={embedded} onBack={onBack}>
       <Box maxWidth={960}>
         <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">组织实训人员</Typography>
@@ -200,7 +201,9 @@ export function PeopleWorkspacePage({ api, onBack, onMembershipChanged }: People
   );
 }
 
-function PeopleFrame({ children, onBack }: { children: ReactNode; onBack: () => void }) {
+function PeopleFrame({ children, embedded, onBack }: { children: ReactNode; embedded: boolean; onBack?: () => void }) {
+  if (embedded) return <>{children}</>;
+
   return <Stack gap={3}><Box><Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button></Box><Typography color="primary" fontWeight={800} variant="overline">运营治理 / 人员</Typography>{children}</Stack>;
 }
 

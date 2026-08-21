@@ -12,7 +12,8 @@ import type { GovernanceApi, Store, TemplateVersion, Term } from './governanceAp
 
 interface TemplateWorkspacePageProps {
   api: GovernanceApi;
-  onBack: () => void;
+  embedded?: boolean;
+  onBack?: () => void;
   onPublished?: () => void;
 }
 
@@ -26,7 +27,7 @@ interface FormValues {
   taskName: string;
 }
 
-export function TemplateWorkspacePage({ api, onBack, onPublished }: TemplateWorkspacePageProps) {
+export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublished }: TemplateWorkspacePageProps) {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [termId, setTermId] = useState('');
@@ -105,14 +106,14 @@ export function TemplateWorkspacePage({ api, onBack, onPublished }: TemplateWork
   if (loadError) return <PageState description={loadError} kind="error" onRetry={() => { void loadContext(); }} title="无法读取运营模板" />;
   if (!termId || !storeId) {
     return (
-      <TemplateFrame onBack={onBack}>
+      <TemplateFrame embedded={embedded} onBack={onBack}>
         <PageState description="先建立实训周期与运营门店，才能定义可发布的运营模板。" kind="empty" title="尚未具备模板范围" />
       </TemplateFrame>
     );
   }
 
   return (
-    <TemplateFrame onBack={onBack}>
+    <TemplateFrame embedded={embedded} onBack={onBack}>
       <Box maxWidth={880}>
         <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">配置运营模板</Typography>
@@ -172,7 +173,9 @@ function TemplateSummary({ error, onPublish, template }: { error: string | null;
   );
 }
 
-function TemplateFrame({ children, onBack }: { children: ReactNode; onBack: () => void }) {
+function TemplateFrame({ children, embedded, onBack }: { children: ReactNode; embedded: boolean; onBack?: () => void }) {
+  if (embedded) return <>{children}</>;
+
   return (
     <Stack gap={3}>
       <Box><Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button></Box>
