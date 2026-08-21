@@ -2,9 +2,10 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
+import { MaterialDateField } from '@/shared/ui/components/MaterialDateField';
 import { PageState } from '@/shared/ui/components/PageState';
 
 import type { GovernanceApi, InitializationInput, Store, TeachingWeek, Term } from './governanceApi';
@@ -47,7 +48,11 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
-  const { formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>();
+  const { control, formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>({
+    defaultValues: {
+      firstWeekEndDate: '', firstWeekName: '', firstWeekStartDate: '', storeCode: '', storeName: '', termCode: '', termEndDate: '', termName: '', termStartDate: '',
+    },
+  });
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -122,28 +127,28 @@ export function TermWorkspacePage({ api, embedded = false, onBack, onInitialized
 
   return (
     <WorkspaceFrame embedded={embedded} onBack={onBack} title="建立实训周期">
-      <Box maxWidth={760}>
-        <Stack gap={1} mb={4}>
+      <Box maxWidth={embedded ? 1080 : 760}>
+        {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">建立实训周期</Typography>
           <Typography color="text.secondary">一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。</Typography>
-        </Stack>
+        </Stack> : null}
 
         <Box component="form" noValidate onSubmit={handleSubmit(create)}>
-          <Stack gap={4}>
-            <FormSection description="定义本期的教学与运营时间范围。" title="实训周期">
+          <Stack gap={embedded ? 2.5 : 4}>
+            <FormSection compact={embedded} description="定义本期的教学与运营时间范围。" title="实训周期">
               <Field name="termCode" register={register} errors={errors} required />
               <Field name="termName" register={register} errors={errors} required />
-              <DateField name="termStartDate" register={register} errors={errors} required />
-              <DateField name="termEndDate" register={register} errors={errors} required />
+              <DateField control={control} name="termStartDate" errors={errors} required />
+              <DateField control={control} name="termEndDate" errors={errors} required />
             </FormSection>
-            <FormSection description="真实门店是教学现场，后续班次与模板将与其关联。" title="运营门店">
+            <FormSection compact={embedded} description="真实门店是教学现场，后续班次与模板将与其关联。" title="运营门店">
               <Field name="storeCode" register={register} errors={errors} required />
               <Field name="storeName" register={register} errors={errors} required />
             </FormSection>
-            <FormSection description="导入期将作为本期第一个教学周创建。" title="首个教学周">
+            <FormSection compact={embedded} description="导入期将作为本期第一个教学周创建。" title="首个教学周">
               <Field name="firstWeekName" register={register} errors={errors} required />
-              <DateField name="firstWeekStartDate" register={register} errors={errors} required />
-              <DateField name="firstWeekEndDate" register={register} errors={errors} required />
+              <DateField control={control} name="firstWeekStartDate" errors={errors} required />
+              <DateField control={control} name="firstWeekEndDate" errors={errors} required />
             </FormSection>
             {submitError ? <Alert severity="error">{submitError}</Alert> : null}
             <Box>
@@ -168,14 +173,14 @@ function WorkspaceFrame({ children, embedded, onBack, title }: { children: React
   );
 }
 
-function FormSection({ children, description, title }: { children: ReactNode; description: string; title: string }) {
+function FormSection({ children, compact, description, title }: { children: ReactNode; compact: boolean; description: string; title: string }) {
   return (
-    <Stack gap={2}>
+    <Stack gap={compact ? 1.25 : 2}>
       <Box>
         <Typography component="h2" variant="h3">{title}</Typography>
-        <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography>
+        {!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}
       </Box>
-      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }}>{children}</Box>
+      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr', lg: compact ? 'repeat(3, minmax(0, 1fr))' : '1fr 1fr' }}>{children}</Box>
     </Stack>
   );
 }
@@ -189,8 +194,20 @@ function Field({ errors, name, register, required }: {
   return <TextField error={Boolean(errors[name])} helperText={errors[name]?.message} label={fieldLabels[name]} {...register(name, { required: required ? '请填写此项。' : false })} />;
 }
 
-function DateField({ errors, name, register, required }: Parameters<typeof Field>[0]) {
-  return <TextField error={Boolean(errors[name])} helperText={errors[name]?.message} label={fieldLabels[name]} slotProps={{ inputLabel: { shrink: true } }} type="date" {...register(name, { required: required ? '请选择日期。' : false })} />;
+function DateField({ control, errors, name, required }: {
+  control: ReturnType<typeof useForm<FormValues>>['control'];
+  errors: Record<string, { message?: string } | undefined>;
+  name: Extract<keyof FormValues, 'termStartDate' | 'termEndDate' | 'firstWeekStartDate' | 'firstWeekEndDate'>;
+  required?: boolean;
+}) {
+  return (
+    <Controller
+      control={control}
+      name={name}
+      rules={{ required: required ? '请选择日期。' : false }}
+      render={({ field }) => <MaterialDateField error={Boolean(errors[name])} helperText={errors[name]?.message} label={fieldLabels[name]} onChange={field.onChange} required={required} value={field.value} />}
+    />
+  );
 }
 
 function messageFor(error: unknown): string {

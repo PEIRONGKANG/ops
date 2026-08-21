@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -42,6 +42,19 @@ function createApi(): GovernanceApi {
 const profile: AccountProfile = { id: 'p1-id', loginId: 'P1', displayName: '系统管理员', roles: ['P1'] };
 
 describe('DashboardPage', () => {
+  it('uses a two-part startup workspace without duplicate introduction copy', async () => {
+    render(<DashboardPage api={createApi()} profile={profile} />);
+
+    expect(await screen.findByRole('list', { name: '启动配置流程' })).toBeVisible();
+    expect(screen.getByLabelText('当前步骤配置')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: '启动清单' })).not.toBeInTheDocument();
+    expect(screen.queryByText('按顺序完成三项配置，即可开始安排并运行实训班次。')).not.toBeInTheDocument();
+    expect(screen.queryByText('当前配置')).not.toBeInTheDocument();
+    const configuration = screen.getByLabelText('当前步骤配置');
+    expect(within(configuration).queryByRole('heading', { level: 1, name: '建立实训周期' })).not.toBeInTheDocument();
+    expect(within(configuration).queryByText('一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。')).not.toBeInTheDocument();
+  });
+
   it('shows the horizontal startup flow and the current configuration form together', async () => {
     render(<DashboardPage api={createApi()} profile={profile} />);
 
@@ -69,13 +82,17 @@ describe('DashboardPage', () => {
 
     await user.type(await screen.findByRole('textbox', { name: '周期代码' }), term.code);
     await user.type(screen.getByRole('textbox', { name: '周期名称' }), term.name);
-    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: term.startDate } });
-    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: term.endDate } });
+    await user.click(screen.getByRole('group', { name: '开始日期' }));
+    await user.keyboard('20260901');
+    await user.click(screen.getByRole('group', { name: '结束日期' }));
+    await user.keyboard('20270120');
     await user.type(screen.getByRole('textbox', { name: '门店代码' }), store.code);
     await user.type(screen.getByRole('textbox', { name: '门店名称' }), store.name);
     await user.type(screen.getByRole('textbox', { name: '首周名称' }), firstTeachingWeek.name);
-    fireEvent.change(screen.getByLabelText('首周开始日期'), { target: { value: firstTeachingWeek.startDate } });
-    fireEvent.change(screen.getByLabelText('首周结束日期'), { target: { value: firstTeachingWeek.endDate } });
+    await user.click(screen.getByRole('group', { name: '首周开始日期' }));
+    await user.keyboard('20260901');
+    await user.click(screen.getByRole('group', { name: '首周结束日期' }));
+    await user.keyboard('20260907');
 
     await user.click(screen.getByRole('button', { name: '创建实训周期' }));
 

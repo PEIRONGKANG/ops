@@ -130,13 +130,13 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
 
   return (
     <PeopleFrame embedded={embedded} onBack={onBack}>
-      <Box maxWidth={960}>
-        <Stack gap={1} mb={4}>
+      <Box maxWidth={embedded ? 1080 : 960}>
+        {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">组织实训人员</Typography>
           <Typography color="text.secondary">审批账号、建立团队，并将已启用账号纳入当前实训周期。账号状态与团队归属均以服务端为准。</Typography>
-        </Stack>
+        </Stack> : null}
 
-        <FormControl fullWidth sx={{ maxWidth: 480, mb: 4 }}>
+        <FormControl fullWidth sx={{ maxWidth: 480, mb: embedded ? 2.5 : 4 }}>
           <InputLabel id="people-term-label">实训周期</InputLabel>
           <Select label="实训周期" labelId="people-term-label" onChange={(event) => {
             setTermId(event.target.value);
@@ -148,9 +148,9 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
           </Select>
         </FormControl>
 
-        <Stack gap={5}>
+        <Stack gap={embedded ? 3 : 5}>
           <section aria-labelledby="pending-title">
-            <SectionHeading description="批准后会生成一次性临时密码；请在交付后关闭或离开此页面，系统不会在浏览器中保存密码。" id="pending-title" title="待审批账号" />
+            <SectionHeading compact={embedded} description="批准后会生成一次性临时密码；请在交付后关闭或离开此页面，系统不会在浏览器中保存密码。" id="pending-title" title="待审批账号" />
             {issuedCredential ? <Alert severity="warning" sx={{ mb: 2 }}>请安全交付临时密码：账号 {issuedCredential.loginId}，临时密码 <strong>{issuedCredential.temporaryPassword}</strong>。首次登录后必须修改。</Alert> : null}
             {pending.length === 0 ? <Typography color="text.secondary" variant="body2">当前没有待审批账号。</Typography> : <Stack divider={<Divider flexItem />}>
               {pending.map((request) => {
@@ -171,7 +171,7 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
           </section>
 
           <section aria-labelledby="accounts-title">
-            <SectionHeading description="只显示已启用账号摘要，不暴露密码或其他认证数据。" id="accounts-title" title="已启用账号" />
+            <SectionHeading compact={embedded} description="只显示已启用账号摘要，不暴露密码或其他认证数据。" id="accounts-title" title="已启用账号" />
             <Stack divider={<Divider flexItem />}>
               {accounts.map((account) => <AccountRow account={account} key={account.id} />)}
               {accounts.length === 0 ? <Typography color="text.secondary" variant="body2">暂无已启用账号。</Typography> : null}
@@ -179,7 +179,7 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
           </section>
 
           <section aria-labelledby="team-title">
-            <SectionHeading description="团队用于日常班次组织；成员加入周期后才能被排班。" id="team-title" title="团队与学期成员" />
+            <SectionHeading compact={embedded} description="团队用于日常班次组织；成员加入周期后才能被排班。" id="team-title" title="团队与学期成员" />
             <Box component="form" maxWidth={640} noValidate onSubmit={handleSubmit(createTeam)}>
               <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr auto' }}>
                 <TextField error={Boolean(errors.code)} helperText={errors.code?.message} label="团队代码" {...register('code', { required: '请填写团队代码。' })} />
@@ -207,8 +207,8 @@ function PeopleFrame({ children, embedded, onBack }: { children: ReactNode; embe
   return <Stack gap={3}><Box><Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button></Box><Typography color="primary" fontWeight={800} variant="overline">运营治理 / 人员</Typography>{children}</Stack>;
 }
 
-function SectionHeading({ description, id, title }: { description: string; id: string; title: string }) {
-  return <Box mb={2}><Typography component="h2" id={id} variant="h3">{title}</Typography><Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography></Box>;
+function SectionHeading({ compact, description, id, title }: { compact: boolean; description: string; id: string; title: string }) {
+  return <Box mb={compact ? 1.25 : 2}><Typography component="h2" id={id} variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>;
 }
 
 function AccountRow({ account }: { account: AccountSummary }) {

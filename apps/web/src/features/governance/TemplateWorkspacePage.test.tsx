@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +27,16 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
 }
 
 describe('TemplateWorkspacePage', () => {
+  it('uses a compact Material calendar field without repeating its page introduction when embedded', async () => {
+    render(<TemplateWorkspacePage api={createApi()} embedded />);
+
+    expect(await screen.findByRole('heading', { name: '模板版本' })).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1, name: '配置运营模板' })).not.toBeInTheDocument();
+    expect(screen.queryByText('模板定义稳定的岗位与 SOP。发布后版本不可直接修改；需要调整时建立下一修订版。')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: '生效日期' })).toBeVisible();
+    expect(screen.getByRole('button', { name: /选择日期/ })).toBeVisible();
+  });
+
   it('creates a governed draft with the first role and SOP, then publishes its returned version', async () => {
     const user = userEvent.setup();
     const api = createApi();
@@ -36,7 +46,8 @@ describe('TemplateWorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: '配置运营模板' })).toBeVisible();
     await user.type(screen.getByLabelText('模板代码'), 'DAILY-OPS');
     await user.type(screen.getByLabelText('模板名称'), '日常运营模板');
-    fireEvent.change(screen.getByLabelText('生效日期'), { target: { value: '2026-09-01' } });
+    await user.click(screen.getByRole('group', { name: '生效日期' }));
+    await user.keyboard('20260901');
     await user.type(screen.getByLabelText('岗位代码'), 'BARISTA');
     await user.type(screen.getByLabelText('岗位名称'), '吧台制作');
     await user.type(screen.getByLabelText('SOP 代码'), 'OPENING-CHECK');

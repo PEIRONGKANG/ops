@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +27,16 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
 }
 
 describe('TermWorkspacePage', () => {
+  it('keeps the embedded period form compact while retaining Material calendar controls', async () => {
+    render(<TermWorkspacePage api={createApi()} embedded />);
+
+    expect(await screen.findByRole('heading', { name: '实训周期' })).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1, name: '建立实训周期' })).not.toBeInTheDocument();
+    expect(screen.queryByText('一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: '开始日期' })).toBeVisible();
+    expect(screen.getAllByRole('button', { name: /选择日期/ })).toHaveLength(4);
+  });
+
   it('initializes the term, store, and first teaching week in one server command', async () => {
     const user = userEvent.setup();
     const api = createApi({
@@ -42,13 +52,17 @@ describe('TermWorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: '建立实训周期' })).toBeVisible();
     await user.type(screen.getByLabelText('周期代码'), '2026-AUTUMN');
     await user.type(screen.getByLabelText('周期名称'), '2026 秋季实训');
-    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-09-01' } });
-    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2027-01-20' } });
+    await user.click(screen.getByRole('group', { name: '开始日期' }));
+    await user.keyboard('20260901');
+    await user.click(screen.getByRole('group', { name: '结束日期' }));
+    await user.keyboard('20270120');
     await user.type(screen.getByLabelText('门店代码'), 'DRINK-LAB');
     await user.type(screen.getByLabelText('门店名称'), '饮品实训门店');
     await user.type(screen.getByLabelText('首周名称'), '导入与准备');
-    fireEvent.change(screen.getByLabelText('首周开始日期'), { target: { value: '2026-09-01' } });
-    fireEvent.change(screen.getByLabelText('首周结束日期'), { target: { value: '2026-09-07' } });
+    await user.click(screen.getByRole('group', { name: '首周开始日期' }));
+    await user.keyboard('20260901');
+    await user.click(screen.getByRole('group', { name: '首周结束日期' }));
+    await user.keyboard('20260907');
 
     await user.click(screen.getByRole('button', { name: '创建实训周期' }));
 

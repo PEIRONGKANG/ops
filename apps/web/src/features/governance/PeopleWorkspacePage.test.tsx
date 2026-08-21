@@ -27,6 +27,14 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
 }
 
 describe('PeopleWorkspacePage', () => {
+  it('keeps people organization within the shared workspace body when embedded', async () => {
+    render(<PeopleWorkspacePage api={createApi()} embedded />);
+
+    expect(await screen.findByRole('heading', { name: '待审批账号' })).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1, name: '组织实训人员' })).not.toBeInTheDocument();
+    expect(screen.queryByText('审批账号、建立团队，并将已启用账号纳入当前实训周期。账号状态与团队归属均以服务端为准。')).not.toBeInTheDocument();
+  });
+
   it('approves a pending person with an explicit role and one-time temporary password', async () => {
     const user = userEvent.setup();
     const api = createApi();

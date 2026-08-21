@@ -17,7 +17,6 @@ interface DashboardPageProps {
 type SetupStatus = 'complete' | 'current' | 'blocked';
 
 type SetupStep = {
-  description: string;
   title: string;
 };
 
@@ -36,9 +35,9 @@ const roleLabels: Record<AccountProfile['roles'][number], string> = {
 };
 
 const setupSteps: SetupStep[] = [
-  { title: '建立实训周期', description: '录入学期、教学周和门店基础信息，确定本期运营范围。' },
-  { title: '配置运营模板', description: '基于周期定义可发布的岗位与首项 SOP。' },
-  { title: '组织实训人员', description: '建立团队，并将已启用账号加入当前实训周期。' },
+  { title: '建立实训周期' },
+  { title: '配置运营模板' },
+  { title: '组织实训人员' },
 ];
 
 export function DashboardPage({ api, profile }: DashboardPageProps) {
@@ -99,6 +98,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   return (
     <AppShell
       headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}
+      mainSx={{ alignItems: 'center', display: 'flex', justifyContent: 'center' }}
       notificationContent={
         <Stack gap={1.25}>
           <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
@@ -109,27 +109,18 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
       }
       notificationCount={notificationCount}
     >
-      <Box maxWidth={1120}>
-        <Stack gap={{ xs: 4, md: 5 }}>
-          <section aria-labelledby="setup-checklist-title">
-            <Stack gap={0.75} mb={3}>
-              <Typography component="h1" id="setup-checklist-title" variant="h3">启动清单</Typography>
-              <Typography color="text.secondary">按顺序完成三项配置，即可开始安排并运行实训班次。</Typography>
-            </Stack>
-            <StartupProgressRail statuses={statuses} />
-          </section>
+      <Box maxWidth={1120} width="100%">
+        <Stack gap={{ xs: 2.5, md: 3 }}>
+          <section aria-label="启动配置进度"><StartupProgressRail statuses={statuses} /></section>
 
           {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
           {loadError ? <Alert action={<Button color="inherit" onClick={() => { void load(); }} size="small">重试</Button>} severity="warning">{loadError}</Alert> : null}
 
-          <Box component="section" ref={configurationRef} aria-label="当前配置" borderColor="divider" borderTop={1} pt={{ xs: 3, md: 4 }}>
-            <Typography color="primary" fontWeight={800} variant="overline">当前配置</Typography>
-            <Box mt={2.5}>
-              {currentStepIndex === 0 ? <TermWorkspacePage api={api} embedded onInitialized={() => { void load(); }} /> : null}
-              {currentStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded onPublished={() => { void load(); }} /> : null}
-              {currentStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
-              {currentStepIndex === -1 ? <StartupComplete /> : null}
-            </Box>
+          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" borderColor="divider" borderTop={1} pt={{ xs: 2.5, md: 3 }}>
+            {currentStepIndex === 0 ? <TermWorkspacePage api={api} embedded onInitialized={() => { void load(); }} /> : null}
+            {currentStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded onPublished={() => { void load(); }} /> : null}
+            {currentStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
+            {currentStepIndex === -1 ? <StartupComplete /> : null}
           </Box>
         </Stack>
       </Box>
@@ -154,15 +145,14 @@ function StartupProgressItem({ index, status, step }: { index: number; status: S
 
   return (
     <Box aria-current={current ? 'step' : undefined} component="li" minWidth={0} position="relative" pt={0.5} sx={{ '&:not(:last-of-type)::after': { backgroundColor: color, content: '""', height: 2, left: 'calc(50% + 24px)', position: 'absolute', right: 'calc(-50% + 24px)', top: 16 } }}>
-      <Stack gap={1.25} position="relative" zIndex={1}>
+      <Stack gap={0.75} position="relative" zIndex={1}>
         <Box alignItems="center" bgcolor="background.default" display="flex" height={32} width="fit-content">
           <Box alignItems="center" border={2} borderColor={color} borderRadius="50%" color={complete || current ? color : 'text.secondary'} display="flex" fontWeight={800} height={32} justifyContent="center" width={32}>
             {complete ? <CheckRoundedIcon fontSize="small" /> : index + 1}
           </Box>
         </Box>
-        <Stack gap={0.5}>
+        <Stack gap={0.25}>
           <Typography color={textColor} fontWeight={current ? 800 : 700} variant="subtitle1">{step.title}</Typography>
-          <Typography color="text.secondary" variant="body2">{step.description}</Typography>
           <Typography color={complete ? 'success.main' : current ? 'primary.main' : 'text.secondary'} fontWeight={700} variant="caption">{stateLabel}</Typography>
         </Stack>
       </Stack>

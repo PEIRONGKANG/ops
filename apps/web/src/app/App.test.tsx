@@ -67,7 +67,9 @@ describe('App', () => {
     expect(api.changePassword).toHaveBeenCalledWith({ newPassword: 'ChangedPassword-2026' });
     expect(await screen.findByText('运营治理')).toBeVisible();
     expect(screen.queryByText('系统管理员，欢迎回来')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '启动清单' })).toBeVisible();
+    expect(await screen.findByRole('list', { name: '启动配置流程' })).toBeVisible();
+    expect(screen.getByLabelText('当前步骤配置')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: '启动清单' })).not.toBeInTheDocument();
     expect(screen.getByText('建立实训周期')).toBeVisible();
     expect(screen.getByText('配置运营模板')).toBeVisible();
     expect(screen.getByText('组织实训人员')).toBeVisible();

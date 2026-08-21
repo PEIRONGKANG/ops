@@ -2,9 +2,10 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
+import { MaterialDateField } from '@/shared/ui/components/MaterialDateField';
 import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
 
@@ -35,7 +36,9 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [latestTemplate, setLatestTemplate] = useState<TemplateVersion | null>(null);
-  const { formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>();
+  const { control, formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>({
+    defaultValues: { effectiveFrom: '', roleCode: '', roleName: '', taskCode: '', taskName: '', templateCode: '', templateName: '' },
+  });
 
   const loadContext = useCallback(async () => {
     setLoadError(null);
@@ -114,13 +117,13 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
 
   return (
     <TemplateFrame embedded={embedded} onBack={onBack}>
-      <Box maxWidth={880}>
-        <Stack gap={1} mb={4}>
+      <Box maxWidth={embedded ? 1080 : 880}>
+        {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">配置运营模板</Typography>
           <Typography color="text.secondary">模板定义稳定的岗位与 SOP。发布后版本不可直接修改；需要调整时建立下一修订版。</Typography>
-        </Stack>
+        </Stack> : null}
 
-        <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }} mb={4}>
+        <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }} mb={embedded ? 2.5 : 4}>
           <ScopeSelect label="实训周期" onChange={(id) => { setLatestTemplate(null); setTermId(id); }} options={terms.map((term) => ({ id: term.id, label: `${term.name} · ${term.code}` }))} value={termId} />
           <ScopeSelect label="运营门店" onChange={(id) => { setLatestTemplate(null); setStoreId(id); }} options={stores.map((store) => ({ id: store.id, label: `${store.name} · ${store.code}` }))} value={storeId} />
         </Box>
@@ -129,17 +132,17 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
           <TemplateSummary error={submitError} onPublish={() => { void publish(); }} template={latestTemplate} />
         ) : (
           <Box component="form" noValidate onSubmit={handleSubmit(create)}>
-            <Stack gap={4}>
-              <FormSection description="模板草稿绑定当前周期、门店和生效日期。" title="模板版本">
+            <Stack gap={embedded ? 2.5 : 4}>
+              <FormSection compact={embedded} description="模板草稿绑定当前周期、门店和生效日期。" title="模板版本">
                 <Field errors={errors} label="模板代码" name="templateCode" register={register} />
                 <Field errors={errors} label="模板名称" name="templateName" register={register} />
-                <DateField errors={errors} label="生效日期" name="effectiveFrom" register={register} />
+                <DateField control={control} errors={errors} label="生效日期" name="effectiveFrom" />
               </FormSection>
-              <FormSection description="这是首个班次配置的最小岗位定义；后续可继续补充。" title="首个岗位">
+              <FormSection compact={embedded} description="这是首个班次配置的最小岗位定义；后续可继续补充。" title="首个岗位">
                 <Field errors={errors} label="岗位代码" name="roleCode" register={register} />
                 <Field errors={errors} label="岗位名称" name="roleName" register={register} />
               </FormSection>
-              <FormSection description="这是岗位执行时必须确认的第一项标准操作。" title="首项 SOP">
+              <FormSection compact={embedded} description="这是岗位执行时必须确认的第一项标准操作。" title="首项 SOP">
                 <Field errors={errors} label="SOP 代码" name="taskCode" register={register} />
                 <Field errors={errors} label="SOP 名称" name="taskName" register={register} />
               </FormSection>
@@ -196,11 +199,11 @@ function ScopeSelect({ label, onChange, options, value }: { label: string; onCha
   );
 }
 
-function FormSection({ children, description, title }: { children: ReactNode; description: string; title: string }) {
+function FormSection({ children, compact, description, title }: { children: ReactNode; compact: boolean; description: string; title: string }) {
   return (
-    <Stack gap={2}>
-      <Box><Typography component="h2" variant="h3">{title}</Typography><Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography></Box>
-      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }}>{children}</Box>
+    <Stack gap={compact ? 1.25 : 2}>
+      <Box><Typography component="h2" variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>
+      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr', lg: compact ? 'repeat(3, minmax(0, 1fr))' : '1fr 1fr' }}>{children}</Box>
     </Stack>
   );
 }
@@ -214,8 +217,20 @@ function Field({ errors, label, name, register }: {
   return <TextField error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} {...register(name, { required: '请填写此项。' })} />;
 }
 
-function DateField({ errors, label, name, register }: Parameters<typeof Field>[0]) {
-  return <TextField error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} slotProps={{ inputLabel: { shrink: true } }} type="date" {...register(name, { required: '请选择日期。' })} />;
+function DateField({ control, errors, label, name }: {
+  control: ReturnType<typeof useForm<FormValues>>['control'];
+  errors: Record<string, { message?: string } | undefined>;
+  label: string;
+  name: 'effectiveFrom';
+}) {
+  return (
+    <Controller
+      control={control}
+      name={name}
+      rules={{ required: '请选择日期。' }}
+      render={({ field }) => <MaterialDateField error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} onChange={field.onChange} required value={field.value} />}
+    />
+  );
 }
 
 function preferredTerm(terms: Term[]): Term | undefined {
