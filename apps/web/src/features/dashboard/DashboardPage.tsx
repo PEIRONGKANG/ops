@@ -85,21 +85,21 @@ export function DashboardPage({ api, onOpenPeopleWorkspace, onOpenTemplateWorksp
   ];
   const actions = [onOpenTermWorkspace, onOpenTemplateWorkspace, onOpenPeopleWorkspace];
   const current = currentState(progress, loading);
+  const currentStepIndex = statuses.findIndex((status) => status === 'current');
+  const notificationCount = statuses.filter((status) => status !== 'complete').length;
+  const currentStep = currentStepIndex === -1 ? undefined : setupSteps[currentStepIndex];
 
   return (
-    <AppShell headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}>
+    <AppShell headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)} notificationContent={
+      <Stack gap={1.25}>
+        <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
+        <Typography component="h2" variant="h3">{profile.displayName}，欢迎回来</Typography>
+        <Typography color="text.secondary" variant="body2">{current.description}</Typography>
+        {currentStep ? <Box pt={0.5}><Button onClick={actions[currentStepIndex]} variant="contained">{currentStep.title}</Button></Box> : <Typography color="success.main" fontWeight={700} variant="body2">启动清单已完成</Typography>}
+      </Stack>
+    } notificationCount={notificationCount}>
       <Box maxWidth={1120}>
-        <Box borderBottom={1} borderColor="divider" pb={{ xs: 3, md: 4 }}>
-          <Stack alignItems={{ md: 'flex-end' }} direction={{ xs: 'column', md: 'row' }} gap={2} justifyContent="space-between">
-            <Stack gap={0.75}>
-              <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
-              <Typography component="h1" variant="h2">{profile.displayName}，欢迎回来</Typography>
-              <Typography color="text.secondary">{current.description}</Typography>
-            </Stack>
-          </Stack>
-        </Box>
-
-        <Box display="grid" gap={{ xs: 4, lg: 8 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 1fr) 280px' }} pt={{ xs: 4, md: 5 }}>
+        <Box display="grid" gap={{ xs: 4, lg: 8 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 1fr) 280px' }}>
           <section aria-labelledby="setup-checklist-title">
             <Stack gap={0.75} mb={2.5}>
               <Typography component="h2" id="setup-checklist-title" variant="h3">启动清单</Typography>

@@ -27,6 +27,27 @@ function createApi(): GovernanceApi {
 }
 
 describe('DashboardPage', () => {
+  it('moves first-time startup guidance into a notification that opens the current action', async () => {
+    const user = userEvent.setup();
+    const onOpenTermWorkspace = vi.fn();
+
+    render(<DashboardPage api={createApi()} onOpenPeopleWorkspace={vi.fn()} onOpenTemplateWorkspace={vi.fn()} onOpenTermWorkspace={onOpenTermWorkspace} profile={{
+      id: 'p1-id', loginId: 'P1', displayName: '系统管理员', roles: ['P1'],
+    }} />);
+
+    expect(screen.queryByText('系统管理员，欢迎回来')).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: '通知' }));
+
+    expect(await screen.findByRole('dialog', { name: '系统通知' })).toBeVisible();
+    expect(await screen.findByText('运营工作台')).toBeVisible();
+    expect(screen.getByText('系统管理员，欢迎回来')).toBeVisible();
+    expect(screen.getByText('当前尚未建立实训周期。完成基础配置后，这里将呈现班次、待办与教学进度。')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: '建立实训周期' }));
+
+    expect(onOpenTermWorkspace).toHaveBeenCalledOnce();
+  });
+
   it('opens the real term setup workspace from the current checklist item', async () => {
     const user = userEvent.setup();
     const onOpenTermWorkspace = vi.fn();
