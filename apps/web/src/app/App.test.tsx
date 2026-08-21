@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type AuthApi } from '@/shared/api/authApi';
@@ -29,6 +30,49 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: '登录到饮品实训运营系统' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: '账号' })).toBeVisible();
     expect(screen.getByLabelText('密码')).toBeVisible();
+  });
+
+  it('shows the required password change screen for a restricted first-login session', async () => {
+    const api: AuthApi = {
+      login: vi.fn(),
+      changePassword: vi.fn(),
+      refresh: vi.fn().mockResolvedValue({ accessToken: 'password-change-token', tokenType: 'password_change', expiresInSeconds: 600 }),
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    expect(await screen.findByRole('heading', { name: '更新登录密码' })).toBeVisible();
+    expect(screen.getByLabelText('新密码')).toBeVisible();
+    expect(screen.getByLabelText('确认新密码')).toBeVisible();
+  });
+
+  it('exchanges the restricted token for a normal session after a valid password change', async () => {
+    const user = userEvent.setup();
+    const api: AuthApi = {
+      login: vi.fn(),
+      changePassword: vi.fn().mockResolvedValue({ accessToken: 'access-token', tokenType: 'access', expiresInSeconds: 900 }),
+      refresh: vi.fn().mockResolvedValue({ accessToken: 'password-change-token', tokenType: 'password_change', expiresInSeconds: 600 }),
+      logout: vi.fn(),
+      me: vi.fn().mockResolvedValue({ id: 'account-id', loginId: 'ADMIN001', displayName: '系统管理员', roles: ['P1'] }),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    await user.type(await screen.findByLabelText('新密码'), 'ChangedPassword-2026');
+    await user.type(screen.getByLabelText('确认新密码'), 'ChangedPassword-2026');
+    await user.click(screen.getByRole('button', { name: '更新密码并继续' }));
+
+    expect(api.changePassword).toHaveBeenCalledWith({ newPassword: 'ChangedPassword-2026' });
+    expect(await screen.findByRole('heading', { name: '运营工作台' })).toBeVisible();
+    expect(screen.getByText('系统管理员，欢迎回来')).toBeVisible();
+    expect(screen.getByRole('heading', { name: '启动清单' })).toBeVisible();
+    expect(screen.getByText('建立实训周期')).toBeVisible();
+    expect(screen.getByText('配置运营模板')).toBeVisible();
+    expect(screen.getByText('组织实训人员')).toBeVisible();
+    expect(screen.queryByText('1. 初始化运行环境')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '治理配置即将开放' })).not.toBeInTheDocument();
   });
 
   afterEach(() => vi.unstubAllGlobals());
