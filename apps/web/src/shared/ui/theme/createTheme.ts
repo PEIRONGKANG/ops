@@ -109,6 +109,7 @@ export function createBeverageTheme() {
           },
         },
       },
+      MuiFormControl: { defaultProps: { variant: 'filled' } },
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {
@@ -173,11 +174,12 @@ export function createBeverageTheme() {
         defaultProps: { anchorOrigin: { horizontal: 'center', vertical: 'bottom' } },
         styleOverrides: {
           root: {
-            '& .MuiSnackbarContent-root': {
-              backgroundColor: 'var(--mui-palette-text-primary)',
+            maxWidth: 560,
+            width: 'calc(100% - 32px)',
+            '& .MuiAlert-root': {
               borderRadius: beverageTokens.shape.medium,
-              color: 'var(--mui-palette-background-paper)',
               minHeight: 52,
+              width: '100%',
             },
           },
         },
@@ -186,7 +188,6 @@ export function createBeverageTheme() {
         defaultProps: { size: 'medium' },
         styleOverrides: {
           root: { borderRadius: beverageTokens.shape.full, fontWeight: 600, height: 32 },
-          filled: { backgroundColor: 'var(--beverage-surface-container-high)' },
           outlined: { borderColor: 'var(--mui-palette-divider)' },
         },
       },

@@ -20,9 +20,35 @@ describe('createBeverageTheme', () => {
 
   it('uses the primary theme color for accessible focus styles', () => {
     const theme = createBeverageTheme();
+    const buttonRoot = theme.components?.MuiButton?.styleOverrides?.root as Record<string, unknown>;
+    const focusVisible = buttonRoot['&:focus-visible'];
 
-    expect(theme.components?.MuiButton?.styleOverrides?.root).toBeDefined();
-    expect(JSON.stringify(theme.components?.MuiButton?.styleOverrides?.root)).not.toContain('#0B5FFF');
+    expect(focusVisible).toMatchObject({
+      outline: expect.stringContaining('var(--mui-palette-primary-main)'),
+      outlineOffset: 2,
+    });
+    expect(JSON.stringify(focusVisible)).not.toContain('#0B5FFF');
+  });
+
+  it('preserves palette colors for semantic filled chips', () => {
+    const theme = createBeverageTheme();
+
+    expect(theme.components?.MuiChip?.styleOverrides).not.toHaveProperty('filled.backgroundColor');
+  });
+
+  it('keeps select controls and their form-control context on the filled variant', () => {
+    const theme = createBeverageTheme();
+
+    expect(theme.components?.MuiFormControl?.defaultProps?.variant).toBe('filled');
+    expect(theme.components?.MuiSelect?.defaultProps?.variant).toBe('filled');
+  });
+
+  it('styles the alert rendered inside the snackbar root', () => {
+    const theme = createBeverageTheme();
+    const snackbarRoot = JSON.stringify(theme.components?.MuiSnackbar?.styleOverrides?.root);
+
+    expect(snackbarRoot).toContain('.MuiAlert-root');
+    expect(snackbarRoot).not.toContain('.MuiSnackbarContent-root');
   });
 
   it('exposes the semantic state, layout, and shape scales', () => {
