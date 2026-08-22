@@ -20,9 +20,9 @@ export function AppShell({ children, headerContent, mainSx, navigation, notifica
 
   return (
     <Box display="flex" flexDirection="column" minHeight="100dvh">
-      <AppBar color="inherit" elevation={0} position="sticky" sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default' }}>
-        <Toolbar sx={{ gap: 1 }}>
-          <Stack alignItems="center" direction="row" flex={1} flexWrap="wrap" gap={0.75} minWidth={0}>{headerContent}</Stack>
+      <AppBar aria-label="应用栏" color="inherit" elevation={0} position="sticky" sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default' }}>
+        <Toolbar disableGutters sx={{ gap: 1, height: 'var(--beverage-top-bar-height)', minHeight: 'var(--beverage-top-bar-height)', px: { xs: 2, sm: 3 } }}>
+          <Stack alignItems="center" direction="row" flex={1} flexWrap="nowrap" gap={0.75} minWidth={0} overflow="hidden">{headerContent}</Stack>
           {notificationContent ? <IconButton aria-controls={notificationOpen ? 'workspace-notifications' : undefined} aria-expanded={notificationOpen} aria-haspopup="dialog" aria-label="通知" color="primary" onClick={openNotifications}>
             <Badge badgeContent={notificationCount} color="primary" invisible={notificationCount === 0} max={9}><NotificationsNoneRoundedIcon /></Badge>
           </IconButton> : null}
@@ -33,7 +33,7 @@ export function AppShell({ children, headerContent, mainSx, navigation, notifica
       </Popover> : null}
       <Box display="grid" flex={1} gridTemplateColumns={{ md: navigation ? '240px minmax(0, 1fr)' : '1fr' }} minHeight={0}>
         {navigation ? <Box component="nav" sx={{ borderRight: { md: 1 }, borderColor: 'divider', display: { xs: 'none', md: 'block' }, p: 2 }}>{navigation}</Box> : null}
-        <Box component="main" minWidth={0} sx={[{ p: { xs: 2, sm: 3, md: 4 } }, ...mainStyles]}>{children}</Box>
+        <Box component="main" minWidth={0} sx={mainStyles}>{children}</Box>
       </Box>
     </Box>
   );

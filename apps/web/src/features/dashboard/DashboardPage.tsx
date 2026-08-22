@@ -1,4 +1,3 @@
-import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { Box, Button, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,18 +8,16 @@ import { TermWorkspacePage } from '@/features/governance/TermWorkspacePage';
 import type { GovernanceApi, Store, Term } from '@/features/governance/governanceApi';
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
+import { PageScaffold } from '@/shared/ui/components/PageScaffold';
+import { SupportingActionPane } from '@/shared/ui/components/SupportingActionPane';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+
+import { StartupStepper, type StartupStepStatus } from './StartupStepper';
 
 interface DashboardPageProps {
   api: GovernanceApi;
   profile: AccountProfile;
 }
-
-type SetupStatus = 'complete' | 'current' | 'blocked';
-
-type SetupStep = {
-  title: string;
-};
 
 interface StartupProgress {
   people: boolean;
@@ -37,11 +34,7 @@ const roleLabels: Record<AccountProfile['roles'][number], string> = {
   EXTERNAL_REVIEWER: '外部评审',
 };
 
-const setupSteps: SetupStep[] = [
-  { title: '建立实训周期' },
-  { title: '配置运营模板' },
-  { title: '组织实训人员' },
-];
+const setupStepTitles = ['建立实训周期', '配置运营模板', '组织实训人员'];
 
 const workspaceTitles = ['实训周期', '运营模板', '实训人员'];
 
@@ -94,7 +87,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const statuses = useMemo<SetupStatus[]>(() => [
+  const statuses = useMemo<StartupStepStatus[]>(() => [
     progress.published || progress.period ? 'complete' : 'current',
     progress.published || progress.template ? 'complete' : progress.period ? 'current' : 'blocked',
     progress.published ? 'complete' : progress.template ? 'current' : 'blocked',
@@ -104,7 +97,8 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
     ? selectedStepIndex
     : currentStepIndex;
   const current = currentState(progress, loading);
-  const currentStep = currentStepIndex === -1 ? undefined : setupSteps[currentStepIndex];
+  const steps = useMemo(() => setupStepTitles.map((title, index) => ({ status: statuses[index], title })), [statuses]);
+  const currentStep = currentStepIndex === -1 ? undefined : steps[currentStepIndex];
   const notificationCount = statuses.filter((status) => status !== 'complete').length;
   const showInitialPeriodForward = !loading && visibleStepIndex === 0 && !progress.period;
 
@@ -137,7 +131,6 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   return (
     <AppShell
       headerContent={profile.roles.map((role) => <Chip color="primary" key={role} label={roleLabels[role]} size="small" variant="outlined" />)}
-      mainSx={{ alignItems: 'center', display: 'flex', justifyContent: 'center' }}
       notificationContent={
         <Stack gap={1.25}>
           <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
@@ -148,51 +141,57 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
       }
       notificationCount={notificationCount}
     >
-      <Box maxWidth={1120} width="100%">
+      <PageScaffold
+        actions={visibleStepIndex > 0 ? <Button onClick={() => setSelectedStepIndex(visibleStepIndex - 1)} size="small" variant="text">返回上一步</Button> : undefined}
+        title={visibleStepIndex === -1 ? '实训配置' : workspaceTitles[visibleStepIndex]}
+      >
         <Stack gap={{ xs: 2.5, md: 3 }}>
-          <section aria-label="启动配置进度"><StartupProgressRail onSelect={setSelectedStepIndex} selectedIndex={visibleStepIndex} statuses={statuses} /></section>
+          <StartupStepper onSelect={setSelectedStepIndex} selected={visibleStepIndex} steps={steps} />
 
           {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
 
-          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" position="relative" pt={{ xs: 0.5, md: 1 }}>
-            {visibleStepIndex !== -1 ? <StartupActionBar
-              canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
-              formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
-              mainLabel={showInitialPeriodForward ? undefined : visibleStepIndex === 0 ? '保存修改' : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
-              onBack={visibleStepIndex > 0 ? () => setSelectedStepIndex(visibleStepIndex - 1) : undefined}
-              onPublish={() => { void publish(); }}
-              title={workspaceTitles[visibleStepIndex]}
-            /> : null}
-            {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
-            {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
-            {visibleStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
-            {showInitialPeriodForward ? <StartupForwardAction formId="startup-period-form" /> : null}
+          <Box component="section" ref={configurationRef} aria-label="当前步骤配置">
+            {visibleStepIndex !== -1 ? (
+              <Box display="grid" gap={{ xs: 3, lg: 4 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 2fr) minmax(240px, 1fr)' }}>
+                <Box minWidth={0}>
+                  {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
+                  {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
+                  {visibleStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
+                </Box>
+                <StartupActionPane
+                  canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
+                  formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
+                  initialPeriod={showInitialPeriodForward}
+                  mainLabel={visibleStepIndex === 0 ? '保存修改' : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
+                  onPublish={() => { void publish(); }}
+                  stepIndex={visibleStepIndex}
+                />
+              </Box>
+            ) : null}
             {currentStepIndex === -1 ? <StartupComplete /> : null}
           </Box>
         </Stack>
-      </Box>
+      </PageScaffold>
     </AppShell>
   );
 }
 
 function StartupForwardAction({ formId }: { formId: string }) {
   return (
-    <Box alignSelf="flex-end" position={{ xs: 'static', md: 'absolute' }} right={0} sx={{ bottom: '50%', transform: { md: 'translateY(50%)' } }}>
+    <Box display="flex" justifyContent="center" width="100%">
       <Tooltip placement="left" title="创建实训周期">
         <IconButton
           aria-label="创建实训周期"
           data-testid="startup-period-forward"
           form={formId}
           sx={{
-            backgroundColor: 'rgba(19, 109, 91, 0.12)',
-            border: '1px solid rgba(19, 109, 91, 0.18)',
-            boxShadow: '0 10px 28px rgba(25, 48, 39, 0.10)',
+            backgroundColor: 'var(--beverage-primary-container)',
             color: 'primary.main',
             height: 56,
-            opacity: 0.78,
-            transition: 'opacity 180ms ease, background-color 180ms ease, transform 180ms ease',
+            opacity: 0.72,
+            transition: 'opacity 180ms ease, transform 180ms ease',
             width: 56,
-            '&:hover': { backgroundColor: 'rgba(19, 109, 91, 0.18)', opacity: 1, transform: 'translateX(3px)' },
+            '&:hover': { backgroundColor: 'var(--beverage-primary-container)', opacity: 1, transform: 'translateX(3px)' },
           }}
           type="submit"
         >
@@ -203,60 +202,32 @@ function StartupForwardAction({ formId }: { formId: string }) {
   );
 }
 
-function StartupProgressRail({ onSelect, selectedIndex, statuses }: { onSelect: (index: number) => void; selectedIndex: number; statuses: SetupStatus[] }) {
-  const completedSteps = Math.min(2, statuses.filter((status) => status === 'complete').length);
-
-  return (
-    <Box aria-label="启动配置流程" bgcolor="var(--beverage-surface-container)" borderRadius={3} component="ol" m={0} p={{ xs: 1, sm: 1.5 }} position="relative" sx={{ listStyle: 'none' }}>
-      <Box aria-hidden bgcolor="divider" height={2} left="16.667%" position="absolute" right="16.667%" sx={{ top: 35 }}>
-        <Box bgcolor="primary.main" height="100%" sx={{ transition: 'width 180ms ease' }} width={`${completedSteps * 50}%`} />
-      </Box>
-      <Box display="grid" gap={{ xs: 0.5, sm: 1 }} gridTemplateColumns="repeat(3, minmax(0, 1fr))" position="relative">
-        {setupSteps.map((step, index) => <StartupProgressItem index={index} key={step.title} onSelect={() => onSelect(index)} selected={selectedIndex === index} status={statuses[index]} step={step} />)}
-      </Box>
-    </Box>
-  );
-}
-
-function StartupProgressItem({ index, onSelect, selected, status, step }: { index: number; onSelect: () => void; selected: boolean; status: SetupStatus; step: SetupStep }) {
-  const complete = status === 'complete';
-  const current = status === 'current';
-  const selectable = status !== 'blocked';
-  const textColor = complete || current ? 'text.primary' : 'text.secondary';
-  const stateLabel = complete ? '已完成' : '等待上一步';
-
-  return (
-    <Box aria-current={selected ? 'step' : undefined} component="li" display="flex" flexDirection="column" minWidth={0} position="relative" sx={{ alignItems: 'center' }}>
-      <Button disabled={!selectable} onClick={onSelect} sx={{ alignItems: 'center', backgroundColor: selected ? 'var(--beverage-primary-container)' : 'transparent', borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 0.75, justifyContent: 'center', minHeight: 0, minWidth: 0, p: { xs: 0.75, sm: 1 }, transition: 'background-color 180ms ease', '&.Mui-disabled': { color: 'text.secondary' }, '&:hover': { backgroundColor: selected ? 'var(--beverage-primary-container)' : 'var(--beverage-surface-container-high)' } }} variant="text">
-        <Box alignItems="center" bgcolor={complete || current ? 'primary.main' : 'background.paper'} border={complete || current ? 0 : 2} borderColor="divider" borderRadius="50%" color={complete || current ? 'primary.contrastText' : 'text.secondary'} display="flex" fontWeight={800} height={32} justifyContent="center" width={32}>
-            {complete ? <CheckRoundedIcon fontSize="small" /> : index + 1}
-        </Box>
-        <Typography color={textColor} fontWeight={selected ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, lineHeight: 1.35 }} variant="subtitle1">{step.title}</Typography>
-      </Button>
-      {!current ? <Typography color={complete ? 'success.main' : 'text.secondary'} fontWeight={700} mt={0.5} variant="caption">{stateLabel}</Typography> : null}
-    </Box>
-  );
-}
-
-function StartupActionBar({ canPublish, formId, mainLabel, onBack, onPublish, title }: {
+function StartupActionPane({ canPublish, formId, initialPeriod, mainLabel, onPublish, stepIndex }: {
   canPublish: boolean;
   formId?: string;
+  initialPeriod: boolean;
   mainLabel?: string;
-  onBack?: () => void;
   onPublish: () => void;
-  title: string;
+  stepIndex: number;
 }) {
+  const titles = ['完成实训周期', '保存运营模板', '发布实训配置'];
+  const descriptions = [
+    initialPeriod ? '确认周期、门店与首周信息。创建后将进入运营模板配置。' : '保存本步骤的修改后，可以继续返回其他草稿步骤。',
+    '保存运营模板草稿后，将进入实训人员组织。发布前仍可返回修改。',
+    '确认团队与成员已就绪，然后一次发布周期和运营模板。',
+  ];
+  const action = initialPeriod && formId
+    ? <StartupForwardAction formId={formId} />
+    : mainLabel && formId
+      ? <Button form={formId} type="submit" variant="contained">{mainLabel}</Button>
+      : canPublish
+        ? <Button onClick={onPublish} variant="contained">发布实训配置</Button>
+        : undefined;
+
   return (
-    <Box aria-label={`${title}操作`} component="header" mb={{ xs: 2.5, md: 3 }}>
-      <Stack alignItems="center" direction="row" justifyContent="space-between" minHeight={48}>
-        <Stack alignItems="center" direction="row" gap={0.5} minWidth={0}>
-          {onBack ? <Button onClick={onBack} size="small" variant="text">返回上一步</Button> : null}
-          <Typography component="h1" variant="h2">{title}</Typography>
-        </Stack>
-        {mainLabel && formId ? <Button form={formId} type="submit" variant="contained">{mainLabel}</Button> : null}
-        {canPublish ? <Button onClick={onPublish} variant="contained">发布实训配置</Button> : null}
-      </Stack>
-    </Box>
+    <SupportingActionPane action={action} title={titles[stepIndex]}>
+      <Typography color="text.secondary" variant="body2">{descriptions[stepIndex]}</Typography>
+    </SupportingActionPane>
   );
 }
 
