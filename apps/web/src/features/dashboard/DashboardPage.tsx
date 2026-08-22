@@ -1,5 +1,6 @@
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import { Box, Button, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PeopleWorkspacePage } from '@/features/governance/PeopleWorkspacePage';
@@ -105,6 +106,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   const current = currentState(progress, loading);
   const currentStep = currentStepIndex === -1 ? undefined : setupSteps[currentStepIndex];
   const notificationCount = statuses.filter((status) => status !== 'complete').length;
+  const showInitialPeriodForward = !loading && visibleStepIndex === 0 && !progress.period;
 
   useEffect(() => {
     if (!loading && currentStepIndex >= 0 && (selectedStepIndex === null || statuses[selectedStepIndex] === 'blocked')) {
@@ -152,11 +154,11 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
           {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
 
-          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" pt={{ xs: 0.5, md: 1 }}>
+          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" position="relative" pt={{ xs: 0.5, md: 1 }}>
             {visibleStepIndex !== -1 ? <StartupActionBar
               canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
               formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
-              mainLabel={visibleStepIndex === 0 ? (progress.period ? '保存修改' : '创建实训周期') : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
+              mainLabel={showInitialPeriodForward ? undefined : visibleStepIndex === 0 ? '保存修改' : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
               onBack={visibleStepIndex > 0 ? () => setSelectedStepIndex(visibleStepIndex - 1) : undefined}
               onPublish={() => { void publish(); }}
               title={workspaceTitles[visibleStepIndex]}
@@ -164,11 +166,40 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
             {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
             {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
             {visibleStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
+            {showInitialPeriodForward ? <StartupForwardAction formId="startup-period-form" /> : null}
             {currentStepIndex === -1 ? <StartupComplete /> : null}
           </Box>
         </Stack>
       </Box>
     </AppShell>
+  );
+}
+
+function StartupForwardAction({ formId }: { formId: string }) {
+  return (
+    <Box alignSelf="flex-end" position={{ xs: 'static', md: 'absolute' }} right={0} sx={{ bottom: '50%', transform: { md: 'translateY(50%)' } }}>
+      <Tooltip placement="left" title="创建实训周期">
+        <IconButton
+          aria-label="创建实训周期"
+          data-testid="startup-period-forward"
+          form={formId}
+          sx={{
+            backgroundColor: 'rgba(19, 109, 91, 0.12)',
+            border: '1px solid rgba(19, 109, 91, 0.18)',
+            boxShadow: '0 10px 28px rgba(25, 48, 39, 0.10)',
+            color: 'primary.main',
+            height: 56,
+            opacity: 0.78,
+            transition: 'opacity 180ms ease, background-color 180ms ease, transform 180ms ease',
+            width: 56,
+            '&:hover': { backgroundColor: 'rgba(19, 109, 91, 0.18)', opacity: 1, transform: 'translateX(3px)' },
+          }}
+          type="submit"
+        >
+          <ArrowForwardRoundedIcon />
+        </IconButton>
+      </Tooltip>
+    </Box>
   );
 }
 

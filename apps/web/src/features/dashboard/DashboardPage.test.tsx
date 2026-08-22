@@ -77,13 +77,18 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: '创建实训周期' })).toHaveAttribute('form', 'startup-period-form');
   });
 
-  it('keeps the current form title and its primary action in one workspace header', async () => {
+  it('places initial period creation in a translucent forward control at the configuration edge', async () => {
     renderDashboard(createApi());
 
     const configuration = screen.getByLabelText('当前步骤配置');
     const header = await within(configuration).findByLabelText('实训周期操作');
     expect(within(header).getByRole('heading', { name: '实训周期' })).toBeVisible();
-    expect(within(header).getByRole('button', { name: '创建实训周期' })).toHaveAttribute('form', 'startup-period-form');
+    expect(within(header).queryByRole('button', { name: '创建实训周期' })).not.toBeInTheDocument();
+
+    const forward = within(configuration).getByTestId('startup-period-forward');
+    expect(forward).toHaveAttribute('aria-label', '创建实训周期');
+    expect(forward).toHaveAttribute('form', 'startup-period-form');
+    expect(forward).toHaveAttribute('type', 'submit');
   });
 
   it('marks the selected startup step without rendering a current-step text label', async () => {
