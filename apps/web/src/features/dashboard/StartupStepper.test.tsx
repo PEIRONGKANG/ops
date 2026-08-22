@@ -42,7 +42,18 @@ describe('StartupStepper', () => {
     expect(viewed).toHaveAttribute('aria-pressed', 'true');
     expect(viewed.closest('li')).toHaveAttribute('aria-current', 'step');
     expect(viewed).toHaveAccessibleDescription('已完成');
-    expect(within(list).getByRole('button', { name: '配置运营模板' })).toHaveAccessibleDescription('待配置');
+    const currentButton = within(list).getByRole('button', { name: '配置运营模板' });
+    expect(currentButton).toHaveAccessibleDescription('待配置');
+    const currentStatus = document.getElementById(currentButton.getAttribute('aria-describedby') ?? '');
+    expect(currentStatus).toHaveStyle({
+      borderWidth: '0px',
+      height: '1px',
+      margin: '-1px',
+      overflow: 'hidden',
+      padding: '0px',
+      position: 'absolute',
+      width: '1px',
+    });
     expect(within(list).getByRole('button', { name: '配置运营模板' })).toHaveAttribute('aria-pressed', 'false');
     expect(within(list).getByRole('button', { name: '组织实训人员' })).toHaveAccessibleDescription('等待上一步');
     expect(within(list).queryByText('当前步骤')).not.toBeInTheDocument();

@@ -2,6 +2,8 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { Box, Button, Typography } from '@mui/material';
 import { useId } from 'react';
 
+import { visuallyHidden } from '@/shared/ui/forms/fieldErrorAccessibility';
+
 export type StartupStepStatus = 'complete' | 'current' | 'blocked';
 
 export interface StartupStep {
@@ -123,8 +125,8 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                 color="text.secondary"
                 fontWeight={700}
                 id={statusId}
-                mt={blocked ? 0.5 : 0}
-                sx={blocked ? undefined : { height: 1, overflow: 'hidden', position: 'absolute', width: 1, clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', whiteSpace: 'nowrap' }}
+                mt={blocked ? 0.5 : undefined}
+                sx={blocked ? undefined : visuallyHidden}
                 variant="caption"
               >
                 {statusText}

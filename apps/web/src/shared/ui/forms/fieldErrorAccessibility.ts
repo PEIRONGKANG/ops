@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export const visuallyHiddenFieldError: CSSProperties = {
+export const visuallyHidden: CSSProperties = {
   border: 0,
   clip: 'rect(0 0 0 0)',
   height: '1px',
@@ -11,3 +11,5 @@ export const visuallyHiddenFieldError: CSSProperties = {
   whiteSpace: 'nowrap',
   width: '1px',
 };
+
+export const visuallyHiddenFieldError = visuallyHidden;
