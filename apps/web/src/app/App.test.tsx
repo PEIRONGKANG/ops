@@ -203,6 +203,10 @@ describe('App', () => {
 
   it('exchanges the restricted token for a normal session after a valid password change', async () => {
     const user = userEvent.setup();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))));
     const api: AuthApi = {
       login: vi.fn(),
       changePassword: vi.fn().mockResolvedValue({ accessToken: 'access-token', tokenType: 'access', expiresInSeconds: 900 }),
