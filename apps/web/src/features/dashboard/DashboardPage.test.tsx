@@ -59,7 +59,7 @@ describe('DashboardPage', () => {
     expect(screen.queryByRole('heading', { name: '启动清单' })).not.toBeInTheDocument();
     expect(screen.queryByText('按顺序完成三项配置，即可开始安排并运行实训班次。')).not.toBeInTheDocument();
     expect(screen.queryByText('当前配置')).not.toBeInTheDocument();
-    const configuration = screen.getByLabelText('当前步骤配置');
+    const configuration = await screen.findByLabelText('当前步骤配置');
     expect(within(configuration).queryByRole('heading', { level: 1, name: '建立实训周期' })).not.toBeInTheDocument();
     expect(within(configuration).queryByText('一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。')).not.toBeInTheDocument();
   });
@@ -80,7 +80,7 @@ describe('DashboardPage', () => {
   it('places initial period creation inside the supporting action pane', async () => {
     renderDashboard(createApi());
 
-    const configuration = screen.getByLabelText('当前步骤配置');
+    const configuration = await screen.findByLabelText('当前步骤配置');
     const pane = await within(configuration).findByRole('complementary', { name: '完成实训周期' });
     expect(within(pane).getByRole('heading', { name: '完成实训周期' })).toBeVisible();
     const forward = within(pane).getByTestId('startup-period-forward');
@@ -202,19 +202,37 @@ describe('DashboardPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('实训配置已发布，周期与运营模板现已生效。');
   });
 
-  it('surfaces startup synchronization errors in a retriable toast', async () => {
+  it('blocks startup actions when a dependent state request fails and restores the server step after retry', async () => {
     const user = userEvent.setup();
     const api = createApi();
-    const listTerms = vi.fn().mockRejectedValue(new Error('network failure'));
-    api.listTerms = listTerms;
+    api.listTerms = vi.fn().mockResolvedValue([term]);
+    api.listStores = vi.fn().mockResolvedValue([store]);
+    api.listTeachingWeeks = vi.fn().mockResolvedValue([firstTeachingWeek]);
+    api.listTemplateVersions = vi.fn().mockResolvedValue([{
+      id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'DRAFT', effectiveFrom: '2026-09-01', effectiveUntil: null, configuration: {}, version: 4, updatedAt: '2026-08-21T00:00:00Z',
+    }]);
+    api.listTeams = vi.fn()
+      .mockRejectedValueOnce(new Error('network failure'))
+      .mockResolvedValue([{ id: 'team-id', termId: term.id, code: 'TEAM-A', name: 'A 组', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listMemberships = vi.fn().mockResolvedValue([{ id: 'membership-id', termId: term.id, accountId: 'account-id', teamId: 'team-id', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listAccounts = vi.fn().mockResolvedValue([{ id: 'account-id', loginId: 'P3-001', displayName: '林同学', status: 'ACTIVE', roles: ['P3'] }]);
 
     renderDashboard(api);
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('无法同步启动状态，请检查网络后重试。');
-    expect(alert.closest('.MuiSnackbar-root')).toBeInTheDocument();
-    const callsBeforeRetry = listTerms.mock.calls.length;
-    await user.click(screen.getByRole('button', { name: '重试' }));
-    expect(listTerms).toHaveBeenCalledTimes(callsBeforeRetry + 1);
+    const blocked = await screen.findByRole('region', { name: '无法同步启动状态' });
+    expect(blocked).toHaveTextContent('无法确认周期、模板与人员配置，请检查网络后重试。');
+    expect(screen.queryByRole('button', { name: '创建实训周期' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存修改' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存模板草稿' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '发布实训配置' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    const callsBeforeRetry = vi.mocked(api.listTeams).mock.calls.length;
+    await user.click(within(blocked).getByRole('button', { name: '重试' }));
+
+    const rail = await screen.findByRole('list', { name: '启动配置流程' });
+    expect(within(rail).getByText('组织实训人员').closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(await screen.findByRole('button', { name: '发布实训配置' })).toBeVisible();
+    expect(vi.mocked(api.listTeams).mock.calls.length).toBeGreaterThan(callsBeforeRetry);
   });
 });

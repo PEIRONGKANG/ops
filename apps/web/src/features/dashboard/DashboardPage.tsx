@@ -9,6 +9,7 @@ import type { GovernanceApi, Store, Term } from '@/features/governance/governanc
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
 import { PageScaffold } from '@/shared/ui/components/PageScaffold';
+import { PageState } from '@/shared/ui/components/PageState';
 import { SupportingActionPane } from '@/shared/ui/components/SupportingActionPane';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
@@ -39,6 +40,7 @@ const workspaceTitles = ['实训周期', '运营模板', '实训人员'];
 export function DashboardPage({ api, profile }: DashboardPageProps) {
   const [progress, setProgress] = useState<StartupProgress>({ period: false, template: false, people: false, published: false });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
   const [publication, setPublication] = useState<{ term: Term; templateId: string; templateVersion: number } | null>(null);
   const { showToast } = useToast();
@@ -46,6 +48,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [terms, stores] = await Promise.all([api.listTerms(), api.listStores()]);
       const term = preferredTerm(terms);
@@ -77,11 +80,11 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
       });
       setPublication(template ? { term, templateId: template.id, templateVersion: template.version } : null);
     } catch {
-      showToast({ action: { label: '重试', onClick: () => { void load(); } }, message: '无法同步启动状态，请检查网络后重试。', severity: 'warning' });
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [api, showToast]);
+  }, [api]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -94,7 +97,9 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   const visibleStepIndex = currentStepIndex === -1 ? -1 : selectedStepIndex !== null && statuses[selectedStepIndex] !== 'blocked'
     ? selectedStepIndex
     : currentStepIndex;
-  const current = currentState(progress, loading);
+  const current = loadError
+    ? { description: '暂时无法确认周期、模板与人员配置。请在工作台中重试。' }
+    : currentState(progress, loading);
   const steps = useMemo<StartupSteps>(() => [
     { status: statuses[0], title: '建立实训周期' },
     { status: statuses[1], title: '配置运营模板' },
@@ -102,13 +107,14 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   ], [statuses]);
   const currentStep = currentStepIndex === -1 ? undefined : steps[currentStepIndex];
   const notificationCount = statuses.filter((status) => status !== 'complete').length;
-  const showInitialPeriodForward = !loading && visibleStepIndex === 0 && !progress.period;
+  const configurationAvailable = !loading && !loadError;
+  const showInitialPeriodForward = configurationAvailable && visibleStepIndex === 0 && !progress.period;
 
   useEffect(() => {
-    if (!loading && currentStepIndex >= 0 && (selectedStepIndex === null || statuses[selectedStepIndex] === 'blocked')) {
+    if (configurationAvailable && currentStepIndex >= 0 && (selectedStepIndex === null || statuses[selectedStepIndex] === 'blocked')) {
       setSelectedStepIndex(currentStepIndex);
     }
-  }, [currentStepIndex, loading, selectedStepIndex, statuses]);
+  }, [configurationAvailable, currentStepIndex, selectedStepIndex, statuses]);
 
   const focusCurrentConfiguration = () => {
     setSelectedStepIndex(currentStepIndex);
@@ -138,41 +144,44 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
           <Typography color="primary" fontWeight={800} variant="overline">运营工作台</Typography>
           <Typography component="h2" variant="h3">{profile.displayName}，欢迎回来</Typography>
           <Typography color="text.secondary" variant="body2">{current.description}</Typography>
-          {currentStep ? <Box pt={0.5}><Button onClick={focusCurrentConfiguration} variant="contained">{currentStep.title}</Button></Box> : <Typography color="success.main" fontWeight={700} variant="body2">启动清单已完成</Typography>}
+          {configurationAvailable && currentStep ? <Box pt={0.5}><Button onClick={focusCurrentConfiguration} variant="contained">{currentStep.title}</Button></Box> : null}
+          {configurationAvailable && !currentStep ? <Typography color="success.main" fontWeight={700} variant="body2">启动清单已完成</Typography> : null}
         </Stack>
       }
       notificationCount={notificationCount}
     >
       <PageScaffold
-        actions={visibleStepIndex > 0 ? <Button onClick={() => setSelectedStepIndex(visibleStepIndex - 1)} size="small" variant="text">返回上一步</Button> : undefined}
-        title={visibleStepIndex === -1 ? '实训配置' : workspaceTitles[visibleStepIndex]}
+        actions={configurationAvailable && visibleStepIndex > 0 ? <Button onClick={() => setSelectedStepIndex(visibleStepIndex - 1)} size="small" variant="text">返回上一步</Button> : undefined}
+        title={!configurationAvailable || visibleStepIndex === -1 ? '实训配置' : workspaceTitles[visibleStepIndex]}
       >
-        <Stack gap={{ xs: 2.5, md: 3 }}>
-          <StartupStepper onSelect={setSelectedStepIndex} selected={visibleStepIndex} steps={steps} />
+        {loading ? <PageState description="正在读取当前周期、模板和人员组织情况。" kind="loading" title="正在同步启动状态" /> : null}
+        {loadError ? <PageState description="无法确认周期、模板与人员配置，请检查网络后重试。" kind="error" onRetry={() => { void load(); }} title="无法同步启动状态" /> : null}
+        {configurationAvailable ? (
+          <Stack gap={{ xs: 2.5, md: 3 }}>
+            <StartupStepper onSelect={setSelectedStepIndex} selected={visibleStepIndex} steps={steps} />
 
-          {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
-
-          <Box component="section" ref={configurationRef} aria-label="当前步骤配置">
-            {visibleStepIndex !== -1 ? (
-              <Box display="grid" gap={{ xs: 3, lg: 4 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 2fr) minmax(240px, 1fr)' }}>
-                <Box minWidth={0}>
-                  {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
-                  {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
-                  {visibleStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
+            <Box component="section" ref={configurationRef} aria-label="当前步骤配置">
+              {visibleStepIndex !== -1 ? (
+                <Box display="grid" gap={{ xs: 3, lg: 4 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 2fr) minmax(240px, 1fr)' }}>
+                  <Box minWidth={0}>
+                    {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
+                    {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
+                    {visibleStepIndex === 2 ? <PeopleWorkspacePage api={api} embedded onMembershipChanged={() => { void load(); }} /> : null}
+                  </Box>
+                  <StartupActionPane
+                    canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
+                    formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
+                    initialPeriod={showInitialPeriodForward}
+                    mainLabel={visibleStepIndex === 0 ? '保存修改' : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
+                    onPublish={() => { void publish(); }}
+                    stepIndex={visibleStepIndex}
+                  />
                 </Box>
-                <StartupActionPane
-                  canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
-                  formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
-                  initialPeriod={showInitialPeriodForward}
-                  mainLabel={visibleStepIndex === 0 ? '保存修改' : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
-                  onPublish={() => { void publish(); }}
-                  stepIndex={visibleStepIndex}
-                />
-              </Box>
-            ) : null}
-            {currentStepIndex === -1 ? <StartupComplete /> : null}
-          </Box>
-        </Stack>
+              ) : null}
+              {currentStepIndex === -1 ? <StartupComplete /> : null}
+            </Box>
+          </Stack>
+        ) : null}
       </PageScaffold>
     </AppShell>
   );
