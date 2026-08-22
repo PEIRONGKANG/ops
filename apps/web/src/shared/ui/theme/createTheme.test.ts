@@ -56,4 +56,12 @@ describe('createBeverageTheme', () => {
     expect(beverageTokens.layout).toEqual({ compact: 840, expanded: 1200, contentMax: 1200, topBarHeight: 64 });
     expect(beverageTokens.shape).toEqual({ small: 12, medium: 16, large: 24, full: 999 });
   });
+
+  it('keeps every viewport below 840px on the compact single-column breakpoint', () => {
+    const theme = createBeverageTheme();
+
+    expect(theme.breakpoints.values).toEqual({ xs: 0, sm: 840, md: 1024, lg: 1200, xl: 1536 });
+    expect(theme.breakpoints.up('sm')).toBe('@media (min-width:840px)');
+    expect(theme.breakpoints.up('lg')).toBe('@media (min-width:1200px)');
+  });
 });

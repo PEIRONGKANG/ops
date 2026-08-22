@@ -8,6 +8,15 @@ const primaryPressedLayer = 'color-mix(in srgb, var(--mui-palette-primary-main) 
 
 export function createBeverageTheme() {
   return createTheme({
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: beverageTokens.layout.compact,
+        md: 1024,
+        lg: beverageTokens.layout.expanded,
+        xl: 1536,
+      },
+    },
     cssVariables: true,
     palette: {
       mode: 'light',
