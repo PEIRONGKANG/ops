@@ -128,7 +128,7 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
 
   return (
     <TemplateFrame embedded={embedded} onBack={onBack}>
-      <Box maxWidth={embedded ? 1080 : 880}>
+      <Box maxWidth={embedded ? 960 : 880}>
         {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">配置运营模板</Typography>
           <Typography color="text.secondary">模板定义稳定的岗位与 SOP。发布后版本不可直接修改；需要调整时建立下一修订版。</Typography>
@@ -143,17 +143,17 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
           <TemplateSummary template={latestTemplate} />
         ) : (
           <Box component="form" id={formId} noValidate onSubmit={handleSubmit(save)}>
-            <Stack gap={embedded ? 2.5 : 4}>
-              <FormSection compact={embedded} description="模板草稿绑定当前周期、门店和生效日期。" title="模板版本">
+            <Stack gap={embedded ? 3 : 4}>
+              <FormSection compact={embedded} description="模板草稿绑定当前周期、门店和生效日期。" id="template-version" title="模板版本">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="模板代码" name="templateCode" register={register} />
                 <Field errors={errors} label="模板名称" name="templateName" register={register} />
-                <DateField control={control} errors={errors} label="生效日期" name="effectiveFrom" />
+                <Box sx={{ gridColumn: { sm: 'span 2' } }}><DateField control={control} errors={errors} label="生效日期" name="effectiveFrom" /></Box>
               </FormSection>
-              <FormSection compact={embedded} description="这是首个班次配置的最小岗位定义；后续可继续补充。" title="首个岗位">
+              <FormSection compact={embedded} description="这是首个班次配置的最小岗位定义；后续可继续补充。" id="starter-role" title="首个岗位">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="岗位代码" name="roleCode" register={register} />
                 <Field errors={errors} label="岗位名称" name="roleName" register={register} />
               </FormSection>
-              <FormSection compact={embedded} description="这是岗位执行时必须确认的第一项标准操作。" title="首项 SOP">
+              <FormSection compact={embedded} description="这是岗位执行时必须确认的第一项标准操作。" id="starter-sop" title="首项 SOP">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="SOP 代码" name="taskCode" register={register} />
                 <Field errors={errors} label="SOP 名称" name="taskName" register={register} />
               </FormSection>
@@ -206,11 +206,11 @@ function ScopeSelect({ label, onChange, options, value }: { label: string; onCha
   );
 }
 
-function FormSection({ children, compact, description, title }: { children: ReactNode; compact: boolean; description: string; title: string }) {
+function FormSection({ children, compact, description, id, title }: { children: ReactNode; compact: boolean; description: string; id: string; title: string }) {
   return (
-    <Stack gap={compact ? 1.25 : 2}>
-      <Box><Typography component="h2" variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>
-      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr', lg: compact ? 'repeat(3, minmax(0, 1fr))' : '1fr 1fr' }}>{children}</Box>
+    <Stack aria-labelledby={`${id}-title`} component="section" gap={compact ? 1.25 : 2}>
+      <Box><Typography component="h2" id={`${id}-title`} variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>
+      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }}>{children}</Box>
     </Stack>
   );
 }

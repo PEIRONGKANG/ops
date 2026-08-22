@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -45,7 +45,10 @@ describe('TemplateWorkspacePage', () => {
   it('uses a compact Material calendar field without repeating its page introduction when embedded', async () => {
     renderTemplate(createApi(), true);
 
-    expect(await screen.findByRole('heading', { name: '模板版本' })).toBeVisible();
+    const templateSection = await screen.findByRole('region', { name: '模板版本' });
+    expect(templateSection).toBeVisible();
+    expect(within(templateSection).getByLabelText('模板代码')).toBeVisible();
+    expect(within(templateSection).getByLabelText('模板名称')).toBeVisible();
     expect(screen.queryByRole('heading', { level: 1, name: '配置运营模板' })).not.toBeInTheDocument();
     expect(screen.queryByText('模板定义稳定的岗位与 SOP。发布后版本不可直接修改；需要调整时建立下一修订版。')).not.toBeInTheDocument();
     expect(screen.getByRole('group', { name: '生效日期' })).toBeVisible();

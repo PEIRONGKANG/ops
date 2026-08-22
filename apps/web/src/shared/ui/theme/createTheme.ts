@@ -32,6 +32,7 @@ export function createBeverageTheme() {
         styleOverrides: {
           ':root': {
             colorScheme: 'light',
+            '--beverage-primary-container': beverageTokens.color.primaryContainer,
             '--beverage-surface-container': beverageTokens.color.surfaceContainer,
             '--beverage-surface-container-high': beverageTokens.color.surfaceContainerHigh,
           },

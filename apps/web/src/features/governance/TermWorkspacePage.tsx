@@ -136,26 +136,26 @@ export function TermWorkspacePage({ api, embedded = false, formId, onBack, onIni
 
   return (
     <WorkspaceFrame embedded={embedded} onBack={onBack} title="建立实训周期">
-      <Box maxWidth={embedded ? 1080 : 760}>
+      <Box maxWidth={embedded ? 960 : 760}>
         {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">建立实训周期</Typography>
           <Typography color="text.secondary">一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。</Typography>
         </Stack> : null}
 
         <Box component="form" id={formId} noValidate onSubmit={handleSubmit(create)}>
-          <Stack gap={embedded ? 2.5 : 4}>
-            <FormSection compact={embedded} description="定义本期的教学与运营时间范围。" title="实训周期">
+          <Stack gap={embedded ? 3 : 4}>
+            <FormSection compact={embedded} description="定义本期的教学与运营时间范围。" id="period-timing" title="周期与时间">
               <Field disabled={Boolean(activeTerm)} name="termCode" register={register} errors={errors} required />
               <Field name="termName" register={register} errors={errors} required />
               <DateField control={control} name="termStartDate" errors={errors} required />
               <DateField control={control} name="termEndDate" errors={errors} required />
             </FormSection>
-            <FormSection compact={embedded} description="真实门店是教学现场，后续班次与模板将与其关联。" title="运营门店">
+            <FormSection compact={embedded} description="真实门店是教学现场，后续班次与模板将与其关联。" id="store" title="运营门店">
               <Field disabled={Boolean(activeStore)} name="storeCode" register={register} errors={errors} required />
               <Field name="storeName" register={register} errors={errors} required />
             </FormSection>
-            <FormSection compact={embedded} description="导入期将作为本期第一个教学周创建。" title="首个教学周">
-              <Field name="firstWeekName" register={register} errors={errors} required />
+            <FormSection compact={embedded} description="导入期将作为本期第一个教学周创建。" id="first-week" title="首个教学周">
+              <Box sx={{ gridColumn: { sm: 'span 2' } }}><Field name="firstWeekName" register={register} errors={errors} required /></Box>
               <DateField control={control} name="firstWeekStartDate" errors={errors} required />
               <DateField control={control} name="firstWeekEndDate" errors={errors} required />
             </FormSection>
@@ -179,14 +179,14 @@ function WorkspaceFrame({ children, embedded, onBack, title }: { children: React
   );
 }
 
-function FormSection({ children, compact, description, title }: { children: ReactNode; compact: boolean; description: string; title: string }) {
+function FormSection({ children, compact, description, id, title }: { children: ReactNode; compact: boolean; description: string; id: string; title: string }) {
   return (
-    <Stack gap={compact ? 1.25 : 2}>
+    <Stack aria-labelledby={`${id}-title`} component="section" gap={compact ? 1.25 : 2}>
       <Box>
-        <Typography component="h2" variant="h3">{title}</Typography>
+        <Typography component="h2" id={`${id}-title`} variant="h3">{title}</Typography>
         {!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}
       </Box>
-      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr', lg: compact ? 'repeat(3, minmax(0, 1fr))' : '1fr 1fr' }}>{children}</Box>
+      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }}>{children}</Box>
     </Stack>
   );
 }

@@ -42,6 +42,8 @@ const setupSteps: SetupStep[] = [
   { title: '组织实训人员' },
 ];
 
+const workspaceTitles = ['实训周期', '运营模板', '实训人员'];
+
 export function DashboardPage({ api, profile }: DashboardPageProps) {
   const [progress, setProgress] = useState<StartupProgress>({ period: false, template: false, people: false, published: false });
   const [loading, setLoading] = useState(true);
@@ -150,13 +152,14 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
           {loading ? <Typography color="text.secondary" variant="body2">正在同步服务器状态…</Typography> : null}
 
-          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" borderColor="divider" borderTop={1} pt={{ xs: 2.5, md: 3 }}>
+          <Box component="section" ref={configurationRef} aria-label="当前步骤配置" pt={{ xs: 0.5, md: 1 }}>
             {visibleStepIndex !== -1 ? <StartupActionBar
               canPublish={visibleStepIndex === 2 && progress.people && Boolean(publication) && !progress.published}
               formId={visibleStepIndex === 0 ? 'startup-period-form' : visibleStepIndex === 1 ? 'startup-template-form' : undefined}
               mainLabel={visibleStepIndex === 0 ? (progress.period ? '保存修改' : '创建实训周期') : visibleStepIndex === 1 ? (progress.template ? '保存修改' : '保存模板草稿') : undefined}
               onBack={visibleStepIndex > 0 ? () => setSelectedStepIndex(visibleStepIndex - 1) : undefined}
               onPublish={() => { void publish(); }}
+              title={workspaceTitles[visibleStepIndex]}
             /> : null}
             {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
             {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
@@ -170,9 +173,16 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 }
 
 function StartupProgressRail({ onSelect, selectedIndex, statuses }: { onSelect: (index: number) => void; selectedIndex: number; statuses: SetupStatus[] }) {
+  const completedSteps = Math.min(2, statuses.filter((status) => status === 'complete').length);
+
   return (
-    <Box aria-label="启动配置流程" component="ol" display="grid" gap={{ xs: 1, sm: 2 }} gridTemplateColumns="repeat(3, minmax(0, 1fr))" m={0} p={0} sx={{ listStyle: 'none' }}>
-      {setupSteps.map((step, index) => <StartupProgressItem index={index} key={step.title} onSelect={() => onSelect(index)} selected={selectedIndex === index} status={statuses[index]} step={step} />)}
+    <Box aria-label="启动配置流程" bgcolor="var(--beverage-surface-container)" borderRadius={3} component="ol" m={0} p={{ xs: 1, sm: 1.5 }} position="relative" sx={{ listStyle: 'none' }}>
+      <Box aria-hidden bgcolor="divider" height={2} left="16.667%" position="absolute" right="16.667%" sx={{ top: 35 }}>
+        <Box bgcolor="primary.main" height="100%" sx={{ transition: 'width 180ms ease' }} width={`${completedSteps * 50}%`} />
+      </Box>
+      <Box display="grid" gap={{ xs: 0.5, sm: 1 }} gridTemplateColumns="repeat(3, minmax(0, 1fr))" position="relative">
+        {setupSteps.map((step, index) => <StartupProgressItem index={index} key={step.title} onSelect={() => onSelect(index)} selected={selectedIndex === index} status={statuses[index]} step={step} />)}
+      </Box>
     </Box>
   );
 }
@@ -181,42 +191,41 @@ function StartupProgressItem({ index, onSelect, selected, status, step }: { inde
   const complete = status === 'complete';
   const current = status === 'current';
   const selectable = status !== 'blocked';
-  const color = complete ? 'success.main' : current ? 'primary.main' : 'divider';
   const textColor = complete || current ? 'text.primary' : 'text.secondary';
   const stateLabel = complete ? '已完成' : '等待上一步';
 
   return (
-    <Box aria-current={selected ? 'step' : undefined} bgcolor={selected ? 'var(--beverage-surface-container-high)' : 'transparent'} border={selected ? 1 : 0} borderColor={selected ? 'primary.main' : 'transparent'} borderRadius={3} component="li" minWidth={0} position="relative" px={selected ? 1.5 : 0} py={selected ? 1 : 0} sx={{ '&:not(:last-of-type)::after': { backgroundColor: color, content: '""', height: 2, left: 'calc(50% + 24px)', position: 'absolute', right: 'calc(-50% + 24px)', top: 16 }, transition: 'background-color 180ms ease, border-color 180ms ease, padding 180ms ease' }}>
-      <Stack gap={0.75} position="relative" zIndex={1}>
-        <Box alignItems="center" bgcolor="background.default" display="flex" height={32} width="fit-content">
-          <Box alignItems="center" border={2} borderColor={color} borderRadius="50%" color={complete || current ? color : 'text.secondary'} display="flex" fontWeight={800} height={32} justifyContent="center" width={32}>
+    <Box aria-current={selected ? 'step' : undefined} component="li" display="flex" flexDirection="column" minWidth={0} position="relative" sx={{ alignItems: 'center' }}>
+      <Button disabled={!selectable} onClick={onSelect} sx={{ alignItems: 'center', backgroundColor: selected ? 'var(--beverage-primary-container)' : 'transparent', borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 0.75, justifyContent: 'center', minHeight: 0, minWidth: 0, p: { xs: 0.75, sm: 1 }, transition: 'background-color 180ms ease', '&.Mui-disabled': { color: 'text.secondary' }, '&:hover': { backgroundColor: selected ? 'var(--beverage-primary-container)' : 'var(--beverage-surface-container-high)' } }} variant="text">
+        <Box alignItems="center" bgcolor={complete || current ? 'primary.main' : 'background.paper'} border={complete || current ? 0 : 2} borderColor="divider" borderRadius="50%" color={complete || current ? 'primary.contrastText' : 'text.secondary'} display="flex" fontWeight={800} height={32} justifyContent="center" width={32}>
             {complete ? <CheckRoundedIcon fontSize="small" /> : index + 1}
-          </Box>
         </Box>
-        <Stack gap={0.25}>
-          <Button disabled={!selectable} onClick={onSelect} sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minWidth: 0, p: 0, textAlign: 'left' }} variant="text">
-            <Typography color={textColor} fontWeight={selected ? 800 : 700} variant="subtitle1">{step.title}</Typography>
-          </Button>
-          {!current ? <Typography color={complete ? 'success.main' : 'text.secondary'} fontWeight={700} variant="caption">{stateLabel}</Typography> : null}
-        </Stack>
-      </Stack>
+        <Typography color={textColor} fontWeight={selected ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, lineHeight: 1.35 }} variant="subtitle1">{step.title}</Typography>
+      </Button>
+      {!current ? <Typography color={complete ? 'success.main' : 'text.secondary'} fontWeight={700} mt={0.5} variant="caption">{stateLabel}</Typography> : null}
     </Box>
   );
 }
 
-function StartupActionBar({ canPublish, formId, mainLabel, onBack, onPublish }: {
+function StartupActionBar({ canPublish, formId, mainLabel, onBack, onPublish, title }: {
   canPublish: boolean;
   formId?: string;
   mainLabel?: string;
   onBack?: () => void;
   onPublish: () => void;
+  title: string;
 }) {
   return (
-    <Stack alignItems="center" direction="row" justifyContent="space-between" mb={{ xs: 2, md: 2.5 }} minHeight={40}>
-      {onBack ? <Button onClick={onBack} variant="text">返回上一步</Button> : <Box />}
-      {mainLabel && formId ? <Button form={formId} type="submit" variant="contained">{mainLabel}</Button> : null}
-      {canPublish ? <Button onClick={onPublish} variant="contained">发布实训配置</Button> : null}
-    </Stack>
+    <Box aria-label={`${title}操作`} component="header" mb={{ xs: 2.5, md: 3 }}>
+      <Stack alignItems="center" direction="row" justifyContent="space-between" minHeight={48}>
+        <Stack alignItems="center" direction="row" gap={0.5} minWidth={0}>
+          {onBack ? <Button onClick={onBack} size="small" variant="text">返回上一步</Button> : null}
+          <Typography component="h1" variant="h2">{title}</Typography>
+        </Stack>
+        {mainLabel && formId ? <Button form={formId} type="submit" variant="contained">{mainLabel}</Button> : null}
+        {canPublish ? <Button onClick={onPublish} variant="contained">发布实训配置</Button> : null}
+      </Stack>
+    </Box>
   );
 }
 

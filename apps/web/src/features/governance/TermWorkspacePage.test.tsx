@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -39,7 +39,10 @@ describe('TermWorkspacePage', () => {
   it('keeps the embedded period form compact while retaining Material calendar controls', async () => {
     renderTerm(createApi(), true);
 
-    expect(await screen.findByRole('heading', { name: '实训周期' })).toBeVisible();
+    const periodSection = await screen.findByRole('region', { name: '周期与时间' });
+    expect(periodSection).toBeVisible();
+    expect(within(periodSection).getByLabelText('周期代码')).toBeVisible();
+    expect(within(periodSection).getByLabelText('周期名称')).toBeVisible();
     expect(screen.queryByRole('heading', { level: 1, name: '建立实训周期' })).not.toBeInTheDocument();
     expect(screen.queryByText('一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。')).not.toBeInTheDocument();
     expect(screen.getByRole('group', { name: '开始日期' })).toBeVisible();
