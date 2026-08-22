@@ -6,13 +6,18 @@ export interface AuthScaffoldProps extends PropsWithChildren {
   title: string;
 }
 
+export interface AuthScaffoldLayoutContract {
+  readonly gridTemplateColumns: Readonly<{ xs: string; lg: string }>;
+  readonly introductionDisplay: Readonly<{ xs: 'none'; lg: 'flex' }>;
+}
+
 export const authScaffoldLayout = {
   gridTemplateColumns: {
     xs: 'minmax(0, 1fr)',
-    md: 'minmax(320px, 0.8fr) minmax(0, 1.2fr)',
+    lg: 'minmax(0, 5fr) minmax(0, 4fr)',
   },
-  introductionDisplay: { xs: 'none', md: 'flex' },
-} as const;
+  introductionDisplay: { xs: 'none', lg: 'flex' },
+} as const satisfies AuthScaffoldLayoutContract;
 
 export function AuthScaffold({ children, description, title }: AuthScaffoldProps) {
   const titleId = useId();
@@ -37,10 +42,10 @@ export function AuthScaffold({ children, description, title }: AuthScaffoldProps
         }}
       >
         <Stack gap={2} maxWidth={480}>
-          <Typography component="h2" variant="h1">
+          <Typography component="p" variant="h1">
             饮品生产性实训运营系统
           </Typography>
-          <Typography color="text.secondary" variant="h3">
+          <Typography color="text.secondary" component="p" variant="h3">
             将岗位执行、带教反馈与学习成果连接在同一条实训链路中。
           </Typography>
         </Stack>

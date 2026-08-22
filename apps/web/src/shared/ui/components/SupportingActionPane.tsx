@@ -6,12 +6,19 @@ export interface SupportingActionPaneProps extends PropsWithChildren {
   title: string;
 }
 
+export interface SupportingActionPaneLayoutContract {
+  readonly backgroundColor: string;
+  readonly gridColumn: Readonly<{ xs: '1 / -1'; lg: 'auto' }>;
+  readonly justifySelf: Readonly<{ xs: 'stretch'; lg: 'end' }>;
+  readonly width: Readonly<{ xs: '100%'; lg: 320 }>;
+}
+
 export const supportingActionPaneLayout = {
   backgroundColor: 'var(--beverage-surface-container)',
   gridColumn: { xs: '1 / -1', lg: 'auto' },
   justifySelf: { xs: 'stretch', lg: 'end' },
   width: { xs: '100%', lg: 320 },
-} as const;
+} as const satisfies SupportingActionPaneLayoutContract;
 
 export function SupportingActionPane({ action, children, title }: SupportingActionPaneProps) {
   const titleId = useId();

@@ -14,6 +14,7 @@ describe('AuthScaffold', () => {
     const main = screen.getByRole('main', { name: '登录' });
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(within(main).getByRole('heading', { level: 1, name: '登录' })).toBeVisible();
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
     expect(within(main).getByText('使用受分配的账号继续。')).toBeVisible();
     expect(within(main).getByRole('form', { name: '登录表单' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: '系统简介', hidden: true })).toBeInTheDocument();
@@ -23,8 +24,8 @@ describe('AuthScaffold', () => {
   it('keeps the introduction in a CSS-controlled expanded column', () => {
     expect(authScaffoldLayout.gridTemplateColumns).toEqual({
       xs: 'minmax(0, 1fr)',
-      md: 'minmax(320px, 0.8fr) minmax(0, 1.2fr)',
+      lg: 'minmax(0, 5fr) minmax(0, 4fr)',
     });
-    expect(authScaffoldLayout.introductionDisplay).toEqual({ xs: 'none', md: 'flex' });
+    expect(authScaffoldLayout.introductionDisplay).toEqual({ xs: 'none', lg: 'flex' });
   });
 });

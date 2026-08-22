@@ -8,11 +8,17 @@ export interface PageScaffoldProps extends PropsWithChildren {
   title: string;
 }
 
+export interface PageScaffoldLayoutContract {
+  readonly headerAlignment: Readonly<{ xs: 'stretch'; sm: 'flex-end' }>;
+  readonly headerDirection: Readonly<{ xs: 'column'; sm: 'row' }>;
+  readonly maxWidth: string;
+}
+
 export const pageScaffoldLayout = {
   headerAlignment: { xs: 'stretch', sm: 'flex-end' },
   headerDirection: { xs: 'column', sm: 'row' },
   maxWidth: 'var(--beverage-layout-content-max)',
-} as const;
+} as const satisfies PageScaffoldLayoutContract;
 
 export function PageScaffold({ actions, children, description, eyebrow, title }: PageScaffoldProps) {
   return (

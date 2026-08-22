@@ -9,6 +9,11 @@ export interface WorkspaceSectionProps extends PropsWithChildren {
   title: string;
 }
 
+export interface WorkspaceSectionLayoutContract {
+  readonly defaultColumns: Readonly<{ compact: 1; medium: 2 }>;
+  readonly gridTemplateColumns: Readonly<{ xs: string; sm: string }>;
+}
+
 function columnTemplate(columnCount: number) {
   return `repeat(${columnCount}, minmax(0, 1fr))`;
 }
@@ -19,7 +24,7 @@ export const workspaceSectionLayout = {
     xs: columnTemplate(1),
     sm: columnTemplate(2),
   },
-} as const;
+} as const satisfies WorkspaceSectionLayoutContract;
 
 export function WorkspaceSection({ children, columns = workspaceSectionLayout.defaultColumns.medium, description, id, sx, title }: WorkspaceSectionProps) {
   const headingId = `${id}-title`;
