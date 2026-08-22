@@ -2,6 +2,10 @@ import { createTheme } from '@mui/material/styles';
 
 import { beverageTokens } from './tokens';
 
+const primaryFocusRing = '0 0 0 3px color-mix(in srgb, var(--mui-palette-primary-main) var(--beverage-state-focus), transparent)';
+const primaryHoverLayer = 'color-mix(in srgb, var(--mui-palette-primary-main) var(--beverage-state-hover), transparent)';
+const primaryPressedLayer = 'color-mix(in srgb, var(--mui-palette-primary-main) var(--beverage-state-pressed), transparent)';
+
 export function createBeverageTheme() {
   return createTheme({
     cssVariables: true,
@@ -35,27 +39,165 @@ export function createBeverageTheme() {
             '--beverage-primary-container': beverageTokens.color.primaryContainer,
             '--beverage-surface-container': beverageTokens.color.surfaceContainer,
             '--beverage-surface-container-high': beverageTokens.color.surfaceContainerHigh,
+            '--beverage-state-hover': `${beverageTokens.state.hoverOpacity * 100}%`,
+            '--beverage-state-focus': `${beverageTokens.state.focusOpacity * 100}%`,
+            '--beverage-state-pressed': `${beverageTokens.state.pressedOpacity * 100}%`,
+            '--beverage-layout-compact': `${beverageTokens.layout.compact}px`,
+            '--beverage-layout-expanded': `${beverageTokens.layout.expanded}px`,
+            '--beverage-layout-content-max': `${beverageTokens.layout.contentMax}px`,
+            '--beverage-top-bar-height': `${beverageTokens.layout.topBarHeight}px`,
+            '--beverage-shape-small': `${beverageTokens.shape.small}px`,
+            '--beverage-shape-medium': `${beverageTokens.shape.medium}px`,
+            '--beverage-shape-large': `${beverageTokens.shape.large}px`,
+            '--beverage-shape-full': `${beverageTokens.shape.full}px`,
           },
           '*, *::before, *::after': { boxSizing: 'border-box' },
           'html': { scrollBehavior: 'smooth' },
+          body: {
+            backgroundColor: beverageTokens.color.surface,
+            color: beverageTokens.color.onSurface,
+            margin: 0,
+            minWidth: 320,
+            WebkitFontSmoothing: 'antialiased',
+          },
           '@media (prefers-reduced-motion: reduce)': {
             '*, *::before, *::after': { scrollBehavior: 'auto !important', transitionDuration: '0.01ms !important', animationDuration: '0.01ms !important' },
           },
         },
       },
-      MuiButton: {
+      MuiFilledInput: {
+        defaultProps: { disableUnderline: true },
         styleOverrides: {
           root: {
-            borderRadius: beverageTokens.shape.large,
-            minHeight: 44,
-            paddingInline: 20,
-            ':focus-visible': { outline: '3px solid #0B5FFF', outlineOffset: 2 },
+            backgroundColor: 'var(--beverage-surface-container-high)',
+            border: '1px solid transparent',
+            borderRadius: beverageTokens.shape.small,
+            minHeight: 56,
+            overflow: 'hidden',
+            transition: 'background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
+            '&:hover': {
+              backgroundColor: 'color-mix(in srgb, var(--mui-palette-text-primary) var(--beverage-state-hover), var(--beverage-surface-container-high))',
+            },
+            '&.Mui-focused': {
+              backgroundColor: 'var(--beverage-surface-container-high)',
+              borderColor: 'var(--mui-palette-primary-main)',
+              boxShadow: primaryFocusRing,
+            },
+            '&.Mui-error': { borderColor: 'var(--mui-palette-error-main)' },
+            '&.Mui-disabled': { backgroundColor: 'var(--beverage-surface-container)', opacity: 0.64 },
+          },
+          input: { paddingInline: 16 },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            color: 'var(--mui-palette-text-secondary)',
+            fontWeight: 500,
+            '&.Mui-focused': { color: 'var(--mui-palette-primary-main)' },
+            '&.Mui-error': { color: 'var(--mui-palette-error-main)' },
+          },
+        },
+      },
+      MuiFormHelperText: {
+        styleOverrides: {
+          root: {
+            fontSize: '0.75rem',
+            lineHeight: 1.4,
+            marginInline: 12,
+            marginTop: 6,
+          },
+        },
+      },
+      MuiButton: {
+        defaultProps: { disableElevation: true },
+        styleOverrides: {
+          root: {
+            borderRadius: beverageTokens.shape.full,
+            minHeight: 40,
+            paddingInline: 24,
+            transition: 'background-color 160ms ease, box-shadow 160ms ease, color 160ms ease',
+            '&:active': { backgroundImage: `linear-gradient(${primaryPressedLayer}, ${primaryPressedLayer})` },
+            '&:focus-visible': { boxShadow: primaryFocusRing, outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 2 },
+          },
+          contained: {
+            boxShadow: 'none',
+            '&:hover': { boxShadow: 'none' },
+          },
+          outlined: {
+            borderColor: 'var(--mui-palette-divider)',
+            '&:hover': { backgroundColor: primaryHoverLayer, borderColor: 'var(--mui-palette-primary-main)' },
+          },
+          text: {
+            '&:hover': { backgroundColor: primaryHoverLayer },
           },
         },
       },
       MuiPaper: { styleOverrides: { rounded: { borderRadius: beverageTokens.shape.large } } },
-      MuiIconButton: { styleOverrides: { root: { minWidth: 44, minHeight: 44 } } },
-      MuiTextField: { defaultProps: { fullWidth: true, variant: 'outlined' } },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: beverageTokens.shape.full,
+            minHeight: 40,
+            minWidth: 40,
+            transition: 'background-color 160ms ease, box-shadow 160ms ease',
+            '&:active': { backgroundColor: primaryPressedLayer },
+            '&:hover': { backgroundColor: primaryHoverLayer },
+            '&:focus-visible': { boxShadow: primaryFocusRing, outline: '2px solid var(--mui-palette-primary-main)', outlineOffset: 2 },
+          },
+        },
+      },
+      MuiTooltip: {
+        defaultProps: { arrow: true, enterDelay: 500 },
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: 'var(--mui-palette-text-primary)',
+            borderRadius: beverageTokens.shape.small,
+            color: 'var(--mui-palette-background-paper)',
+            fontSize: '0.75rem',
+            padding: '8px 12px',
+          },
+          arrow: { color: 'var(--mui-palette-text-primary)' },
+        },
+      },
+      MuiPopover: {
+        styleOverrides: {
+          paper: {
+            border: '1px solid var(--mui-palette-divider)',
+            borderRadius: beverageTokens.shape.large,
+            boxShadow: '0 8px 28px color-mix(in srgb, var(--mui-palette-text-primary) 14%, transparent)',
+          },
+        },
+      },
+      MuiSnackbar: {
+        defaultProps: { anchorOrigin: { horizontal: 'center', vertical: 'bottom' } },
+        styleOverrides: {
+          root: {
+            '& .MuiSnackbarContent-root': {
+              backgroundColor: 'var(--mui-palette-text-primary)',
+              borderRadius: beverageTokens.shape.medium,
+              color: 'var(--mui-palette-background-paper)',
+              minHeight: 52,
+            },
+          },
+        },
+      },
+      MuiChip: {
+        defaultProps: { size: 'medium' },
+        styleOverrides: {
+          root: { borderRadius: beverageTokens.shape.full, fontWeight: 600, height: 32 },
+          filled: { backgroundColor: 'var(--beverage-surface-container-high)' },
+          outlined: { borderColor: 'var(--mui-palette-divider)' },
+        },
+      },
+      MuiSelect: {
+        defaultProps: { variant: 'filled' },
+        styleOverrides: {
+          select: { alignItems: 'center', display: 'flex', minHeight: 24 },
+          icon: { color: 'var(--mui-palette-text-secondary)', right: 12 },
+        },
+      },
+      MuiTextField: { defaultProps: { fullWidth: true, variant: 'filled' } },
     },
   });
 }

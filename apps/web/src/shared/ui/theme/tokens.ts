@@ -17,7 +17,19 @@ export const beverageTokens = {
   shape: {
     small: 12,
     medium: 16,
-    large: 20,
+    large: 24,
+    full: 999,
+  },
+  state: {
+    hoverOpacity: 0.08,
+    focusOpacity: 0.12,
+    pressedOpacity: 0.12,
+  },
+  layout: {
+    compact: 840,
+    expanded: 1200,
+    contentMax: 1200,
+    topBarHeight: 64,
   },
   motion: {
     short: 160,
