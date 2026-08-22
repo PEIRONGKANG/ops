@@ -77,6 +77,14 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: '创建实训周期' })).toHaveAttribute('form', 'startup-period-form');
   });
 
+  it('marks the selected startup step without rendering a current-step text label', async () => {
+    renderDashboard(createApi());
+
+    const rail = await screen.findByRole('list', { name: '启动配置流程' });
+    expect(within(rail).queryByText('当前步骤')).not.toBeInTheDocument();
+    expect(within(rail).getByText('建立实训周期').closest('li')).toHaveAttribute('aria-current', 'step');
+  });
+
   it('lets P1 return to a completed step and keeps the action toolbar above the form', async () => {
     const user = userEvent.setup();
     const api = createApi();

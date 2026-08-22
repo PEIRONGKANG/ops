@@ -183,10 +183,10 @@ function StartupProgressItem({ index, onSelect, selected, status, step }: { inde
   const selectable = status !== 'blocked';
   const color = complete ? 'success.main' : current ? 'primary.main' : 'divider';
   const textColor = complete || current ? 'text.primary' : 'text.secondary';
-  const stateLabel = complete ? '已完成' : current ? '当前步骤' : '等待上一步';
+  const stateLabel = complete ? '已完成' : '等待上一步';
 
   return (
-    <Box aria-current={selected ? 'step' : undefined} component="li" minWidth={0} position="relative" pt={0.5} sx={{ '&:not(:last-of-type)::after': { backgroundColor: color, content: '""', height: 2, left: 'calc(50% + 24px)', position: 'absolute', right: 'calc(-50% + 24px)', top: 16 } }}>
+    <Box aria-current={selected ? 'step' : undefined} bgcolor={selected ? 'var(--beverage-surface-container-high)' : 'transparent'} border={selected ? 1 : 0} borderColor={selected ? 'primary.main' : 'transparent'} borderRadius={3} component="li" minWidth={0} position="relative" px={selected ? 1.5 : 0} py={selected ? 1 : 0} sx={{ '&:not(:last-of-type)::after': { backgroundColor: color, content: '""', height: 2, left: 'calc(50% + 24px)', position: 'absolute', right: 'calc(-50% + 24px)', top: 16 }, transition: 'background-color 180ms ease, border-color 180ms ease, padding 180ms ease' }}>
       <Stack gap={0.75} position="relative" zIndex={1}>
         <Box alignItems="center" bgcolor="background.default" display="flex" height={32} width="fit-content">
           <Box alignItems="center" border={2} borderColor={color} borderRadius="50%" color={complete || current ? color : 'text.secondary'} display="flex" fontWeight={800} height={32} justifyContent="center" width={32}>
@@ -197,7 +197,7 @@ function StartupProgressItem({ index, onSelect, selected, status, step }: { inde
           <Button disabled={!selectable} onClick={onSelect} sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minWidth: 0, p: 0, textAlign: 'left' }} variant="text">
             <Typography color={textColor} fontWeight={selected ? 800 : 700} variant="subtitle1">{step.title}</Typography>
           </Button>
-          <Typography color={complete ? 'success.main' : current ? 'primary.main' : 'text.secondary'} fontWeight={700} variant="caption">{stateLabel}</Typography>
+          {!current ? <Typography color={complete ? 'success.main' : 'text.secondary'} fontWeight={700} variant="caption">{stateLabel}</Typography> : null}
         </Stack>
       </Stack>
     </Box>
