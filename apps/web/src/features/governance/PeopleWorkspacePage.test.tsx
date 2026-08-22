@@ -37,16 +37,50 @@ function renderPeople(api: GovernanceApi, embedded = false) {
 
 describe('PeopleWorkspacePage', () => {
   it('presents people governance as three flat regions within a compact term context', async () => {
-    renderPeople(createApi(), true);
+    const accounts = Array.from({ length: 18 }, (_, index) => ({
+      displayName: `学员 ${index + 1}`,
+      id: `account-${index + 1}`,
+      loginId: `P3-${String(index + 1).padStart(3, '0')}`,
+      roles: ['P3' as const],
+      status: 'ACTIVE' as const,
+    }));
+    const memberships = accounts.map((account, index) => ({
+      accountId: account.id,
+      id: `membership-${index + 1}`,
+      status: 'ACTIVE' as const,
+      teamId: 'team-id',
+      termId: 'term-id',
+      updatedAt: '2026-08-21T00:00:00Z',
+      version: 1,
+    }));
+    renderPeople(createApi({
+      listAccounts: vi.fn().mockResolvedValue(accounts),
+      listMemberships: vi.fn().mockResolvedValue(memberships),
+      listTeams: vi.fn().mockResolvedValue([{ id: 'team-id', termId: 'term-id', code: 'TEAM-A', name: 'A 组', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]),
+    }), true);
 
-    const context = await screen.findByRole('toolbar', { name: '实训周期上下文' });
+    const context = await screen.findByRole('region', { name: '实训周期上下文' });
     expect(within(context).getByRole('combobox', { name: '实训周期' })).toBeVisible();
     expect(screen.getByRole('region', { name: '待审批账号' })).toBeVisible();
     expect(screen.getByRole('region', { name: '已启用账号' })).toBeVisible();
     expect(screen.getByRole('region', { name: '团队与本期成员' })).toBeVisible();
-    expect(screen.getByRole('toolbar', { name: '创建团队' })).toBeVisible();
-    expect(screen.getByRole('toolbar', { name: '加入本期成员' })).toBeVisible();
-    expect(document.querySelector('.person-card')).not.toBeInTheDocument();
+    expect(screen.getByRole('form', { name: '创建团队' })).toBeVisible();
+    expect(screen.getByRole('group', { name: '加入本期成员' })).toBeVisible();
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+
+    const pendingList = screen.getByRole('list', { name: '待审批账号列表' });
+    const accountList = screen.getByRole('list', { name: '已启用账号列表' });
+    const membershipList = screen.getByRole('list', { name: '本期成员列表' });
+    expect(within(pendingList).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(accountList).getAllByRole('listitem')).toHaveLength(18);
+    expect(within(membershipList).getAllByRole('listitem')).toHaveLength(18);
+    expect(within(pendingList).getByRole('group', { name: '账号' })).toBeVisible();
+    expect(within(membershipList).getAllByRole('group', { name: '团队' })).toHaveLength(18);
+    for (const collection of [pendingList, accountList, membershipList]) {
+      expect(collection).toHaveAttribute('tabindex', '0');
+      collection.focus();
+      expect(collection).toHaveFocus();
+    }
     expect(peopleWorkspaceLayout.collection).toEqual({ maxHeight: 320, overflowY: 'auto' });
   });
 
@@ -65,14 +99,23 @@ describe('PeopleWorkspacePage', () => {
     renderPeople(api);
 
     expect(await screen.findByText('陈同学')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: '分配角色' }));
+    await user.click(screen.getByRole('option', { name: '现场负责人（P2）' }));
     await user.type(screen.getByLabelText('审批说明（陈同学）'), '已核验班级名单。');
     await user.click(screen.getByRole('button', { name: '批准陈同学' }));
 
-    expect(api.approveRegistration).toHaveBeenCalledWith('request-id', { roles: ['P3'], reason: '已核验班级名单。' });
-    expect(await screen.findByText('Initial-Password-1')).toBeVisible();
+    expect(api.approveRegistration).toHaveBeenCalledWith('request-id', { roles: ['P2'], reason: '已核验班级名单。' });
+    const credential = await screen.findByRole('region', { name: '一次性凭据' });
+    expect(within(credential).getByText('Initial-Password-1')).toBeVisible();
+    expect(screen.queryByRole('status', { name: '一次性凭据' })).not.toBeInTheDocument();
     const toast = await screen.findByRole('alert');
     expect(toast).toHaveTextContent('已批准陈同学，临时密码已生成。');
+    expect(toast).not.toHaveTextContent('Initial-Password-1');
     expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
+
+    await user.click(within(credential).getByRole('button', { name: '已安全交付' }));
+    expect(screen.queryByRole('region', { name: '一次性凭据' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Initial-Password-1')).not.toBeInTheDocument();
   });
 
   it('creates a team and adds an active account as a term member', async () => {
