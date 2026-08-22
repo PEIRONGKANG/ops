@@ -82,6 +82,7 @@ describe('PeopleWorkspacePage', () => {
       expect(collection).toHaveFocus();
     }
     expect(peopleWorkspaceLayout.collection).toEqual({ maxHeight: 320, overflowY: 'auto' });
+    expect(peopleWorkspaceLayout.rows.pending).toBe('minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1.4fr) auto');
   });
 
   it('keeps people organization within the shared workspace body when embedded', async () => {

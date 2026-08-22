@@ -7,21 +7,29 @@ import { useAuth } from '@/shared/auth/useAuth';
 import { AuthScaffold } from '@/shared/ui/components/AuthScaffold';
 import { PasswordField } from '@/shared/ui/components/PasswordField';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+import { visuallyHiddenFieldError } from '@/shared/ui/forms/fieldErrorAccessibility';
+import { type FormErrorField, useFormErrorToast } from '@/shared/ui/forms/useFormErrorToast';
 
 interface ChangePasswordValues {
   newPassword: string;
   confirmPassword: string;
 }
 
+const requiredFields = [
+  { label: '新密码', name: 'newPassword' },
+  { label: '确认新密码', name: 'confirmPassword' },
+] as const satisfies readonly FormErrorField<ChangePasswordValues>[];
+
 export function ChangePasswordPage() {
   const { changePassword } = useAuth();
   const { showToast } = useToast();
-  const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ChangePasswordValues>({
+  const { control, handleSubmit, watch, formState: { errors, isSubmitting }, setFocus } = useForm<ChangePasswordValues>({
     defaultValues: { newPassword: '', confirmPassword: '' },
   });
+  const handleInvalid = useFormErrorToast({ fields: requiredFields, setFocus, summary: 'invalid' });
   const newPassword = watch('newPassword');
 
-  const submit = handleSubmit(async ({ newPassword: password }) => {
+  const submit = async ({ newPassword: password }: ChangePasswordValues) => {
     try {
       await changePassword({ newPassword: password });
     } catch (error) {
@@ -32,7 +40,7 @@ export function ChangePasswordPage() {
         severity: 'error',
       });
     }
-  });
+  };
 
   return (
     <AuthScaffold
@@ -58,7 +66,7 @@ export function ChangePasswordPage() {
             首次登录安全设置
           </Typography>
         </Stack>
-        <Box component="form" noValidate onSubmit={submit}>
+        <Box component="form" noValidate onSubmit={handleSubmit(submit, handleInvalid)}>
           <Stack gap={2.5}>
             <Controller
               control={control}
@@ -68,7 +76,7 @@ export function ChangePasswordPage() {
                 minLength: { value: 12, message: '密码至少需要 12 个字符。' },
                 maxLength: { value: 128, message: '密码不能超过 128 个字符。' },
               }}
-              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.newPassword)} helperText={errors.newPassword?.message ?? '长度为 12–128 个字符，且不能与账号相同。'} label="新密码" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.newPassword)} helperText={errors.newPassword?.message ?? '长度为 12–128 个字符，且不能与账号相同。'} helperTextSx={errors.newPassword ? visuallyHiddenFieldError : undefined} label="新密码" />}
             />
             <Controller
               control={control}
@@ -77,7 +85,7 @@ export function ChangePasswordPage() {
                 required: '请再次输入新密码。',
                 validate: (value) => value === newPassword || '两次输入的密码不一致。',
               }}
-              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword?.message} label="确认新密码" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword?.message} helperTextSx={errors.confirmPassword ? visuallyHiddenFieldError : undefined} label="确认新密码" />}
             />
             <Button disabled={isSubmitting} size="large" type="submit" variant="contained">
               {isSubmitting ? '正在更新…' : '更新密码并继续'}

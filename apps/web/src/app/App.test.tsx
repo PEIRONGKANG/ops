@@ -69,6 +69,35 @@ describe('App', () => {
     expect(alert.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });
 
+  it('summarizes empty login fields once and focuses the first invalid field', async () => {
+    const user = userEvent.setup();
+    const api: AuthApi = {
+      login: vi.fn(),
+      changePassword: vi.fn(),
+      refresh: vi.fn().mockRejectedValue(new ApiError(401, { code: 'UNAUTHORIZED', message: 'Refresh cookie is missing.' })),
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    await user.click(await screen.findByRole('button', { name: '登录' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 2 个必填项：账号、密码。');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    const loginId = screen.getByRole('textbox', { name: '账号' });
+    expect(loginId).toHaveFocus();
+    expect(loginId).toHaveAttribute('aria-invalid', 'true');
+    const description = document.getElementById(loginId.getAttribute('aria-describedby') ?? '');
+    expect(description).toHaveTextContent('请输入账号。');
+    expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    const password = screen.getByLabelText('密码');
+    const passwordDescription = document.getElementById(password.getAttribute('aria-describedby') ?? '');
+    expect(passwordDescription).toHaveTextContent('请输入密码。');
+    expect(passwordDescription).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    expect(api.login).not.toHaveBeenCalled();
+  });
+
   it('shows the required password change screen for a restricted first-login session', async () => {
     const user = userEvent.setup();
     const api: AuthApi = {
@@ -108,6 +137,58 @@ describe('App', () => {
     expect(api.changePassword).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '更新密码并继续' })).toBeVisible();
     expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
+  });
+
+  it('summarizes empty password-change fields and hides repeated field errors', async () => {
+    const user = userEvent.setup();
+    const api: AuthApi = {
+      login: vi.fn(),
+      changePassword: vi.fn(),
+      refresh: vi.fn().mockResolvedValue({ accessToken: 'password-change-token', tokenType: 'password_change', expiresInSeconds: 600 }),
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    expect(await screen.findByText('长度为 12–128 个字符，且不能与账号相同。')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: '更新密码并继续' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请检查 2 个字段：新密码、确认新密码。');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    const newPassword = screen.getByLabelText('新密码');
+    expect(newPassword).toHaveFocus();
+    expect(newPassword).toHaveAttribute('aria-invalid', 'true');
+    const description = document.getElementById(newPassword.getAttribute('aria-describedby') ?? '');
+    expect(description).toHaveTextContent('请输入新密码。');
+    expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    const confirmation = screen.getByLabelText('确认新密码');
+    const confirmationDescription = document.getElementById(confirmation.getAttribute('aria-describedby') ?? '');
+    expect(confirmationDescription).toHaveTextContent('请再次输入新密码。');
+    expect(confirmationDescription).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    expect(api.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('summarizes invalid password rules without calling completed fields required', async () => {
+    const user = userEvent.setup();
+    const api: AuthApi = {
+      login: vi.fn(),
+      changePassword: vi.fn(),
+      refresh: vi.fn().mockResolvedValue({ accessToken: 'password-change-token', tokenType: 'password_change', expiresInSeconds: 600 }),
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    render(<App api={api} store={createSessionStore()} />);
+
+    await user.type(await screen.findByLabelText('新密码'), 'short');
+    await user.type(screen.getByLabelText('确认新密码'), 'different');
+    await user.click(screen.getByRole('button', { name: '更新密码并继续' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请检查 2 个字段：新密码、确认新密码。');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByLabelText('新密码')).toHaveFocus();
+    expect(api.changePassword).not.toHaveBeenCalled();
   });
 
   it('exchanges the restricted token for a normal session after a valid password change', async () => {

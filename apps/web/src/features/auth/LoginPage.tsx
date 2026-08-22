@@ -7,20 +7,28 @@ import { useAuth } from '@/shared/auth/useAuth';
 import { AuthScaffold } from '@/shared/ui/components/AuthScaffold';
 import { PasswordField } from '@/shared/ui/components/PasswordField';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+import { visuallyHiddenFieldError } from '@/shared/ui/forms/fieldErrorAccessibility';
+import { type FormErrorField, useFormErrorToast } from '@/shared/ui/forms/useFormErrorToast';
 
 interface LoginValues {
   loginId: string;
   password: string;
 }
 
+const requiredFields = [
+  { label: '账号', name: 'loginId' },
+  { label: '密码', name: 'password' },
+] as const satisfies readonly FormErrorField<LoginValues>[];
+
 export function LoginPage() {
   const { login } = useAuth();
   const { showToast } = useToast();
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginValues>({
+  const { control, handleSubmit, formState: { errors, isSubmitting }, setFocus } = useForm<LoginValues>({
     defaultValues: { loginId: '', password: '' },
   });
+  const handleInvalid = useFormErrorToast({ fields: requiredFields, setFocus });
 
-  const submit = handleSubmit(async (values) => {
+  const submit = async (values: LoginValues) => {
     try {
       await login(values);
     } catch (error) {
@@ -31,7 +39,7 @@ export function LoginPage() {
         severity: 'error',
       });
     }
-  });
+  };
 
   return (
     <AuthScaffold
@@ -57,19 +65,19 @@ export function LoginPage() {
             安全登录
           </Typography>
         </Stack>
-        <Box component="form" noValidate onSubmit={submit}>
+        <Box component="form" noValidate onSubmit={handleSubmit(submit, handleInvalid)}>
           <Stack gap={2.5}>
             <Controller
               control={control}
               name="loginId"
               rules={{ required: '请输入账号。' }}
-              render={({ field }) => <TextField {...field} autoComplete="username" error={Boolean(errors.loginId)} helperText={errors.loginId?.message} label="账号" />}
+              render={({ field: { ref, ...field } }) => <TextField {...field} autoComplete="username" error={Boolean(errors.loginId)} helperText={errors.loginId?.message} inputRef={ref} label="账号" slotProps={{ formHelperText: { sx: visuallyHiddenFieldError } }} />}
             />
             <Controller
               control={control}
               name="password"
               rules={{ required: '请输入密码。' }}
-              render={({ field }) => <PasswordField {...field} autoComplete="current-password" error={Boolean(errors.password)} helperText={errors.password?.message} label="密码" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="current-password" error={Boolean(errors.password)} helperText={errors.password?.message} helperTextSx={errors.password ? visuallyHiddenFieldError : undefined} label="密码" />}
             />
             <Button disabled={isSubmitting} size="large" type="submit" variant="contained">
               {isSubmitting ? '正在登录…' : '登录'}

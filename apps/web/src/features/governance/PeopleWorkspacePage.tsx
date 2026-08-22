@@ -40,7 +40,7 @@ export const peopleWorkspaceLayout = {
   rows: {
     account: 'minmax(12rem, 1fr) minmax(16rem, auto)',
     membership: 'minmax(12rem, 1fr) minmax(10rem, 0.7fr)',
-    pending: 'minmax(10rem, 0.7fr) minmax(12rem, 0.8fr) minmax(18rem, 1.4fr) auto',
+    pending: 'minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1.4fr) auto',
   },
 } as const satisfies PeopleWorkspaceLayoutContract;
 

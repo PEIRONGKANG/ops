@@ -1,14 +1,15 @@
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { IconButton, InputAdornment, TextField } from '@mui/material';
+import { IconButton, InputAdornment, TextField, type SxProps, type Theme } from '@mui/material';
 import { forwardRef, type ComponentProps, useState } from 'react';
 
 type PasswordFieldProps = Omit<ComponentProps<typeof TextField>, 'label' | 'slotProps' | 'type'> & {
+  helperTextSx?: SxProps<Theme>;
   label: string;
 };
 
 export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(function PasswordField(
-  { label, ...props },
+  { helperTextSx, label, ...props },
   ref,
 ) {
   const [isVisible, setIsVisible] = useState(false);
@@ -20,6 +21,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
       inputRef={ref}
       label={label}
       slotProps={{
+        formHelperText: helperTextSx ? { sx: helperTextSx } : undefined,
         input: {
           endAdornment: (
             <InputAdornment position="end">
