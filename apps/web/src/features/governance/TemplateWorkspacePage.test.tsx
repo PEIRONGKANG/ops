@@ -42,6 +42,58 @@ function renderTemplate(api: GovernanceApi, embedded = false) {
 }
 
 describe('TemplateWorkspacePage', () => {
+  it('keeps the workspace blocked and restores the existing draft when template loading is retried', async () => {
+    const user = userEvent.setup();
+    const existingDraft = {
+      id: 'template-id', termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', templateRevision: 1,
+      name: '已保存的运营模板', status: 'DRAFT' as const, effectiveFrom: '2026-09-01', effectiveUntil: null,
+      configuration: {}, version: 1, updatedAt: '2026-08-21T00:00:00Z',
+    };
+    const listTemplateVersions = vi.fn()
+      .mockRejectedValueOnce(new Error('temporary template failure'))
+      .mockResolvedValueOnce([existingDraft]);
+    const api = createApi({ listTemplateVersions });
+
+    renderTemplate(api);
+
+    expect(await screen.findByRole('heading', { name: '无法读取运营模板' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: '保存模板草稿' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('模板名称')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '重试' }));
+
+    expect(await screen.findByDisplayValue('已保存的运营模板')).toBeVisible();
+    expect(listTemplateVersions).toHaveBeenCalledTimes(2);
+    expect(api.bootstrapTemplate).not.toHaveBeenCalled();
+  });
+
+  it('retries loading an existing draft when its starter components fail', async () => {
+    const user = userEvent.setup();
+    const listTemplateComponents = vi.fn()
+      .mockRejectedValueOnce(new Error('temporary component failure'))
+      .mockResolvedValueOnce([{ id: 'task-id', templateVersionId: 'template-id', componentType: 'SOP_TASK', code: 'OPENING-CHECK', name: '开档检查', configuration: { roleCode: 'BARISTA' }, version: 1, updatedAt: '2026-08-21T00:00:00Z' }])
+      .mockResolvedValueOnce([{ id: 'role-id', templateVersionId: 'template-id', componentType: 'ROLE', code: 'BARISTA', name: '吧台制作', configuration: { required: true }, version: 1, updatedAt: '2026-08-21T00:00:00Z' }])
+      .mockResolvedValueOnce([{ id: 'task-id', templateVersionId: 'template-id', componentType: 'SOP_TASK', code: 'OPENING-CHECK', name: '开档检查', configuration: { roleCode: 'BARISTA' }, version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    const api = createApi({
+      listTemplateVersions: vi.fn().mockResolvedValue([{
+        id: 'template-id', termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', templateRevision: 1,
+        name: '已保存的运营模板', status: 'DRAFT', effectiveFrom: '2026-09-01', effectiveUntil: null,
+        configuration: {}, version: 1, updatedAt: '2026-08-21T00:00:00Z',
+      }]),
+      listTemplateComponents,
+    });
+
+    renderTemplate(api);
+
+    expect(await screen.findByRole('heading', { name: '无法读取运营模板' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: '保存模板草稿' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '重试' }));
+
+    expect(await screen.findByDisplayValue('已保存的运营模板')).toBeVisible();
+    expect(listTemplateComponents).toHaveBeenCalledTimes(4);
+    expect(api.bootstrapTemplate).not.toHaveBeenCalled();
+  });
+
   it('summarizes an empty submission once and focuses the first invalid field without inline required messages', async () => {
     const user = userEvent.setup();
     const api = createApi();

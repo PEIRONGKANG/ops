@@ -1,6 +1,6 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
@@ -32,6 +32,20 @@ interface FormValues {
   taskName: string;
 }
 
+type TemplateLoadState =
+  | { scopeKey: string; status: 'idle' | 'loading' | 'ready'; error: null }
+  | { scopeKey: string; status: 'error'; error: string };
+
+const emptyFormValues: FormValues = {
+  effectiveFrom: '',
+  roleCode: '',
+  roleName: '',
+  taskCode: '',
+  taskName: '',
+  templateCode: '',
+  templateName: '',
+};
+
 const requiredFields = [
   { label: '模板代码', name: 'templateCode' },
   { label: '模板名称', name: 'templateName' },
@@ -47,17 +61,21 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
   const [stores, setStores] = useState<Store[]>([]);
   const [termId, setTermId] = useState('');
   const [storeId, setStoreId] = useState('');
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isContextLoading, setIsContextLoading] = useState(true);
+  const [contextLoadError, setContextLoadError] = useState<string | null>(null);
+  const [templateLoadState, setTemplateLoadState] = useState<TemplateLoadState>({ scopeKey: '', status: 'idle', error: null });
   const [latestTemplate, setLatestTemplate] = useState<TemplateVersion | null>(null);
   const [starterComponents, setStarterComponents] = useState<{ role: TemplateComponent; sopTask: TemplateComponent } | null>(null);
+  const templateRequestId = useRef(0);
   const { showToast } = useToast();
   const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset, setFocus } = useForm<FormValues>({
-    defaultValues: { effectiveFrom: '', roleCode: '', roleName: '', taskCode: '', taskName: '', templateCode: '', templateName: '' },
+    defaultValues: emptyFormValues,
   });
   const handleInvalid = useFormErrorToast({ fields: requiredFields, setFocus });
 
   const loadContext = useCallback(async () => {
-    setLoadError(null);
+    setContextLoadError(null);
+    setIsContextLoading(true);
     try {
       const [nextTerms, nextStores] = await Promise.all([api.listTerms(), api.listStores()]);
       setTerms(nextTerms);
@@ -65,24 +83,42 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
       setTermId((current) => current || preferredTerm(nextTerms)?.id || '');
       setStoreId((current) => current || nextStores.find((store) => store.status === 'ACTIVE')?.id || nextStores[0]?.id || '');
     } catch (error) {
-      setLoadError(messageFor(error));
+      setContextLoadError(messageFor(error));
+    } finally {
+      setIsContextLoading(false);
     }
   }, [api]);
 
   const loadTemplates = useCallback(async () => {
     if (!termId || !storeId) return;
+    const scopeKey = templateScopeKey(termId, storeId);
+    const requestId = ++templateRequestId.current;
+    setTemplateLoadState({ scopeKey, status: 'loading', error: null });
     try {
       const nextTemplates = await api.listTemplateVersions({ termId, storeId });
+      if (requestId !== templateRequestId.current) return;
       const template = nextTemplates.find((item) => item.status === 'DRAFT') ?? nextTemplates[0] ?? null;
       setLatestTemplate(template);
       setStarterComponents(null);
-      if (!template || template.status !== 'DRAFT') return;
+      if (!template) {
+        reset(emptyFormValues);
+        setTemplateLoadState({ scopeKey, status: 'ready', error: null });
+        return;
+      }
+      if (template.status !== 'DRAFT') {
+        setTemplateLoadState({ scopeKey, status: 'ready', error: null });
+        return;
+      }
 
       const components = await loadStarterComponents(api, template.id);
+      if (requestId !== templateRequestId.current) return;
       setStarterComponents(components);
       reset(valuesFor(template, components.role, components.sopTask));
+      setTemplateLoadState({ scopeKey, status: 'ready', error: null });
     } catch (error) {
-      setLoadError(messageFor(error));
+      if (requestId === templateRequestId.current) {
+        setTemplateLoadState({ scopeKey, status: 'error', error: messageFor(error) });
+      }
     }
   }, [api, reset, storeId, termId]);
 
@@ -130,14 +166,21 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
     }
   };
 
-  if (terms === null) return <PageState kind="loading" title="正在读取运营模板" />;
-  if (loadError) return <PageState description={loadError} kind="error" onRetry={() => { void loadContext(); }} title="无法读取运营模板" />;
+  if (contextLoadError) return <PageState description={contextLoadError} kind="error" onRetry={() => { void loadContext(); }} title="无法读取模板范围" />;
+  if (isContextLoading || terms === null) return <PageState kind="loading" title="正在读取运营模板" />;
   if (!termId || !storeId) {
     return (
       <TemplateFrame embedded={embedded} onBack={onBack}>
         <PageState description="先建立实训周期与运营门店，才能定义可发布的运营模板。" kind="empty" title="尚未具备模板范围" />
       </TemplateFrame>
     );
+  }
+  const activeScopeKey = templateScopeKey(termId, storeId);
+  if (templateLoadState.scopeKey !== activeScopeKey || templateLoadState.status === 'idle' || templateLoadState.status === 'loading') {
+    return <PageState kind="loading" title="正在读取运营模板" />;
+  }
+  if (templateLoadState.status === 'error') {
+    return <PageState description={templateLoadState.error} kind="error" onRetry={() => { void loadTemplates(); }} title="无法读取运营模板" />;
   }
 
   return (
@@ -252,6 +295,10 @@ function DateField({ control, errors, label, name }: {
 
 function preferredTerm(terms: Term[]): Term | undefined {
   return terms.find((term) => term.status === 'DRAFT' || term.status === 'PUBLISHED') ?? terms[0];
+}
+
+function templateScopeKey(termId: string, storeId: string): string {
+  return `${termId}:${storeId}`;
 }
 
 function valuesFor(template: TemplateVersion, role: TemplateComponent, sopTask: TemplateComponent): FormValues {
