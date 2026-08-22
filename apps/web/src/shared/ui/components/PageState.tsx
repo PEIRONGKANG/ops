@@ -1,7 +1,9 @@
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import SignalWifiOffRoundedIcon from '@mui/icons-material/SignalWifiOffRounded';
-import { Button, CircularProgress, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
+import { useId } from 'react';
 
 type PageStateKind = 'loading' | 'empty' | 'error' | 'forbidden' | 'offline';
 
@@ -21,7 +23,8 @@ const defaultContent: Record<PageStateKind, { title: string; description: string
 };
 
 function StateIcon({ kind }: Pick<PageStateProps, 'kind'>) {
-  if (kind === 'loading') return <CircularProgress aria-label="正在加载" size={32} />;
+  if (kind === 'loading') return <CircularProgress size={30} />;
+  if (kind === 'empty') return <Inventory2OutlinedIcon fontSize="large" />;
   if (kind === 'forbidden') return <LockOutlinedIcon aria-hidden fontSize="large" />;
   if (kind === 'offline') return <SignalWifiOffRoundedIcon aria-hidden fontSize="large" />;
   if (kind === 'error') return <ErrorOutlineRoundedIcon aria-hidden fontSize="large" />;
@@ -31,11 +34,25 @@ function StateIcon({ kind }: Pick<PageStateProps, 'kind'>) {
 export function PageState({ kind, title, description, onRetry }: PageStateProps) {
   const content = defaultContent[kind];
   const canRetry = (kind === 'error' || kind === 'offline') && onRetry;
+  const titleId = useId();
 
   return (
-    <Stack alignItems="center" aria-live="polite" gap={1.5} justifyContent="center" minHeight={240} px={3} textAlign="center">
-      <StateIcon kind={kind} />
-      <Typography component="h2" variant="h3">{title ?? content.title}</Typography>
+    <Stack alignItems="center" aria-labelledby={titleId} component="section" gap={1.5} justifyContent="center" minHeight={240} px={3} textAlign="center">
+      <Box
+        alignItems="center"
+        aria-hidden="true"
+        bgcolor="var(--beverage-surface-container-high)"
+        borderRadius="var(--beverage-shape-full)"
+        color={kind === 'error' || kind === 'offline' ? 'error.main' : 'primary.main'}
+        data-testid="page-state-icon"
+        display="flex"
+        height={64}
+        justifyContent="center"
+        width={64}
+      >
+        <StateIcon kind={kind} />
+      </Box>
+      <Typography component="h2" id={titleId} variant="h3">{title ?? content.title}</Typography>
       <Typography color="text.secondary" maxWidth={420}>{description ?? content.description}</Typography>
       {canRetry ? <Button onClick={onRetry} variant="contained">重试</Button> : null}
     </Stack>

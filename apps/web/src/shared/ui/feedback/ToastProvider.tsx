@@ -33,6 +33,13 @@ const autoHideDurations: Record<ToastSeverity, number> = {
   warning: 6000,
 };
 
+const announcementBySeverity: Record<ToastSeverity, { live: 'assertive' | 'polite'; role: 'alert' | 'status' }> = {
+  error: { live: 'assertive', role: 'alert' },
+  info: { live: 'polite', role: 'status' },
+  success: { live: 'polite', role: 'status' },
+  warning: { live: 'assertive', role: 'alert' },
+};
+
 export function ToastProvider({ children }: PropsWithChildren) {
   const [current, setCurrent] = useState<ToastMessage | null>(null);
   const [queue, setQueue] = useState<ToastMessage[]>([]);
@@ -51,12 +58,26 @@ export function ToastProvider({ children }: PropsWithChildren) {
 
   const close = () => setCurrent(null);
   const value = useMemo(() => ({ showToast }), [showToast]);
+  const announcement = current ? announcementBySeverity[current.severity] : undefined;
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       <Snackbar anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }} autoHideDuration={current ? autoHideDurations[current.severity] : undefined} onClose={(_, reason) => { if (reason !== 'clickaway') close(); }} open={Boolean(current)}>
-        {current ? <Alert action={current.action ? <Button color="inherit" onClick={() => { current.action?.onClick(); close(); }} size="small">{current.action.label}</Button> : undefined} onClose={close} severity={current.severity} variant="filled">{current.message}</Alert> : undefined}
+        {current && announcement ? (
+          <Alert
+            action={current.action ? <Button color="inherit" onClick={() => { current.action?.onClick(); close(); }} size="small" type="button">{current.action.label}</Button> : undefined}
+            aria-atomic="true"
+            aria-live={announcement.live}
+            closeText="关闭"
+            onClose={close}
+            role={announcement.role}
+            severity={current.severity}
+            variant="filled"
+          >
+            {current.message}
+          </Alert>
+        ) : undefined}
       </Snackbar>
     </ToastContext.Provider>
   );

@@ -1,3 +1,6 @@
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Chip } from '@mui/material';
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger';
@@ -15,5 +18,12 @@ const colourByTone: Record<StatusTone, 'default' | 'success' | 'warning' | 'erro
 };
 
 export function StatusChip({ label, tone = 'neutral' }: StatusChipProps) {
-  return <Chip color={colourByTone[tone]} label={label} size="small" variant={tone === 'neutral' ? 'outlined' : 'filled'} />;
+  const icon = {
+    danger: <ErrorOutlineRoundedIcon aria-hidden="true" />,
+    neutral: undefined,
+    success: <CheckCircleRoundedIcon aria-hidden="true" />,
+    warning: <WarningAmberRoundedIcon aria-hidden="true" />,
+  }[tone];
+
+  return <Chip color={colourByTone[tone]} icon={icon} label={label} size="small" variant={tone === 'neutral' ? 'outlined' : 'filled'} />;
 }
