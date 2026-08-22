@@ -7,7 +7,10 @@ import { type RoleCode } from '@/shared/api/authApi';
 import { ApiError } from '@/shared/api/ApiError';
 import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
+import { WorkspaceSection } from '@/shared/ui/components/WorkspaceSection';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+import { visuallyHiddenFieldError } from '@/shared/ui/forms/fieldErrorAccessibility';
+import { type FormErrorField, useFormErrorToast } from '@/shared/ui/forms/useFormErrorToast';
 
 import type { AccountSummary, GovernanceApi, Membership, PendingRegistration, Team, Term } from './governanceApi';
 
@@ -22,6 +25,29 @@ interface TeamFormValues {
   code: string;
   name: string;
 }
+
+export interface PeopleWorkspaceLayoutContract {
+  readonly collection: Readonly<{ maxHeight: number; overflowY: 'auto' }>;
+  readonly rows: Readonly<{
+    account: string;
+    membership: string;
+    pending: string;
+  }>;
+}
+
+export const peopleWorkspaceLayout = {
+  collection: { maxHeight: 320, overflowY: 'auto' },
+  rows: {
+    account: 'minmax(12rem, 1fr) minmax(16rem, auto)',
+    membership: 'minmax(12rem, 1fr) minmax(10rem, 0.7fr)',
+    pending: 'minmax(10rem, 0.7fr) minmax(12rem, 0.8fr) minmax(18rem, 1.4fr) auto',
+  },
+} as const satisfies PeopleWorkspaceLayoutContract;
+
+const requiredTeamFields = [
+  { label: '团队代码', name: 'code' },
+  { label: '团队名称', name: 'name' },
+] as const satisfies readonly FormErrorField<TeamFormValues>[];
 
 const roleLabels: Record<Exclude<RoleCode, 'EXTERNAL_REVIEWER'>, string> = {
   P1: '运营治理（P1）',
@@ -45,7 +71,10 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
   const [termLoadError, setTermLoadError] = useState<string | null>(null);
   const [loadingPeople, setLoadingPeople] = useState(false);
   const { showToast } = useToast();
-  const { formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<TeamFormValues>();
+  const { formState: { errors, isSubmitting }, handleSubmit, register, reset, setFocus } = useForm<TeamFormValues>({
+    defaultValues: { code: '', name: '' },
+  });
+  const handleInvalidTeam = useFormErrorToast({ fields: requiredTeamFields, setFocus });
 
   const loadTerms = useCallback(async () => {
     setTermLoadError(null);
@@ -130,70 +159,91 @@ export function PeopleWorkspacePage({ api, embedded = false, onBack, onMembershi
 
   return (
     <PeopleFrame embedded={embedded} onBack={onBack}>
-      <Box maxWidth={embedded ? 1080 : 960}>
+      <Box maxWidth={embedded ? 1040 : 960}>
         {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">组织实训人员</Typography>
           <Typography color="text.secondary">审批账号、建立团队，并将已启用账号纳入当前实训周期。账号状态与团队归属均以服务端为准。</Typography>
         </Stack> : null}
 
-        <FormControl fullWidth sx={{ maxWidth: 480, mb: embedded ? 2.5 : 4 }}>
-          <InputLabel id="people-term-label">实训周期</InputLabel>
-          <Select label="实训周期" labelId="people-term-label" onChange={(event) => {
-            setTermId(event.target.value);
-            setTeams([]);
-            setMemberships([]);
-            setSelectedTeamId('');
-          }} value={termId}>
-            {terms.map((term) => <MenuItem key={term.id} value={term.id}>{term.name} · {term.code}</MenuItem>)}
-          </Select>
-        </FormControl>
+        <Box
+          alignItems={{ sm: 'center' }}
+          aria-label="实训周期上下文"
+          bgcolor="var(--beverage-surface-container)"
+          borderRadius="var(--beverage-shape-large)"
+          display="grid"
+          gap={{ xs: 1, sm: 2 }}
+          gridTemplateColumns={{ xs: '1fr', sm: 'auto minmax(18rem, 28rem)' }}
+          mb={embedded ? 3 : 4}
+          px={{ xs: 2, sm: 2.5 }}
+          py={1.5}
+          role="toolbar"
+        >
+          <Box>
+            <Typography fontWeight={700}>当前实训周期</Typography>
+            <Typography color="text.secondary" variant="body2">人员与团队均归入此周期</Typography>
+          </Box>
+          <FormControl fullWidth size="small">
+            <InputLabel id="people-term-label">实训周期</InputLabel>
+            <Select label="实训周期" labelId="people-term-label" onChange={(event) => {
+              setTermId(event.target.value);
+              setTeams([]);
+              setMemberships([]);
+              setSelectedTeamId('');
+            }} value={termId}>
+              {terms.map((term) => <MenuItem key={term.id} value={term.id}>{term.name} · {term.code}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </Box>
 
-        <Stack gap={embedded ? 3 : 5}>
-          <section aria-labelledby="pending-title">
-            <SectionHeading compact={embedded} description="批准后会生成一次性临时密码；请在交付后关闭或离开此页面，系统不会在浏览器中保存密码。" id="pending-title" title="待审批账号" />
-            {issuedCredential ? <Box aria-label="一次性凭据" borderColor="divider" borderLeft={3} mb={2} p={2}><Typography fontWeight={700}>请安全交付临时密码</Typography><Typography mt={0.5}>账号 {issuedCredential.loginId}，临时密码 <strong>{issuedCredential.temporaryPassword}</strong>。首次登录后必须修改。</Typography></Box> : null}
-            {pending.length === 0 ? <Typography color="text.secondary" variant="body2">当前没有待审批账号。</Typography> : <Stack divider={<Divider flexItem />}>
-              {pending.map((request) => {
-                const selectedRole = approvalRoles[request.id] ?? 'P3';
-                const reason = approvalNotes[request.id] ?? '';
-                return (
-                  <Box key={request.id} py={2.5}>
-                    <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', md: 'minmax(160px, 0.7fr) minmax(160px, 0.7fr) minmax(220px, 1.2fr) auto' }}>
-                      <Box><Typography fontWeight={700}>{request.displayName}</Typography><Typography color="text.secondary" variant="body2">{request.loginId}</Typography></Box>
-                      <FormControl size="small"><InputLabel id={`role-${request.id}`}>分配角色</InputLabel><Select label="分配角色" labelId={`role-${request.id}`} onChange={(event) => setApprovalRoles((current) => ({ ...current, [request.id]: event.target.value as Exclude<RoleCode, 'EXTERNAL_REVIEWER'> }))} value={selectedRole}>{Object.entries(roleLabels).map(([code, label]) => <MenuItem key={code} value={code}>{label}</MenuItem>)}</Select></FormControl>
-                      <TextField label={`审批说明（${request.displayName}）`} onChange={(event) => setApprovalNotes((current) => ({ ...current, [request.id]: event.target.value }))} size="small" value={reason} />
-                      <Button disabled={!reason.trim()} onClick={() => { void approve(request); }} variant="outlined">批准{request.displayName}</Button>
-                    </Box>
-                  </Box>
-                );
-              })}
-            </Stack>}
-          </section>
-
-          <section aria-labelledby="accounts-title">
-            <SectionHeading compact={embedded} description="只显示已启用账号摘要，不暴露密码或其他认证数据。" id="accounts-title" title="已启用账号" />
-            <Stack divider={<Divider flexItem />}>
-              {accounts.map((account) => <AccountRow account={account} key={account.id} />)}
-              {accounts.length === 0 ? <Typography color="text.secondary" variant="body2">暂无已启用账号。</Typography> : null}
+        <Stack gap={embedded ? 4 : 5}>
+          <WorkspaceSection columns={1} description={embedded ? undefined : '批准后会生成一次性临时密码；密码只在当前页面状态中展示。'} id="pending-accounts" title="待审批账号">
+            <Stack gap={2}>
+              {issuedCredential ? <CredentialPanel credential={issuedCredential} /> : null}
+              <PendingAccountRows
+                approvalNotes={approvalNotes}
+                approvalRoles={approvalRoles}
+                onApprove={approve}
+                onNoteChange={(id, value) => setApprovalNotes((current) => ({ ...current, [id]: value }))}
+                onRoleChange={(id, value) => setApprovalRoles((current) => ({ ...current, [id]: value }))}
+                pending={pending}
+              />
             </Stack>
-          </section>
+          </WorkspaceSection>
 
-          <section aria-labelledby="team-title">
-            <SectionHeading compact={embedded} description="团队用于日常班次组织；成员加入周期后才能被排班。" id="team-title" title="团队与学期成员" />
-            <Box component="form" maxWidth={640} noValidate onSubmit={handleSubmit(createTeam)}>
-              <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr auto' }}>
-                <TextField error={Boolean(errors.code)} helperText={errors.code?.message} label="团队代码" {...register('code', { required: '请填写团队代码。' })} />
-                <TextField error={Boolean(errors.name)} helperText={errors.name?.message} label="团队名称" {...register('name', { required: '请填写团队名称。' })} />
+          <WorkspaceSection columns={1} description={embedded ? undefined : '只显示已启用账号摘要，不暴露密码或其他认证数据。'} id="active-accounts" title="已启用账号">
+            <AccountRows accounts={accounts} />
+          </WorkspaceSection>
+
+          <WorkspaceSection columns={1} description={embedded ? undefined : '团队用于日常班次组织；成员加入周期后才能被排班。'} id="term-members" title="团队与本期成员">
+            <Stack gap={3}>
+              <Box
+                aria-label="创建团队"
+                component="form"
+                display="grid"
+                gap={2}
+                gridTemplateColumns={{ xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1fr) auto' }}
+                noValidate
+                onSubmit={handleSubmit(createTeam, handleInvalidTeam)}
+                role="toolbar"
+              >
+                <TeamField errors={errors} label="团队代码" name="code" register={register} />
+                <TeamField errors={errors} label="团队名称" name="name" register={register} />
                 <Button disabled={isSubmitting} type="submit" variant="outlined">创建团队</Button>
               </Box>
-            </Box>
-            <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr auto' }} mt={3}>
-              <PersonSelect accounts={accounts} onChange={setSelectedAccountId} value={selectedAccountId} />
-              <TeamSelect onChange={setSelectedTeamId} teams={teams} value={selectedTeamId} />
-              <Button disabled={!selectedAccountId || !selectedTeamId} onClick={() => { void createMembership(); }} variant="contained">加入本期成员</Button>
-            </Box>
-            <MembershipList accounts={accounts} memberships={memberships} teams={teams} />
-          </section>
+              <Box
+                aria-label="加入本期成员"
+                display="grid"
+                gap={2}
+                gridTemplateColumns={{ xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1fr) auto' }}
+                role="toolbar"
+              >
+                <PersonSelect accounts={accounts} onChange={setSelectedAccountId} value={selectedAccountId} />
+                <TeamSelect onChange={setSelectedTeamId} teams={teams} value={selectedTeamId} />
+                <Button disabled={!selectedAccountId || !selectedTeamId} onClick={() => { void createMembership(); }} variant="contained">加入本期成员</Button>
+              </Box>
+              <MembershipList accounts={accounts} memberships={memberships} teams={teams} />
+            </Stack>
+          </WorkspaceSection>
         </Stack>
       </Box>
     </PeopleFrame>
@@ -206,12 +256,112 @@ function PeopleFrame({ children, embedded, onBack }: { children: ReactNode; embe
   return <Stack gap={3}><Box><Button onClick={onBack} size="small" startIcon={<ArrowBackRoundedIcon />}>返回工作台</Button></Box><Typography color="primary" fontWeight={800} variant="overline">运营治理 / 人员</Typography>{children}</Stack>;
 }
 
-function SectionHeading({ compact, description, id, title }: { compact: boolean; description: string; id: string; title: string }) {
-  return <Box mb={compact ? 1.25 : 2}><Typography component="h2" id={id} variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>;
+function CredentialPanel({ credential }: { credential: { loginId: string; temporaryPassword: string } }) {
+  return (
+    <Box
+      aria-label="一次性凭据"
+      bgcolor="var(--beverage-primary-container)"
+      borderRadius="var(--beverage-shape-medium)"
+      px={{ xs: 2, sm: 2.5 }}
+      py={2}
+      role="status"
+    >
+      <Typography color="primary" fontWeight={800}>请安全交付临时凭据</Typography>
+      <Typography mt={0.5}>
+        账号 {credential.loginId}，临时密码 <strong>{credential.temporaryPassword}</strong>。首次登录后必须修改；离开本页后不再展示。
+      </Typography>
+    </Box>
+  );
+}
+
+function PendingAccountRows({ approvalNotes, approvalRoles, onApprove, onNoteChange, onRoleChange, pending }: {
+  approvalNotes: Record<string, string>;
+  approvalRoles: Record<string, Exclude<RoleCode, 'EXTERNAL_REVIEWER'>>;
+  onApprove: (request: PendingRegistration) => Promise<void>;
+  onNoteChange: (id: string, value: string) => void;
+  onRoleChange: (id: string, value: Exclude<RoleCode, 'EXTERNAL_REVIEWER'>) => void;
+  pending: PendingRegistration[];
+}) {
+  if (pending.length === 0) return <Typography color="text.secondary" variant="body2">当前没有待审批账号。</Typography>;
+
+  return (
+    <Box aria-label="待审批账号列表" role="table" sx={peopleWorkspaceLayout.collection}>
+      <Box
+        borderBottom={1}
+        borderColor="divider"
+        display={{ xs: 'none', md: 'grid' }}
+        gap={2}
+        gridTemplateColumns={peopleWorkspaceLayout.rows.pending}
+        px={1}
+        py={1}
+        role="row"
+      >
+        {['账号', '角色', '审批说明', '动作'].map((label) => <Typography color="text.secondary" fontWeight={700} key={label} role="columnheader" variant="caption">{label}</Typography>)}
+      </Box>
+      <Stack divider={<Divider flexItem />}>
+        {pending.map((request) => {
+          const selectedRole = approvalRoles[request.id] ?? 'P3';
+          const reason = approvalNotes[request.id] ?? '';
+          return (
+            <Box
+              alignItems={{ md: 'center' }}
+              display="grid"
+              gap={2}
+              gridTemplateColumns={{ xs: '1fr', md: peopleWorkspaceLayout.rows.pending }}
+              key={request.id}
+              px={1}
+              py={2}
+              role="row"
+            >
+              <Box role="cell"><Typography fontWeight={700}>{request.displayName}</Typography><Typography color="text.secondary" variant="body2">{request.loginId}</Typography></Box>
+              <FormControl role="cell" size="small"><InputLabel id={`role-${request.id}`}>分配角色</InputLabel><Select label="分配角色" labelId={`role-${request.id}`} onChange={(event) => onRoleChange(request.id, event.target.value as Exclude<RoleCode, 'EXTERNAL_REVIEWER'>)} value={selectedRole}>{Object.entries(roleLabels).map(([code, label]) => <MenuItem key={code} value={code}>{label}</MenuItem>)}</Select></FormControl>
+              <Box role="cell"><TextField label={`审批说明（${request.displayName}）`} onChange={(event) => onNoteChange(request.id, event.target.value)} size="small" value={reason} /></Box>
+              <Box role="cell"><Button disabled={!reason.trim()} onClick={() => { void onApprove(request); }} variant="outlined">批准{request.displayName}</Button></Box>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+function AccountRows({ accounts }: { accounts: AccountSummary[] }) {
+  if (accounts.length === 0) return <Typography color="text.secondary" variant="body2">暂无已启用账号。</Typography>;
+
+  return (
+    <Box aria-label="已启用账号列表" role="table" sx={peopleWorkspaceLayout.collection}>
+      <Stack divider={<Divider flexItem />}>
+        {accounts.map((account) => <AccountRow account={account} key={account.id} />)}
+      </Stack>
+    </Box>
+  );
 }
 
 function AccountRow({ account }: { account: AccountSummary }) {
-  return <Stack alignItems={{ sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="space-between" py={1.5}><Box><Typography fontWeight={700}>{account.displayName}</Typography><Typography color="text.secondary" variant="body2">{account.loginId}</Typography></Box><Stack direction="row" gap={1}>{account.roles.map((role) => <StatusChip key={role} label={roleLabels[role as Exclude<RoleCode, 'EXTERNAL_REVIEWER'>] ?? role} tone="neutral" />)}</Stack></Stack>;
+  return (
+    <Box
+      alignItems={{ sm: 'center' }}
+      display="grid"
+      gap={1.5}
+      gridTemplateColumns={{ xs: '1fr', sm: peopleWorkspaceLayout.rows.account }}
+      px={1}
+      py={1.5}
+      role="row"
+    >
+      <Box role="cell"><Typography fontWeight={700}>{account.displayName}</Typography><Typography color="text.secondary" variant="body2">{account.loginId}</Typography></Box>
+      <Stack direction="row" flexWrap="wrap" gap={1} justifyContent={{ sm: 'flex-end' }} role="cell">{account.roles.map((role) => <StatusChip key={role} label={roleLabels[role as Exclude<RoleCode, 'EXTERNAL_REVIEWER'>] ?? role} tone="neutral" />)}</Stack>
+    </Box>
+  );
+}
+
+function TeamField({ errors, label, name, register }: {
+  errors: Record<string, { message?: string } | undefined>;
+  label: string;
+  name: keyof TeamFormValues;
+  register: ReturnType<typeof useForm<TeamFormValues>>['register'];
+}) {
+  const error = Boolean(errors[name]);
+  return <TextField error={error} helperText={error ? `${label}为必填项。` : undefined} label={label} slotProps={{ formHelperText: { sx: visuallyHiddenFieldError } }} {...register(name, { required: true })} />;
 }
 
 function PersonSelect({ accounts, onChange, value }: { accounts: AccountSummary[]; onChange: (value: string) => void; value: string }) {
@@ -223,12 +373,36 @@ function TeamSelect({ onChange, teams, value }: { onChange: (value: string) => v
 }
 
 function MembershipList({ accounts, memberships, teams }: { accounts: AccountSummary[]; memberships: Membership[]; teams: Team[] }) {
-  if (memberships.length === 0) return <Typography color="text.secondary" mt={2} variant="body2">尚未加入本期的成员。</Typography>;
-  return <Stack divider={<Divider flexItem />} mt={3}>{memberships.map((membership) => {
-    const account = accounts.find((item) => item.id === membership.accountId);
-    const team = teams.find((item) => item.id === membership.teamId);
-    return <Stack direction="row" justifyContent="space-between" key={membership.id} py={1.25}><Typography>{account?.displayName ?? membership.accountId}</Typography><Typography color="text.secondary" variant="body2">{team?.name ?? '未分组'}</Typography></Stack>;
-  })}</Stack>;
+  if (memberships.length === 0) return <Typography color="text.secondary" variant="body2">尚未加入本期的成员。</Typography>;
+  return (
+    <Box aria-label="本期成员列表" role="table" sx={peopleWorkspaceLayout.collection}>
+      <Box
+        borderBottom={1}
+        borderColor="divider"
+        display={{ xs: 'none', sm: 'grid' }}
+        gap={2}
+        gridTemplateColumns={peopleWorkspaceLayout.rows.membership}
+        px={1}
+        py={1}
+        role="row"
+      >
+        <Typography color="text.secondary" fontWeight={700} role="columnheader" variant="caption">成员</Typography>
+        <Typography color="text.secondary" fontWeight={700} role="columnheader" variant="caption">团队</Typography>
+      </Box>
+      <Stack divider={<Divider flexItem />}>
+        {memberships.map((membership) => {
+          const account = accounts.find((item) => item.id === membership.accountId);
+          const team = teams.find((item) => item.id === membership.teamId);
+          return (
+            <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: peopleWorkspaceLayout.rows.membership }} key={membership.id} px={1} py={1.25} role="row">
+              <Typography role="cell">{account?.displayName ?? membership.accountId}</Typography>
+              <Typography color="text.secondary" role="cell" variant="body2">{team?.name ?? '未分组'}</Typography>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
 }
 
 function preferredTerm(terms: Term[]): Term | undefined {

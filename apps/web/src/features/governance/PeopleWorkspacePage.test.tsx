@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GovernanceApi } from './governanceApi';
 import { ToastProvider } from '@/shared/ui/feedback/ToastProvider';
-import { PeopleWorkspacePage } from './PeopleWorkspacePage';
+import { PeopleWorkspacePage, peopleWorkspaceLayout } from './PeopleWorkspacePage';
 
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   return {
@@ -36,6 +36,20 @@ function renderPeople(api: GovernanceApi, embedded = false) {
 }
 
 describe('PeopleWorkspacePage', () => {
+  it('presents people governance as three flat regions within a compact term context', async () => {
+    renderPeople(createApi(), true);
+
+    const context = await screen.findByRole('toolbar', { name: '实训周期上下文' });
+    expect(within(context).getByRole('combobox', { name: '实训周期' })).toBeVisible();
+    expect(screen.getByRole('region', { name: '待审批账号' })).toBeVisible();
+    expect(screen.getByRole('region', { name: '已启用账号' })).toBeVisible();
+    expect(screen.getByRole('region', { name: '团队与本期成员' })).toBeVisible();
+    expect(screen.getByRole('toolbar', { name: '创建团队' })).toBeVisible();
+    expect(screen.getByRole('toolbar', { name: '加入本期成员' })).toBeVisible();
+    expect(document.querySelector('.person-card')).not.toBeInTheDocument();
+    expect(peopleWorkspaceLayout.collection).toEqual({ maxHeight: 320, overflowY: 'auto' });
+  });
+
   it('keeps people organization within the shared workspace body when embedded', async () => {
     renderPeople(createApi(), true);
 
@@ -76,6 +90,27 @@ describe('PeopleWorkspacePage', () => {
     expect(api.createTeam).toHaveBeenCalledWith({ termId: 'term-id', code: 'TEAM-A', name: 'A 组' });
     expect(api.createMembership).toHaveBeenCalledWith('term-id', { accountId: 'account-id', teamId: 'team-id' });
     expect(await screen.findByText('A 组')).toBeVisible();
+  });
+
+  it('summarizes invalid team fields in one toast and focuses the first field', async () => {
+    const user = userEvent.setup();
+    const api = createApi({ listPendingRegistrations: vi.fn().mockResolvedValue([]) });
+
+    renderPeople(api);
+
+    await screen.findByRole('heading', { name: '组织实训人员' });
+    await user.click(screen.getByRole('button', { name: '创建团队' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 2 个必填项：团队代码、团队名称。');
+    const teamCode = screen.getByLabelText('团队代码');
+    expect(teamCode).toHaveFocus();
+    expect(teamCode).toHaveAttribute('aria-invalid', 'true');
+    const description = document.getElementById(teamCode.getAttribute('aria-describedby') ?? '');
+    expect(description).toHaveTextContent('团队代码为必填项。');
+    expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    expect(screen.queryByText('请填写团队代码。')).not.toBeInTheDocument();
+    expect(screen.queryByText('请填写团队名称。')).not.toBeInTheDocument();
+    expect(api.createTeam).not.toHaveBeenCalled();
   });
 
   it('clears the previous term team selection while the new term is loading', async () => {
