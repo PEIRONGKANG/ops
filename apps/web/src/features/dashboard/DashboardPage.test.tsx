@@ -199,7 +199,7 @@ describe('DashboardPage', () => {
     expect(api.publishStartupConfiguration).toHaveBeenCalledWith('term-id', {
       templateVersionId: 'template-id', termVersion: 1, templateVersion: 4,
     });
-    expect(await screen.findByRole('alert')).toHaveTextContent('实训配置已发布，周期与运营模板现已生效。');
+    expect(await screen.findByRole('status')).toHaveTextContent('实训配置已发布，周期与运营模板现已生效。');
   });
 
   it('surfaces startup synchronization errors in a retriable toast', async () => {

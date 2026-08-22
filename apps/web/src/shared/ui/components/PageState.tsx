@@ -22,6 +22,14 @@ const defaultContent: Record<PageStateKind, { title: string; description: string
   offline: { title: '当前处于离线状态', description: '恢复网络后可重新加载最新数据。' },
 };
 
+const livePoliteness: Record<PageStateKind, 'assertive' | 'polite'> = {
+  empty: 'polite',
+  error: 'assertive',
+  forbidden: 'polite',
+  loading: 'polite',
+  offline: 'assertive',
+};
+
 function StateIcon({ kind }: Pick<PageStateProps, 'kind'>) {
   if (kind === 'loading') return <CircularProgress size={30} />;
   if (kind === 'empty') return <Inventory2OutlinedIcon fontSize="large" />;
@@ -37,7 +45,18 @@ export function PageState({ kind, title, description, onRetry }: PageStateProps)
   const titleId = useId();
 
   return (
-    <Stack alignItems="center" aria-labelledby={titleId} component="section" gap={1.5} justifyContent="center" minHeight={240} px={3} textAlign="center">
+    <Stack
+      alignItems="center"
+      aria-atomic="true"
+      aria-labelledby={titleId}
+      aria-live={livePoliteness[kind]}
+      component="section"
+      gap={1.5}
+      justifyContent="center"
+      minHeight={240}
+      px={3}
+      textAlign="center"
+    >
       <Box
         alignItems="center"
         aria-hidden="true"

@@ -130,7 +130,7 @@ describe('TemplateWorkspacePage', () => {
       },
     });
     expect(api.publishTemplate).not.toHaveBeenCalled();
-    const toast = await screen.findByRole('alert');
+    const toast = await screen.findByRole('status');
     expect(toast).toHaveTextContent('运营模板草稿已保存。');
     expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });

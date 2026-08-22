@@ -112,7 +112,7 @@ describe('TermWorkspacePage', () => {
     expect(screen.getByDisplayValue('导入与准备')).toBeVisible();
     expect(screen.getByLabelText('周期代码')).toBeDisabled();
     expect(screen.getByLabelText('门店代码')).toBeDisabled();
-    const toast = await screen.findByRole('alert');
+    const toast = await screen.findByRole('status');
     expect(toast).toHaveTextContent('实训周期已建立。下一步可以配置运营模板。');
     expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
   });

@@ -108,7 +108,7 @@ describe('PeopleWorkspacePage', () => {
     const credential = await screen.findByRole('region', { name: '一次性凭据' });
     expect(within(credential).getByText('Initial-Password-1')).toBeVisible();
     expect(screen.queryByRole('status', { name: '一次性凭据' })).not.toBeInTheDocument();
-    const toast = await screen.findByRole('alert');
+    const toast = await screen.findByRole('status');
     expect(toast).toHaveTextContent('已批准陈同学，临时密码已生成。');
     expect(toast).not.toHaveTextContent('Initial-Password-1');
     expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();
