@@ -1,5 +1,6 @@
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { Box, Button, Typography } from '@mui/material';
+import { useId } from 'react';
 
 export type StartupStepStatus = 'complete' | 'current' | 'blocked';
 
@@ -8,13 +9,17 @@ export interface StartupStep {
   status: StartupStepStatus;
 }
 
+export type StartupSteps = readonly [StartupStep, StartupStep, StartupStep];
+export type StartupStepStatuses = readonly [StartupStepStatus, StartupStepStatus, StartupStepStatus];
+
 export interface StartupStepperProps {
   onSelect: (index: number) => void;
   selected: number;
-  steps: StartupStep[];
+  steps: StartupSteps;
 }
 
 export function StartupStepper({ onSelect, selected, steps }: StartupStepperProps) {
+  const instanceId = useId();
   const completedSteps = Math.min(steps.length - 1, steps.filter((step) => step.status === 'complete').length);
   const progress = steps.length > 1 ? completedSteps / (steps.length - 1) * 100 : 0;
 
@@ -60,9 +65,12 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
           const complete = step.status === 'complete';
           const current = step.status === 'current';
           const blocked = step.status === 'blocked';
+          const selectedStep = selected === index;
+          const statusId = `${instanceId}-startup-step-${index}-status`;
+          const statusText = complete ? '已完成' : current ? '待配置' : '等待上一步';
           return (
             <Box
-              aria-current={current ? 'step' : undefined}
+              aria-current={selectedStep ? 'step' : undefined}
               component="li"
               display="flex"
               flexDirection="column"
@@ -71,12 +79,14 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
               sx={{ alignItems: 'center' }}
             >
               <Button
+                aria-describedby={statusId}
                 aria-label={step.title}
+                aria-pressed={selectedStep}
                 disabled={blocked}
                 onClick={() => onSelect(index)}
                 sx={{
                   alignItems: 'center',
-                  bgcolor: selected === index ? 'var(--beverage-primary-container)' : 'transparent',
+                  bgcolor: selectedStep ? 'var(--beverage-primary-container)' : 'transparent',
                   borderRadius: 'var(--beverage-shape-medium)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -86,7 +96,7 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                   minWidth: 0,
                   p: { xs: 0.75, sm: 1 },
                   '&.Mui-disabled': { color: 'text.secondary' },
-                  '&:hover': { bgcolor: selected === index ? 'var(--beverage-primary-container)' : 'var(--beverage-surface-container-high)' },
+                  '&:hover': { bgcolor: selectedStep ? 'var(--beverage-primary-container)' : 'var(--beverage-surface-container-high)' },
                 }}
                 variant="text"
               >
@@ -105,11 +115,20 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                 >
                   {complete ? <Box aria-label={`${step.title}，已完成`} component="span" display="flex" role="img"><CheckRoundedIcon aria-hidden fontSize="small" /></Box> : index + 1}
                 </Box>
-                <Typography color={blocked ? 'text.secondary' : 'text.primary'} fontWeight={selected === index ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, lineHeight: 1.35 }} variant="subtitle1">
+                <Typography color={blocked ? 'text.secondary' : 'text.primary'} fontWeight={selectedStep ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, lineHeight: 1.35 }} variant="subtitle1">
                   {step.title}
                 </Typography>
               </Button>
-              {blocked ? <Typography color="text.secondary" fontWeight={700} mt={0.5} variant="caption">等待上一步</Typography> : null}
+              <Typography
+                color="text.secondary"
+                fontWeight={700}
+                id={statusId}
+                mt={blocked ? 0.5 : 0}
+                sx={blocked ? undefined : { height: 1, overflow: 'hidden', position: 'absolute', width: 1, clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', whiteSpace: 'nowrap' }}
+                variant="caption"
+              >
+                {statusText}
+              </Typography>
             </Box>
           );
         })}

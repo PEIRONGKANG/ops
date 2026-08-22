@@ -12,7 +12,7 @@ import { PageScaffold } from '@/shared/ui/components/PageScaffold';
 import { SupportingActionPane } from '@/shared/ui/components/SupportingActionPane';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
-import { StartupStepper, type StartupStepStatus } from './StartupStepper';
+import { StartupStepper, type StartupSteps, type StartupStepStatuses } from './StartupStepper';
 
 interface DashboardPageProps {
   api: GovernanceApi;
@@ -33,8 +33,6 @@ const roleLabels: Record<AccountProfile['roles'][number], string> = {
   T1: '带教教师',
   EXTERNAL_REVIEWER: '外部评审',
 };
-
-const setupStepTitles = ['建立实训周期', '配置运营模板', '组织实训人员'];
 
 const workspaceTitles = ['实训周期', '运营模板', '实训人员'];
 
@@ -87,7 +85,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const statuses = useMemo<StartupStepStatus[]>(() => [
+  const statuses = useMemo<StartupStepStatuses>(() => [
     progress.published || progress.period ? 'complete' : 'current',
     progress.published || progress.template ? 'complete' : progress.period ? 'current' : 'blocked',
     progress.published ? 'complete' : progress.template ? 'current' : 'blocked',
@@ -97,7 +95,11 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
     ? selectedStepIndex
     : currentStepIndex;
   const current = currentState(progress, loading);
-  const steps = useMemo(() => setupStepTitles.map((title, index) => ({ status: statuses[index], title })), [statuses]);
+  const steps = useMemo<StartupSteps>(() => [
+    { status: statuses[0], title: '建立实训周期' },
+    { status: statuses[1], title: '配置运营模板' },
+    { status: statuses[2], title: '组织实训人员' },
+  ], [statuses]);
   const currentStep = currentStepIndex === -1 ? undefined : steps[currentStepIndex];
   const notificationCount = statuses.filter((status) => status !== 'complete').length;
   const showInitialPeriodForward = !loading && visibleStepIndex === 0 && !progress.period;

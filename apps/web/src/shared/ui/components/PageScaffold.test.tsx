@@ -31,5 +31,12 @@ describe('PageScaffold', () => {
     expect(pageScaffoldLayout.maxWidth).toBe('var(--beverage-layout-content-max)');
     expect(pageScaffoldLayout.headerDirection).toEqual({ xs: 'column', sm: 'row' });
     expect(pageScaffoldLayout.headerAlignment).toEqual({ xs: 'stretch', sm: 'flex-end' });
+    expect(pageScaffoldLayout.gutter).toEqual({ xs: 2, sm: 3, md: 4 });
+  });
+
+  it('applies the responsive gutter to the bounded page container', () => {
+    render(<PageScaffold title="实训周期"><p>周期列表</p></PageScaffold>);
+
+    expect(screen.getByTestId('page-scaffold')).toHaveAttribute('data-responsive-gutter', 'true');
   });
 });

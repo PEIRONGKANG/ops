@@ -9,12 +9,14 @@ export interface PageScaffoldProps extends PropsWithChildren {
 }
 
 export interface PageScaffoldLayoutContract {
+  readonly gutter: Readonly<{ xs: 2; sm: 3; md: 4 }>;
   readonly headerAlignment: Readonly<{ xs: 'stretch'; sm: 'flex-end' }>;
   readonly headerDirection: Readonly<{ xs: 'column'; sm: 'row' }>;
   readonly maxWidth: string;
 }
 
 export const pageScaffoldLayout = {
+  gutter: { xs: 2, sm: 3, md: 4 },
   headerAlignment: { xs: 'stretch', sm: 'flex-end' },
   headerDirection: { xs: 'column', sm: 'row' },
   maxWidth: 'var(--beverage-layout-content-max)',
@@ -22,7 +24,14 @@ export const pageScaffoldLayout = {
 
 export function PageScaffold({ actions, children, description, eyebrow, title }: PageScaffoldProps) {
   return (
-    <Box marginInline="auto" maxWidth={pageScaffoldLayout.maxWidth} width="100%">
+    <Box
+      data-responsive-gutter="true"
+      data-testid="page-scaffold"
+      marginInline="auto"
+      maxWidth={pageScaffoldLayout.maxWidth}
+      px={pageScaffoldLayout.gutter}
+      width="100%"
+    >
       <Stack
         alignItems={pageScaffoldLayout.headerAlignment}
         component="header"
