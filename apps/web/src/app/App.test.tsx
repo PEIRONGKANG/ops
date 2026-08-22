@@ -27,9 +27,14 @@ describe('App', () => {
 
     render(<App api={api} store={createSessionStore()} />);
 
-    expect(await screen.findByRole('heading', { name: '登录到饮品实训运营系统' })).toBeVisible();
+    expect(await screen.findByRole('main', { name: '登录到饮品实训运营系统' })).toBeVisible();
+    expect(screen.getByRole('region', { name: '系统简介' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: '登录到饮品实训运营系统' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: '账号' })).toBeVisible();
     expect(screen.getByLabelText('密码')).toBeVisible();
+    expect(screen.getByRole('button', { name: '登录' })).toBeVisible();
+    expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
   });
 
   it('shows a failed login in the global toast instead of expanding the form', async () => {
@@ -64,9 +69,14 @@ describe('App', () => {
 
     render(<App api={api} store={createSessionStore()} />);
 
-    expect(await screen.findByRole('heading', { name: '更新登录密码' })).toBeVisible();
+    expect(await screen.findByRole('main', { name: '更新登录密码' })).toBeVisible();
+    expect(screen.getByRole('region', { name: '系统简介' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: '更新登录密码' })).toBeVisible();
     expect(screen.getByLabelText('新密码')).toBeVisible();
     expect(screen.getByLabelText('确认新密码')).toBeVisible();
+    expect(screen.getByRole('button', { name: '更新密码并继续' })).toBeVisible();
+    expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
   });
 
   it('exchanges the restricted token for a normal session after a valid password change', async () => {
