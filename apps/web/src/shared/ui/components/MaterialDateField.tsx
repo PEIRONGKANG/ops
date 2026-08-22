@@ -5,6 +5,8 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import type { FocusEventHandler, Ref } from 'react';
 
+import { visuallyHiddenFieldError } from '@/shared/ui/forms/fieldErrorAccessibility';
+
 interface MaterialDateFieldProps {
   error?: boolean;
   helperText?: string;
@@ -28,7 +30,17 @@ export function MaterialDateField({ error = false, helperText, inputRef, label, 
         label={label}
         name={name}
         onChange={(nextValue) => onChange(nextValue?.isValid() ? nextValue.format('YYYY-MM-DD') : '')}
-        slotProps={{ field: { onBlur }, textField: { error, fullWidth: true, helperText, required, variant: 'filled' } }}
+        slotProps={{
+          field: { onBlur },
+          textField: {
+            error,
+            FormHelperTextProps: { sx: visuallyHiddenFieldError },
+            fullWidth: true,
+            helperText,
+            required,
+            variant: 'filled',
+          },
+        }}
         value={selectedDate?.isValid() ? selectedDate : null}
       />
     </LocalizationProvider>

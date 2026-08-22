@@ -44,9 +44,17 @@ describe('TermWorkspacePage', () => {
     await screen.findByRole('heading', { name: '建立实训周期' });
     await user.click(screen.getByRole('button', { name: '创建实训周期' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 9 个必填项。');
-    expect(screen.getByLabelText('周期代码')).toHaveFocus();
-    expect(screen.getByLabelText('周期代码')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 9 个必填项：周期代码、周期名称、开始日期、结束日期、门店代码、门店名称、首周名称、首周开始日期、首周结束日期。');
+    const termCode = screen.getByLabelText('周期代码');
+    expect(termCode).toHaveFocus();
+    expect(termCode).toHaveAttribute('aria-invalid', 'true');
+    const termCodeDescription = document.getElementById(termCode.getAttribute('aria-describedby') ?? '');
+    expect(termCodeDescription).toHaveTextContent('周期代码为必填项。');
+    expect(termCodeDescription).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
+    const startDate = screen.getByRole('group', { name: '开始日期' });
+    const startDateDescription = document.getElementById(startDate.getAttribute('aria-describedby') ?? '');
+    expect(startDateDescription).toHaveTextContent('开始日期为必填项。');
+    expect(startDateDescription).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
     expect(screen.queryByText('请填写此项。')).not.toBeInTheDocument();
     expect(screen.queryByText('请选择日期。')).not.toBeInTheDocument();
     expect(api.initialize).not.toHaveBeenCalled();

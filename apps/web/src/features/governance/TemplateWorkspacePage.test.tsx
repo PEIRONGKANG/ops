@@ -50,9 +50,13 @@ describe('TemplateWorkspacePage', () => {
     await screen.findByRole('heading', { name: '配置运营模板' });
     await user.click(screen.getByRole('button', { name: '保存模板草稿' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 7 个必填项。');
-    expect(screen.getByLabelText('模板代码')).toHaveFocus();
-    expect(screen.getByLabelText('模板代码')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 7 个必填项：模板代码、模板名称、生效日期、岗位代码、岗位名称、SOP 代码、SOP 名称。');
+    const templateCode = screen.getByLabelText('模板代码');
+    expect(templateCode).toHaveFocus();
+    expect(templateCode).toHaveAttribute('aria-invalid', 'true');
+    const templateCodeDescription = document.getElementById(templateCode.getAttribute('aria-describedby') ?? '');
+    expect(templateCodeDescription).toHaveTextContent('模板代码为必填项。');
+    expect(templateCodeDescription).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
     expect(screen.queryByText('请填写此项。')).not.toBeInTheDocument();
     expect(screen.queryByText('请选择日期。')).not.toBeInTheDocument();
     expect(api.bootstrapTemplate).not.toHaveBeenCalled();

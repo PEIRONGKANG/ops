@@ -8,6 +8,8 @@ export interface FormErrorField<TFieldValues extends FieldValues> {
   name: FieldPath<TFieldValues>;
 }
 
+const duplicateToastCooldownMs = 1000;
+
 interface UseFormErrorToastOptions<TFieldValues extends FieldValues> {
   fields: readonly FormErrorField<TFieldValues>[];
   setFocus: UseFormSetFocus<TFieldValues>;
@@ -18,20 +20,20 @@ export function useFormErrorToast<TFieldValues extends FieldValues>({
   setFocus,
 }: UseFormErrorToastOptions<TFieldValues>): SubmitErrorHandler<TFieldValues> {
   const { showToast } = useToast();
-  const currentInvalidSubmission = useRef<object | null>(null);
+  const lastToast = useRef<{ shownAt: number; signature: string } | null>(null);
 
   return useCallback((errors) => {
-    if (currentInvalidSubmission.current === errors) return;
-    currentInvalidSubmission.current = errors;
-    queueMicrotask(() => {
-      if (currentInvalidSubmission.current === errors) currentInvalidSubmission.current = null;
-    });
-
     const invalidFields = fields.filter(({ name }) => Boolean(get(errors, name)));
     const firstInvalidField = invalidFields[0];
     if (!firstInvalidField) return;
 
-    showToast({ message: `请完成 ${invalidFields.length} 个必填项。`, severity: 'error' });
+    const signature = invalidFields.map(({ name }) => name).join('|');
+    const shownAt = Date.now();
+    if (lastToast.current?.signature === signature && shownAt - lastToast.current.shownAt < duplicateToastCooldownMs) return;
+    lastToast.current = { shownAt, signature };
+
+    const labels = invalidFields.map(({ label }) => label).join('、');
+    showToast({ message: `请完成 ${invalidFields.length} 个必填项：${labels}。`, severity: 'error' });
     setFocus(firstInvalidField.name);
   }, [fields, setFocus, showToast]);
 }

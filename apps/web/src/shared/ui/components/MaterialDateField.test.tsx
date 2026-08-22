@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -26,5 +26,19 @@ describe('MaterialDateField', () => {
 
     fireEvent.blur(screen.getByRole('spinbutton', { name: '年份' }));
     expect(onBlur).toHaveBeenCalledOnce();
+
+    act(() => inputRef.current?.focus());
+    expect(screen.getByRole('spinbutton', { name: '年份' })).toHaveFocus();
+  });
+
+  it('links an invalid date field to a visually hidden error description', () => {
+    render(<MaterialDateField error helperText="开始日期为必填项。" label="开始日期" onChange={vi.fn()} value="" />);
+
+    const field = screen.getByRole('group', { name: '开始日期' });
+    const descriptionId = field.getAttribute('aria-describedby');
+    expect(descriptionId).toBeTruthy();
+    const description = document.getElementById(descriptionId ?? '');
+    expect(description).toHaveTextContent('开始日期为必填项。');
+    expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
   });
 });

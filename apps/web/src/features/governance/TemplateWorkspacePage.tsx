@@ -9,6 +9,7 @@ import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
 import { WorkspaceSection } from '@/shared/ui/components/WorkspaceSection';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+import { visuallyHiddenFieldError } from '@/shared/ui/forms/fieldErrorAccessibility';
 import { type FormErrorField, useFormErrorToast } from '@/shared/ui/forms/useFormErrorToast';
 
 import type { GovernanceApi, Store, TemplateComponent, TemplateVersion, Term } from './governanceApi';
@@ -226,7 +227,8 @@ function Field({ disabled, errors, label, name, register }: {
   name: keyof FormValues;
   register: ReturnType<typeof useForm<FormValues>>['register'];
 }) {
-  return <TextField disabled={disabled} error={Boolean(errors[name])} label={label} {...register(name, { required: true })} />;
+  const error = Boolean(errors[name]);
+  return <TextField disabled={disabled} error={error} helperText={error ? `${label}为必填项。` : undefined} label={label} slotProps={{ formHelperText: { sx: visuallyHiddenFieldError } }} {...register(name, { required: true })} />;
 }
 
 function DateField({ control, errors, label, name }: {
@@ -240,7 +242,10 @@ function DateField({ control, errors, label, name }: {
       control={control}
       name={name}
       rules={{ required: true }}
-      render={({ field }) => <MaterialDateField error={Boolean(errors[name])} inputRef={field.ref} label={label} name={field.name} onBlur={field.onBlur} onChange={field.onChange} required value={field.value} />}
+      render={({ field }) => {
+        const error = Boolean(errors[name]);
+        return <MaterialDateField error={error} helperText={error ? `${label}为必填项。` : undefined} inputRef={field.ref} label={label} name={field.name} onBlur={field.onBlur} onChange={field.onChange} required value={field.value} />;
+      }}
     />
   );
 }
