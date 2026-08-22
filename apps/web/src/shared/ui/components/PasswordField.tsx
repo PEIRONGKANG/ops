@@ -4,12 +4,13 @@ import { IconButton, InputAdornment, TextField, type SxProps, type Theme } from 
 import { forwardRef, type ComponentProps, useState } from 'react';
 
 type PasswordFieldProps = Omit<ComponentProps<typeof TextField>, 'label' | 'slotProps' | 'type'> & {
+  ariaDescribedBy?: string;
   helperTextSx?: SxProps<Theme>;
   label: string;
 };
 
 export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(function PasswordField(
-  { helperTextSx, label, ...props },
+  { ariaDescribedBy, helperTextSx, label, ...props },
   ref,
 ) {
   const [isVisible, setIsVisible] = useState(false);
@@ -23,6 +24,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
       slotProps={{
         formHelperText: helperTextSx ? { sx: helperTextSx } : undefined,
         input: {
+          ...(ariaDescribedBy ? { 'aria-describedby': ariaDescribedBy } : {}),
           endAdornment: (
             <InputAdornment position="end">
               <IconButton

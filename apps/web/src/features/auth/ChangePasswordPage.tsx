@@ -20,6 +20,10 @@ const requiredFields = [
   { label: '确认新密码', name: 'confirmPassword' },
 ] as const satisfies readonly FormErrorField<ChangePasswordValues>[];
 
+const newPasswordInputId = 'new-password';
+const newPasswordRulesId = 'new-password-rules';
+const newPasswordRules = '长度为 12–128 个字符，且不能与账号相同。';
+
 export function ChangePasswordPage() {
   const { changePassword } = useAuth();
   const { showToast } = useToast();
@@ -76,7 +80,23 @@ export function ChangePasswordPage() {
                 minLength: { value: 12, message: '密码至少需要 12 个字符。' },
                 maxLength: { value: 128, message: '密码不能超过 128 个字符。' },
               }}
-              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.newPassword)} helperText={errors.newPassword?.message ?? '长度为 12–128 个字符，且不能与账号相同。'} helperTextSx={errors.newPassword ? visuallyHiddenFieldError : undefined} label="新密码" />}
+              render={({ field }) => (
+                <Stack gap={0.75}>
+                  <PasswordField
+                    {...field}
+                    ariaDescribedBy={`${newPasswordRulesId}${errors.newPassword ? ` ${newPasswordInputId}-helper-text` : ''}`}
+                    autoComplete="new-password"
+                    error={Boolean(errors.newPassword)}
+                    helperText={errors.newPassword?.message}
+                    helperTextSx={errors.newPassword ? visuallyHiddenFieldError : undefined}
+                    id={newPasswordInputId}
+                    label="新密码"
+                  />
+                  <Typography color="text.secondary" id={newPasswordRulesId} mx={1.5} variant="caption">
+                    {newPasswordRules}
+                  </Typography>
+                </Stack>
+              )}
             />
             <Controller
               control={control}

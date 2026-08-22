@@ -159,7 +159,10 @@ describe('App', () => {
     const newPassword = screen.getByLabelText('新密码');
     expect(newPassword).toHaveFocus();
     expect(newPassword).toHaveAttribute('aria-invalid', 'true');
-    const description = document.getElementById(newPassword.getAttribute('aria-describedby') ?? '');
+    expect(screen.getByText('长度为 12–128 个字符，且不能与账号相同。')).toBeVisible();
+    const descriptionIds = newPassword.getAttribute('aria-describedby')?.split(' ') ?? [];
+    expect(descriptionIds).toContain('new-password-rules');
+    const description = document.getElementById(descriptionIds.find((id) => id !== 'new-password-rules') ?? '');
     expect(description).toHaveTextContent('请输入新密码。');
     expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
     const confirmation = screen.getByLabelText('确认新密码');
@@ -187,7 +190,14 @@ describe('App', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('请检查 2 个字段：新密码、确认新密码。');
     expect(screen.getAllByRole('alert')).toHaveLength(1);
-    expect(screen.getByLabelText('新密码')).toHaveFocus();
+    const newPassword = screen.getByLabelText('新密码');
+    expect(newPassword).toHaveFocus();
+    expect(screen.getByText('长度为 12–128 个字符，且不能与账号相同。')).toBeVisible();
+    const descriptionIds = newPassword.getAttribute('aria-describedby')?.split(' ') ?? [];
+    expect(descriptionIds).toContain('new-password-rules');
+    const description = document.getElementById(descriptionIds.find((id) => id !== 'new-password-rules') ?? '');
+    expect(description).toHaveTextContent('密码至少需要 12 个字符。');
+    expect(description).toHaveStyle({ height: '1px', overflow: 'hidden', position: 'absolute', width: '1px' });
     expect(api.changePassword).not.toHaveBeenCalled();
   });
 
