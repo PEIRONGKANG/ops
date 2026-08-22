@@ -9,6 +9,7 @@ import { TermWorkspacePage } from './TermWorkspacePage';
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   return {
     initialize: vi.fn(),
+    saveStartupPeriod: vi.fn(),
     listTerms: vi.fn().mockResolvedValue([]),
     listStores: vi.fn().mockResolvedValue([]),
     listTeachingWeeks: vi.fn().mockResolvedValue([]),
@@ -16,6 +17,9 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
     createTemplate: vi.fn(),
     listTemplateVersions: vi.fn(),
     publishTemplate: vi.fn(),
+    saveStarterTemplate: vi.fn(),
+    publishStartupConfiguration: vi.fn(),
+    listTemplateComponents: vi.fn(),
     listAccounts: vi.fn(),
     listPendingRegistrations: vi.fn(),
     approveRegistration: vi.fn(),

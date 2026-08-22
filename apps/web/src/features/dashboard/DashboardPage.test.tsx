@@ -23,6 +23,7 @@ const firstTeachingWeek: TeachingWeek = {
 function createApi(): GovernanceApi {
   return {
     initialize: vi.fn(),
+    saveStartupPeriod: vi.fn(),
     listTerms: vi.fn().mockResolvedValue([]),
     listStores: vi.fn().mockResolvedValue([]),
     listTeachingWeeks: vi.fn().mockResolvedValue([]),
@@ -30,6 +31,9 @@ function createApi(): GovernanceApi {
     createTemplate: vi.fn(),
     listTemplateVersions: vi.fn().mockResolvedValue([]),
     publishTemplate: vi.fn(),
+    saveStarterTemplate: vi.fn(),
+    publishStartupConfiguration: vi.fn(),
+    listTemplateComponents: vi.fn(),
     listAccounts: vi.fn().mockResolvedValue([]),
     listPendingRegistrations: vi.fn().mockResolvedValue([]),
     approveRegistration: vi.fn(),

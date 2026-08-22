@@ -98,6 +98,35 @@ export interface BootstrapTemplateInput {
   sopTask: TemplateComponentInput;
 }
 
+export interface StartupPeriodInput {
+  term: Pick<Term, 'name' | 'startDate' | 'endDate' | 'version'>;
+  store: Pick<Store, 'id' | 'name' | 'status' | 'version'>;
+  firstTeachingWeek: Pick<TeachingWeek, 'id' | 'name' | 'startDate' | 'endDate' | 'phaseCode' | 'version'>;
+}
+
+export interface StarterTemplateInput {
+  template: Pick<TemplateVersion, 'name' | 'effectiveFrom' | 'version'> & { configuration: Record<string, unknown> };
+  role: TemplateComponentUpdateInput;
+  sopTask: TemplateComponentUpdateInput;
+}
+
+export interface TemplateComponentUpdateInput {
+  id: string;
+  name: string;
+  configuration: Record<string, unknown>;
+  version: number;
+}
+
+export interface TemplateComponent {
+  id: string;
+  templateVersionId: string;
+  componentType: string;
+  code: string;
+  name: string;
+  version: number;
+  updatedAt: string;
+}
+
 export interface TemplateComponentInput {
   code: string;
   name: string;
@@ -106,6 +135,7 @@ export interface TemplateComponentInput {
 
 export interface GovernanceApi {
   initialize(input: InitializationInput): Promise<{ term: Term; store: Store; firstTeachingWeek: TeachingWeek }>;
+  saveStartupPeriod(termId: string, input: StartupPeriodInput): Promise<{ term: Term; store: Store; firstTeachingWeek: TeachingWeek }>;
   listTerms(): Promise<Term[]>;
   listStores(): Promise<Store[]>;
   listTeachingWeeks(termId: string): Promise<TeachingWeek[]>;
@@ -120,6 +150,17 @@ export interface GovernanceApi {
   }): Promise<TemplateVersion>;
   listTemplateVersions(input?: { termId?: string; storeId?: string }): Promise<TemplateVersion[]>;
   publishTemplate(templateVersionId: string, version: number): Promise<TemplateVersion>;
+  saveStarterTemplate(templateVersionId: string, input: StarterTemplateInput): Promise<{
+    template: TemplateVersion;
+    role: TemplateComponent;
+    sopTask: TemplateComponent;
+  }>;
+  publishStartupConfiguration(termId: string, input: {
+    templateVersionId: string;
+    termVersion: number;
+    templateVersion: number;
+  }): Promise<{ term: Term; template: TemplateVersion }>;
+  listTemplateComponents(templateVersionId: string, componentPath: 'roles' | 'sop-tasks'): Promise<TemplateComponent[]>;
   listAccounts(status?: AccountSummary['status']): Promise<AccountSummary[]>;
   listPendingRegistrations(): Promise<PendingRegistration[]>;
   approveRegistration(requestId: string, input: { roles: RoleCode[]; reason: string }): Promise<{
@@ -135,6 +176,8 @@ export interface GovernanceApi {
 export function createGovernanceApi(client: ApiClient): GovernanceApi {
   return {
     initialize: (input) => client.post<{ term: Term; store: Store; firstTeachingWeek: TeachingWeek }>('/api/v1/admin/initialization', { ...input }),
+    saveStartupPeriod: (termId, input) => client.patch<{ term: Term; store: Store; firstTeachingWeek: TeachingWeek }>(
+      `/api/v1/admin/startup-configurations/${termId}`, { ...input }),
     listTerms: () => client.get<Term[]>('/api/v1/admin/terms'),
     listStores: () => client.get<Store[]>('/api/v1/admin/stores'),
     listTeachingWeeks: (termId) => client.get<TeachingWeek[]>(`/api/v1/admin/terms/${termId}/teaching-weeks`),
@@ -142,6 +185,11 @@ export function createGovernanceApi(client: ApiClient): GovernanceApi {
     createTemplate: (input) => client.post<TemplateVersion>('/api/v1/admin/template-versions', { ...input }),
     listTemplateVersions: (input) => client.get<TemplateVersion[]>(`/api/v1/admin/template-versions${query(input)}`),
     publishTemplate: (templateVersionId, version) => client.post<TemplateVersion>(`/api/v1/admin/template-versions/${templateVersionId}/publish`, { version }),
+    saveStarterTemplate: (templateVersionId, input) => client.patch(`/api/v1/admin/template-versions/${templateVersionId}/starter-configuration`, { ...input }),
+    publishStartupConfiguration: (termId, input) => client.post<{ term: Term; template: TemplateVersion }>(
+      `/api/v1/admin/startup-configurations/${termId}/publish`, { ...input }),
+    listTemplateComponents: (templateVersionId, componentPath) => client.get<TemplateComponent[]>(
+      `/api/v1/admin/template-versions/${templateVersionId}/${componentPath}`),
     listAccounts: (status) => client.get<{ items: AccountSummary[] }>(`/api/v1/admin/accounts${status ? `?status=${status}` : ''}`).then((response) => response.items),
     listPendingRegistrations: () => client.get<{ items: PendingRegistration[] }>('/api/v1/admin/registration-requests?status=PENDING')
       .then((response) => response.items),

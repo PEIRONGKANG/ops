@@ -41,6 +41,64 @@ describe('GovernanceApi', () => {
     }));
   });
 
+  it('saves the period draft and publishes the completed startup configuration through governed endpoints', async () => {
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ term: { id: 'term-id' } }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    })));
+    const client = new ApiClient({ fetch, getAccessToken: () => 'access-token', refresh: vi.fn(), clearSession: vi.fn() });
+    const api = createGovernanceApi(client);
+
+    await api.saveStartupPeriod('term-id', {
+      term: { name: '2026 秋季实训', startDate: '2026-09-01', endDate: '2027-01-20', version: 1 },
+      store: { id: 'store-id', name: '饮品实训门店', status: 'ACTIVE', version: 2 },
+      firstTeachingWeek: { id: 'week-id', name: '导入与准备', startDate: '2026-09-01', endDate: '2026-09-07', phaseCode: 'PREPARATION', version: 3 },
+    });
+    await api.publishStartupConfiguration('term-id', { templateVersionId: 'template-id', termVersion: 1, templateVersion: 4 });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/v1/admin/startup-configurations/term-id', expect.objectContaining({
+      method: 'PATCH', body: JSON.stringify({
+        term: { name: '2026 秋季实训', startDate: '2026-09-01', endDate: '2027-01-20', version: 1 },
+        store: { id: 'store-id', name: '饮品实训门店', status: 'ACTIVE', version: 2 },
+        firstTeachingWeek: { id: 'week-id', name: '导入与准备', startDate: '2026-09-01', endDate: '2026-09-07', phaseCode: 'PREPARATION', version: 3 },
+      }),
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/v1/admin/startup-configurations/term-id/publish', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ templateVersionId: 'template-id', termVersion: 1, templateVersion: 4 }),
+    }));
+  });
+
+  it('saves a starter template draft with its role and SOP through one versioned request', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ template: { id: 'template-id' } }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    const client = new ApiClient({ fetch, getAccessToken: () => 'access-token', refresh: vi.fn(), clearSession: vi.fn() });
+
+    await createGovernanceApi(client).saveStarterTemplate('template-id', {
+      template: { name: '日常运营模板', effectiveFrom: '2026-09-01', configuration: { roles: [], tasks: [] }, version: 1 },
+      role: { id: 'role-id', name: '吧台制作', configuration: { required: true }, version: 2 },
+      sopTask: { id: 'task-id', name: '开档检查', configuration: { roleCode: 'BARISTA' }, version: 3 },
+    });
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/template-versions/template-id/starter-configuration', expect.objectContaining({
+      method: 'PATCH', body: JSON.stringify({
+        template: { name: '日常运营模板', effectiveFrom: '2026-09-01', configuration: { roles: [], tasks: [] }, version: 1 },
+        role: { id: 'role-id', name: '吧台制作', configuration: { required: true }, version: 2 },
+        sopTask: { id: 'task-id', name: '开档检查', configuration: { roleCode: 'BARISTA' }, version: 3 },
+      }),
+    }));
+  });
+
+  it('reads starter components from the governed template component endpoint', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    const client = new ApiClient({ fetch, getAccessToken: () => 'access-token', refresh: vi.fn(), clearSession: vi.fn() });
+
+    await createGovernanceApi(client).listTemplateComponents('template-id', 'roles');
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/template-versions/template-id/roles', expect.objectContaining({ method: 'GET' }));
+  });
+
   it('creates the starter template and executable components atomically on the server', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'template-id', status: 'DRAFT' }), {
       status: 201, headers: { 'Content-Type': 'application/json' },

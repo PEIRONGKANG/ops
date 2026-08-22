@@ -9,6 +9,7 @@ import { TemplateWorkspacePage } from './TemplateWorkspacePage';
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   return {
     initialize: vi.fn(),
+    saveStartupPeriod: vi.fn(),
     listTerms: vi.fn().mockResolvedValue([{ id: 'term-id', code: '2026-AUTUMN', name: '2026 秋季实训', startDate: '2026-09-01', endDate: '2027-01-20', status: 'DRAFT', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]),
     listStores: vi.fn().mockResolvedValue([{ id: 'store-id', code: 'DRINK-LAB', name: '饮品实训门店', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]),
     listTeachingWeeks: vi.fn(),
@@ -16,6 +17,9 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
     createTemplate: vi.fn().mockResolvedValue({ id: 'template-id', termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'DRAFT', effectiveFrom: '2026-09-01', effectiveUntil: null, version: 1, updatedAt: '2026-08-21T00:00:00Z' }),
     listTemplateVersions: vi.fn().mockResolvedValue([]),
     publishTemplate: vi.fn().mockResolvedValue({ id: 'template-id', termId: 'term-id', storeId: 'store-id', templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'PUBLISHED', effectiveFrom: '2026-09-01', effectiveUntil: null, version: 2, updatedAt: '2026-08-21T00:00:00Z' }),
+    saveStarterTemplate: vi.fn(),
+    publishStartupConfiguration: vi.fn(),
+    listTemplateComponents: vi.fn(),
     listAccounts: vi.fn(),
     listPendingRegistrations: vi.fn(),
     approveRegistration: vi.fn(),

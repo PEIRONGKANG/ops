@@ -9,6 +9,7 @@ import { PeopleWorkspacePage } from './PeopleWorkspacePage';
 function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
   return {
     initialize: vi.fn(),
+    saveStartupPeriod: vi.fn(),
     listTerms: vi.fn().mockResolvedValue([{ id: 'term-id', code: '2026-AUTUMN', name: '2026 秋季实训', startDate: '2026-09-01', endDate: '2027-01-20', status: 'DRAFT', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]),
     listStores: vi.fn(),
     listTeachingWeeks: vi.fn(),
@@ -16,6 +17,9 @@ function createApi(overrides: Partial<GovernanceApi> = {}): GovernanceApi {
     createTemplate: vi.fn(),
     listTemplateVersions: vi.fn(),
     publishTemplate: vi.fn(),
+    saveStarterTemplate: vi.fn(),
+    publishStartupConfiguration: vi.fn(),
+    listTemplateComponents: vi.fn(),
     listAccounts: vi.fn().mockResolvedValue([{ id: 'account-id', loginId: 'P3-001', displayName: '林同学', status: 'ACTIVE', roles: ['P3'] }]),
     listPendingRegistrations: vi.fn().mockResolvedValue([{ id: 'request-id', loginId: 'P3-002', displayName: '陈同学' }]),
     approveRegistration: vi.fn().mockResolvedValue({ account: { id: 'account-2', loginId: 'P3-002', displayName: '陈同学', roles: ['P3'] }, temporaryPassword: 'Initial-Password-1' }),
