@@ -49,6 +49,58 @@ public class GovernanceUseCase {
         return new InitializationResult(term, store, firstTeachingWeek);
     }
 
+    @Transactional
+    public InitializationResult saveStartupConfiguration(UUID termId, SaveStartupConfigurationCommand command) {
+        var currentTerm = term(termId);
+        requireVersion(currentTerm.version(), command.termVersion());
+        if (!"DRAFT".equals(currentTerm.status())) {
+            throw new IllegalStateException("Only a draft term can be modified.");
+        }
+        var termStartDate = command.termStartDate();
+        var termEndDate = command.termEndDate();
+        if (termStartDate == null || termEndDate == null || termEndDate.isBefore(termStartDate)) {
+            throw new IllegalArgumentException("Term end date must be on or after the start date.");
+        }
+
+        if (command.storeId() == null) {
+            throw new IllegalArgumentException("Store is required.");
+        }
+        var currentStore = store(command.storeId());
+        requireVersion(currentStore.version(), command.storeVersion());
+
+        if (command.firstTeachingWeekId() == null) {
+            throw new IllegalArgumentException("First teaching week is required.");
+        }
+        var currentWeek = governance.findTeachingWeek(command.firstTeachingWeekId())
+                .orElseThrow(() -> new ResourceNotFoundException("Teaching week not found."));
+        if (!currentWeek.termId().equals(termId) || currentWeek.weekNumber() != 1) {
+            throw new IllegalArgumentException("The teaching week must be the first week of the term.");
+        }
+        requireVersion(currentWeek.version(), command.firstTeachingWeekVersion());
+        if (command.firstTeachingWeekStartDate() == null || command.firstTeachingWeekEndDate() == null
+                || command.firstTeachingWeekEndDate().isBefore(command.firstTeachingWeekStartDate())) {
+            throw new IllegalArgumentException("Teaching week number and valid dates are required.");
+        }
+        if (command.firstTeachingWeekStartDate().isBefore(termStartDate)
+                || command.firstTeachingWeekEndDate().isAfter(termEndDate)) {
+            throw new IllegalArgumentException("Teaching week dates must be within the term.");
+        }
+
+        var updatedTerm = governance.updateTerm(termId, requiredText(command.termName(), "Term name", 128), termStartDate,
+                termEndDate, command.termVersion());
+        var updatedStore = governance.updateStore(command.storeId(), requiredText(command.storeName(), "Store name", 128),
+                requiredEnum(command.storeStatus(), "Store status", "ACTIVE", "INACTIVE"), command.storeVersion());
+        var updatedWeek = governance.updateTeachingWeek(command.firstTeachingWeekId(),
+                requiredText(command.firstTeachingWeekName(), "Teaching week name", 128), command.firstTeachingWeekStartDate(),
+                command.firstTeachingWeekEndDate(), optionalCode(command.firstTeachingWeekPhaseCode(), "Phase code"),
+                command.firstTeachingWeekVersion());
+        audit("TERM_UPDATED", "TERM", termId, command.actorId(), currentTerm.version(), updatedTerm.version(), null);
+        audit("STORE_UPDATED", "STORE", currentStore.id(), command.actorId(), currentStore.version(), updatedStore.version(), null);
+        audit("TEACHING_WEEK_UPDATED", "TEACHING_WEEK", currentWeek.id(), command.actorId(), currentWeek.version(),
+                updatedWeek.version(), null);
+        return new InitializationResult(updatedTerm, updatedStore, updatedWeek);
+    }
+
     @Transactional(readOnly = true)
     public List<GovernanceRepository.Term> listTerms() {
         return governance.findTerms();
@@ -407,6 +459,14 @@ public class GovernanceUseCase {
 
     public record InitializationResult(GovernanceRepository.Term term, GovernanceRepository.Store store,
                                        GovernanceRepository.TeachingWeek firstTeachingWeek) {
+    }
+
+    public record SaveStartupConfigurationCommand(String termName, LocalDate termStartDate, LocalDate termEndDate,
+                                                   long termVersion, UUID storeId, String storeName, String storeStatus,
+                                                   long storeVersion, UUID firstTeachingWeekId, String firstTeachingWeekName,
+                                                   LocalDate firstTeachingWeekStartDate, LocalDate firstTeachingWeekEndDate,
+                                                   String firstTeachingWeekPhaseCode, long firstTeachingWeekVersion,
+                                                   UUID actorId) {
     }
 
     public record UpdateTermCommand(String name, LocalDate startDate, LocalDate endDate, long version, UUID actorId) {

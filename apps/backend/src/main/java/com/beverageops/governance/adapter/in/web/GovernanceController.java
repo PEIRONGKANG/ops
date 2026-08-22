@@ -71,6 +71,19 @@ class GovernanceController {
                 request.endDate(), request.version(), actorId(authentication))));
     }
 
+    @PatchMapping("/startup-configurations/{termId}")
+    InitializationResponse saveStartupConfiguration(@PathVariable UUID termId,
+                                                     @RequestBody SaveStartupConfigurationRequest request,
+                                                     Authentication authentication) {
+        var result = governance.saveStartupConfiguration(termId, new GovernanceUseCase.SaveStartupConfigurationCommand(
+                request.term().name(), request.term().startDate(), request.term().endDate(), request.term().version(),
+                request.store().id(), request.store().name(), request.store().status(), request.store().version(),
+                request.firstTeachingWeek().id(), request.firstTeachingWeek().name(), request.firstTeachingWeek().startDate(),
+                request.firstTeachingWeek().endDate(), request.firstTeachingWeek().phaseCode(),
+                request.firstTeachingWeek().version(), actorId(authentication)));
+        return new InitializationResponse(term(result.term()), store(result.store()), teachingWeek(result.firstTeachingWeek()));
+    }
+
     @PostMapping("/terms/{termId}/teaching-weeks")
     ResponseEntity<TeachingWeekResponse> createTeachingWeek(@PathVariable UUID termId,
                                                             @RequestBody CreateTeachingWeekRequest request,
@@ -317,6 +330,17 @@ class GovernanceController {
     }
 
     record UpdateTermRequest(String name, LocalDate startDate, LocalDate endDate, long version) {
+    }
+
+    record SaveStartupConfigurationRequest(UpdateTermRequest term, UpdateStartupStoreRequest store,
+                                           UpdateStartupTeachingWeekRequest firstTeachingWeek) {
+    }
+
+    record UpdateStartupStoreRequest(UUID id, String name, String status, long version) {
+    }
+
+    record UpdateStartupTeachingWeekRequest(UUID id, String name, LocalDate startDate, LocalDate endDate,
+                                            String phaseCode, long version) {
     }
 
     record CreateTeachingWeekRequest(Integer weekNumber, String name, LocalDate startDate, LocalDate endDate,

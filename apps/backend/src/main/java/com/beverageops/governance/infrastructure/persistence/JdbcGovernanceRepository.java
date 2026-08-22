@@ -160,6 +160,27 @@ class JdbcGovernanceRepository implements GovernanceRepository {
     }
 
     @Override
+    public Optional<TeachingWeek> findTeachingWeek(UUID teachingWeekId) {
+        return jdbcTemplate.query("""
+                        select id, term_id, week_number, name, start_date, end_date, phase_code, version, updated_at
+                        from gov_teaching_weeks where id = ?
+                        """, resultSet -> resultSet.next() ? Optional.of(teachingWeek(resultSet)) : Optional.empty(), teachingWeekId);
+    }
+
+    @Override
+    public TeachingWeek updateTeachingWeek(UUID teachingWeekId, String name, LocalDate startDate, LocalDate endDate,
+                                           String phaseCode, long expectedVersion) {
+        return jdbcTemplate.queryForObject("""
+                        update gov_teaching_weeks
+                        set name = ?, start_date = ?, end_date = ?, phase_code = ?, version = version + 1,
+                            updated_at = current_timestamp
+                        where id = ? and version = ?
+                        returning id, term_id, week_number, name, start_date, end_date, phase_code, version, updated_at
+                        """, (resultSet, rowNumber) -> teachingWeek(resultSet), name, startDate, endDate, phaseCode,
+                teachingWeekId, expectedVersion);
+    }
+
+    @Override
     public Membership createMembership(UUID id, UUID termId, UUID accountId, UUID teamId, UUID actorId) {
         return jdbcTemplate.queryForObject("""
                         insert into gov_term_memberships (id, term_id, account_id, team_id, status, created_by_account_id)

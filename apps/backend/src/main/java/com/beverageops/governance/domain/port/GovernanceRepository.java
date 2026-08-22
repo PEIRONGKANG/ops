@@ -43,6 +43,11 @@ public interface GovernanceRepository {
 
     List<TeachingWeek> findTeachingWeeks(UUID termId);
 
+    Optional<TeachingWeek> findTeachingWeek(UUID teachingWeekId);
+
+    TeachingWeek updateTeachingWeek(UUID teachingWeekId, String name, LocalDate startDate, LocalDate endDate,
+                                    String phaseCode, long expectedVersion);
+
     Membership createMembership(UUID id, UUID termId, UUID accountId, UUID teamId, UUID actorId);
 
     Optional<Membership> findMembership(UUID membershipId);

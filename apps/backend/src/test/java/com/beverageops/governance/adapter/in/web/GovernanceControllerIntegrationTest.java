@@ -136,6 +136,64 @@ class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void p1CanAtomicallySaveTheDraftTermStoreAndFirstTeachingWeek() throws Exception {
+        var initialization = mockMvc.perform(post("/api/v1/admin/initialization")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "term":{"code":"2026-DRAFT","name":"初始实训","startDate":"2026-09-01","endDate":"2027-01-20"},
+                                  "store":{"code":"DRAFT-LAB","name":"初始门店"},
+                                  "firstTeachingWeek":{"name":"导入期","startDate":"2026-09-01","endDate":"2026-09-07","phaseCode":"PREPARATION"}
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var initialized = json(initialization);
+        var termId = initialized.path("term").path("id").asText();
+        var storeId = initialized.path("store").path("id").asText();
+        var weekId = initialized.path("firstTeachingWeek").path("id").asText();
+
+        mockMvc.perform(patch("/api/v1/admin/startup-configurations/{termId}", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "term":{"name":"修订实训","startDate":"2026-09-08","endDate":"2027-01-20","version":1},
+                                  "store":{"id":"%s","name":"修订门店","status":"ACTIVE","version":1},
+                                  "firstTeachingWeek":{"id":"%s","name":"修订导入期","startDate":"2026-09-08","endDate":"2026-09-14","phaseCode":"PREPARATION","version":1}
+                                }
+                                """.formatted(storeId, weekId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.term.name").value("修订实训"))
+                .andExpect(jsonPath("$.term.version").value(2))
+                .andExpect(jsonPath("$.store.name").value("修订门店"))
+                .andExpect(jsonPath("$.store.version").value(2))
+                .andExpect(jsonPath("$.firstTeachingWeek.name").value("修订导入期"))
+                .andExpect(jsonPath("$.firstTeachingWeek.version").value(2));
+
+        mockMvc.perform(patch("/api/v1/admin/startup-configurations/{termId}", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "term":{"name":"不应保存","startDate":"2026-09-08","endDate":"2027-01-20","version":1},
+                                  "store":{"id":"%s","name":"不应保存","status":"ACTIVE","version":2},
+                                  "firstTeachingWeek":{"id":"%s","name":"不应保存","startDate":"2026-09-08","endDate":"2026-09-14","phaseCode":"PREPARATION","version":2}
+                                }
+                                """.formatted(storeId, weekId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
+
+        assertThat(jdbcTemplate.queryForObject("select name from gov_terms where id = ?", String.class, UUID.fromString(termId)))
+                .isEqualTo("修订实训");
+        assertThat(jdbcTemplate.queryForObject("select name from gov_stores where id = ?", String.class, UUID.fromString(storeId)))
+                .isEqualTo("修订门店");
+        assertThat(jdbcTemplate.queryForObject("select name from gov_teaching_weeks where id = ?", String.class, UUID.fromString(weekId)))
+                .isEqualTo("修订导入期");
+    }
+
+    @Test
     void p1CanAtomicallyCreateAStarterTemplateWithExecutableRoleAndSopComponents() throws Exception {
         var termId = createTerm("2026-TEMPLATE-BOOTSTRAP", "模板启动学期");
         var storeId = createStore("TEMPLATE-BOOTSTRAP-LAB", "模板启动门店");
