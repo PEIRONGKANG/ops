@@ -259,10 +259,13 @@ class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.template.name").value("修订模板"))
                 .andExpect(jsonPath("$.template.version").value(2))
+                .andExpect(jsonPath("$.template.configuration.roles[0].code").value("BARISTA"))
                 .andExpect(jsonPath("$.role.name").value("修订岗位"))
                 .andExpect(jsonPath("$.role.version").value(2))
+                .andExpect(jsonPath("$.role.configuration.required").value(true))
                 .andExpect(jsonPath("$.sopTask.name").value("修订 SOP"))
-                .andExpect(jsonPath("$.sopTask.version").value(2));
+                .andExpect(jsonPath("$.sopTask.version").value(2))
+                .andExpect(jsonPath("$.sopTask.configuration.roleCode").value("BARISTA"));
 
         mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}/starter-configuration", templateId)
                         .with(user(P1_ID.toString()).roles("P1"))

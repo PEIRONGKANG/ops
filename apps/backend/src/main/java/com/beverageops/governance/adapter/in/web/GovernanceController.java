@@ -9,6 +9,7 @@ import com.beverageops.governance.application.usecase.GovernanceUseCase;
 import com.beverageops.governance.domain.port.GovernanceRepository;
 import com.beverageops.identityaccess.domain.port.AccessTokenPort;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -27,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 class GovernanceController {
 
     private final GovernanceUseCase governance;
+    private final ObjectMapper objectMapper;
 
-    GovernanceController(GovernanceUseCase governance) {
+    GovernanceController(GovernanceUseCase governance, ObjectMapper objectMapper) {
         this.governance = governance;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/terms")
@@ -293,7 +296,7 @@ class GovernanceController {
     private TemplateVersionResponse template(GovernanceRepository.TemplateVersion template) {
         return new TemplateVersionResponse(template.id(), template.termId(), template.storeId(), template.templateCode(),
                 template.templateRevision(), template.name(), template.status().name(), template.effectiveFrom(),
-                template.effectiveUntil(), template.version(), template.updatedAt());
+                template.effectiveUntil(), json(template.configurationJson()), template.version(), template.updatedAt());
     }
 
     private TeamResponse team(GovernanceRepository.Team team) {
@@ -312,7 +315,7 @@ class GovernanceController {
 
     private TemplateComponentResponse templateComponent(GovernanceRepository.TemplateComponent component) {
         return new TemplateComponentResponse(component.id(), component.templateVersionId(), component.componentType(), component.code(),
-                component.name(), component.version(), component.updatedAt());
+                component.name(), json(component.configurationJson()), component.version(), component.updatedAt());
     }
 
     private AuditEventResponse auditEvent(GovernanceRepository.AuditEventView event) {
@@ -331,6 +334,14 @@ class GovernanceController {
             case "rubric-definitions" -> "RUBRIC_DEFINITION";
             default -> throw new IllegalArgumentException("Unsupported template component path.");
         };
+    }
+
+    private JsonNode json(String value) {
+        try {
+            return objectMapper.readTree(value);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("Stored configuration is invalid.", exception);
+        }
     }
 
     private CreateTemplateComponentRequest requiredStarterComponent(CreateTemplateComponentRequest component, String label) {
@@ -429,8 +440,8 @@ class GovernanceController {
     }
 
     record TemplateVersionResponse(UUID id, UUID termId, UUID storeId, String templateCode, int templateRevision,
-                                   String name, String status, LocalDate effectiveFrom, LocalDate effectiveUntil, long version,
-                                   OffsetDateTime updatedAt) {
+                                   String name, String status, LocalDate effectiveFrom, LocalDate effectiveUntil,
+                                   JsonNode configuration, long version, OffsetDateTime updatedAt) {
     }
 
     record StarterTemplateConfigurationResponse(TemplateVersionResponse template, TemplateComponentResponse role,
@@ -453,7 +464,7 @@ class GovernanceController {
     }
 
     record TemplateComponentResponse(UUID id, UUID templateVersionId, String componentType, String code, String name,
-                                     long version, OffsetDateTime updatedAt) {
+                                     JsonNode configuration, long version, OffsetDateTime updatedAt) {
     }
 
     record AuditEventResponse(UUID id, String eventType, String resourceType, UUID resourceId, UUID actorAccountId,

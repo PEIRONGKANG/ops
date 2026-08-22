@@ -80,9 +80,11 @@ describe('TermWorkspacePage', () => {
       store: { code: 'DRINK-LAB', name: '饮品实训门店' },
       firstTeachingWeek: { name: '导入与准备', startDate: '2026-09-01', endDate: '2026-09-07', phaseCode: 'PREPARATION' },
     });
-    expect(await screen.findByRole('heading', { name: '2026 秋季实训' })).toBeVisible();
-    expect(screen.getByText('饮品实训门店')).toBeVisible();
-    expect(screen.getByText('第 1 教学周 · 导入与准备')).toBeVisible();
+    expect(await screen.findByDisplayValue('2026 秋季实训')).toBeVisible();
+    expect(screen.getByDisplayValue('饮品实训门店')).toBeVisible();
+    expect(screen.getByDisplayValue('导入与准备')).toBeVisible();
+    expect(screen.getByLabelText('周期代码')).toBeDisabled();
+    expect(screen.getByLabelText('门店代码')).toBeDisabled();
     const toast = await screen.findByRole('alert');
     expect(toast).toHaveTextContent('实训周期已建立。下一步可以配置运营模板。');
     expect(toast.closest('.MuiSnackbar-root')).toBeInTheDocument();

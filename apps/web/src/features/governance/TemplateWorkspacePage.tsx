@@ -9,13 +9,14 @@ import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
-import type { GovernanceApi, Store, TemplateVersion, Term } from './governanceApi';
+import type { GovernanceApi, Store, TemplateComponent, TemplateVersion, Term } from './governanceApi';
 
 interface TemplateWorkspacePageProps {
   api: GovernanceApi;
   embedded?: boolean;
+  formId?: string;
   onBack?: () => void;
-  onPublished?: () => void;
+  onSaved?: () => void;
 }
 
 interface FormValues {
@@ -28,15 +29,16 @@ interface FormValues {
   taskName: string;
 }
 
-export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublished }: TemplateWorkspacePageProps) {
+export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, onSaved }: TemplateWorkspacePageProps) {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [termId, setTermId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [latestTemplate, setLatestTemplate] = useState<TemplateVersion | null>(null);
+  const [starterComponents, setStarterComponents] = useState<{ role: TemplateComponent; sopTask: TemplateComponent } | null>(null);
   const { showToast } = useToast();
-  const { control, formState: { errors, isSubmitting }, handleSubmit, register } = useForm<FormValues>({
+  const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<FormValues>({
     defaultValues: { effectiveFrom: '', roleCode: '', roleName: '', taskCode: '', taskName: '', templateCode: '', templateName: '' },
   });
 
@@ -57,18 +59,35 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
     if (!termId || !storeId) return;
     try {
       const nextTemplates = await api.listTemplateVersions({ termId, storeId });
-      setLatestTemplate(nextTemplates.find((template) => template.status === 'DRAFT') ?? nextTemplates[0] ?? null);
+      const template = nextTemplates.find((item) => item.status === 'DRAFT') ?? nextTemplates[0] ?? null;
+      setLatestTemplate(template);
+      setStarterComponents(null);
+      if (!template || template.status !== 'DRAFT') return;
+
+      const components = await loadStarterComponents(api, template.id);
+      setStarterComponents(components);
+      reset(valuesFor(template, components.role, components.sopTask));
     } catch (error) {
       setLoadError(messageFor(error));
     }
-  }, [api, storeId, termId]);
+  }, [api, reset, storeId, termId]);
 
   useEffect(() => { void loadContext(); }, [loadContext]);
   useEffect(() => { void loadTemplates(); }, [loadTemplates]);
 
-  const create = async (values: FormValues) => {
+  const save = async (values: FormValues) => {
     if (!termId || !storeId) return;
     try {
+      if (latestTemplate && starterComponents) {
+        const result = await api.saveStarterTemplate(latestTemplate.id, starterTemplateInput(latestTemplate, starterComponents, values));
+        setLatestTemplate(result.template);
+        setStarterComponents({ role: result.role, sopTask: result.sopTask });
+        reset(valuesFor(result.template, result.role, result.sopTask));
+        showToast({ message: '运营模板草稿已保存。', severity: 'success' });
+        onSaved?.();
+        return;
+      }
+
       const template = await api.bootstrapTemplate({
         termId,
         storeId,
@@ -87,19 +106,11 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
         },
       });
       setLatestTemplate(template);
-      showToast({ message: '运营模板草稿已创建，请确认后发布。', severity: 'success' });
-    } catch (error) {
-      showToast({ message: messageFor(error), severity: 'error' });
-    }
-  };
-
-  const publish = async () => {
-    if (!latestTemplate) return;
-    try {
-      const published = await api.publishTemplate(latestTemplate.id, latestTemplate.version);
-      setLatestTemplate(published);
-      showToast({ message: '模板已发布，已可用于排班与班次执行。', severity: 'success' });
-      onPublished?.();
+      const components = await loadStarterComponents(api, template.id);
+      setStarterComponents(components);
+      reset(valuesFor(template, components.role, components.sopTask));
+      showToast({ message: '运营模板草稿已保存。', severity: 'success' });
+      onSaved?.();
     } catch (error) {
       showToast({ message: messageFor(error), severity: 'error' });
     }
@@ -128,25 +139,25 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
           <ScopeSelect label="运营门店" onChange={(id) => { setLatestTemplate(null); setStoreId(id); }} options={stores.map((store) => ({ id: store.id, label: `${store.name} · ${store.code}` }))} value={storeId} />
         </Box>
 
-        {latestTemplate ? (
-          <TemplateSummary onPublish={() => { void publish(); }} template={latestTemplate} />
+        {latestTemplate?.status === 'PUBLISHED' ? (
+          <TemplateSummary template={latestTemplate} />
         ) : (
-          <Box component="form" noValidate onSubmit={handleSubmit(create)}>
+          <Box component="form" id={formId} noValidate onSubmit={handleSubmit(save)}>
             <Stack gap={embedded ? 2.5 : 4}>
               <FormSection compact={embedded} description="模板草稿绑定当前周期、门店和生效日期。" title="模板版本">
-                <Field errors={errors} label="模板代码" name="templateCode" register={register} />
+                <Field disabled={Boolean(latestTemplate)} errors={errors} label="模板代码" name="templateCode" register={register} />
                 <Field errors={errors} label="模板名称" name="templateName" register={register} />
                 <DateField control={control} errors={errors} label="生效日期" name="effectiveFrom" />
               </FormSection>
               <FormSection compact={embedded} description="这是首个班次配置的最小岗位定义；后续可继续补充。" title="首个岗位">
-                <Field errors={errors} label="岗位代码" name="roleCode" register={register} />
+                <Field disabled={Boolean(latestTemplate)} errors={errors} label="岗位代码" name="roleCode" register={register} />
                 <Field errors={errors} label="岗位名称" name="roleName" register={register} />
               </FormSection>
               <FormSection compact={embedded} description="这是岗位执行时必须确认的第一项标准操作。" title="首项 SOP">
-                <Field errors={errors} label="SOP 代码" name="taskCode" register={register} />
+                <Field disabled={Boolean(latestTemplate)} errors={errors} label="SOP 代码" name="taskCode" register={register} />
                 <Field errors={errors} label="SOP 名称" name="taskName" register={register} />
               </FormSection>
-              <Box><Button disabled={isSubmitting} type="submit" variant="contained">{isSubmitting ? '正在创建…' : '创建草稿模板'}</Button></Box>
+              {!embedded ? <Box><Button disabled={isSubmitting} type="submit" variant="contained">{isSubmitting ? '正在保存…' : '保存模板草稿'}</Button></Box> : null}
             </Stack>
           </Box>
         )}
@@ -155,20 +166,19 @@ export function TemplateWorkspacePage({ api, embedded = false, onBack, onPublish
   );
 }
 
-function TemplateSummary({ onPublish, template }: { onPublish: () => void; template: TemplateVersion }) {
-  const published = template.status === 'PUBLISHED';
+function TemplateSummary({ template }: { template: TemplateVersion }) {
   return (
-    <Stack gap={3}>
+    <Stack gap={1.5}>
       <Box borderBottom={1} borderColor="divider" pb={3}>
         <Stack alignItems={{ sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="space-between">
           <Box>
             <Typography component="h2" variant="h3">{template.name}</Typography>
             <Typography color="text.secondary" mt={0.5}>{template.templateCode} · 修订版 {template.templateRevision} · 自 {template.effectiveFrom} 生效</Typography>
           </Box>
-          <StatusChip label={published ? '已发布' : '草稿'} tone={published ? 'success' : 'warning'} />
+          <StatusChip label="已发布" tone="success" />
         </Stack>
       </Box>
-      {!published ? <Box><Button onClick={onPublish} variant="contained">发布模板</Button></Box> : null}
+      <Typography color="text.secondary" variant="body2">已发布的模板保持只读。如需调整，请创建新的模板修订版本。</Typography>
     </Stack>
   );
 }
@@ -205,13 +215,14 @@ function FormSection({ children, compact, description, title }: { children: Reac
   );
 }
 
-function Field({ errors, label, name, register }: {
+function Field({ disabled, errors, label, name, register }: {
+  disabled?: boolean;
   errors: Record<string, { message?: string } | undefined>;
   label: string;
   name: keyof FormValues;
   register: ReturnType<typeof useForm<FormValues>>['register'];
 }) {
-  return <TextField error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} {...register(name, { required: '请填写此项。' })} />;
+  return <TextField disabled={disabled} error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} {...register(name, { required: '请填写此项。' })} />;
 }
 
 function DateField({ control, errors, label, name }: {
@@ -232,6 +243,50 @@ function DateField({ control, errors, label, name }: {
 
 function preferredTerm(terms: Term[]): Term | undefined {
   return terms.find((term) => term.status === 'DRAFT' || term.status === 'PUBLISHED') ?? terms[0];
+}
+
+function valuesFor(template: TemplateVersion, role: TemplateComponent, sopTask: TemplateComponent): FormValues {
+  return {
+    templateCode: template.templateCode,
+    templateName: template.name,
+    effectiveFrom: template.effectiveFrom,
+    roleCode: role.code,
+    roleName: role.name,
+    taskCode: sopTask.code,
+    taskName: sopTask.name,
+  };
+}
+
+async function loadStarterComponents(api: GovernanceApi, templateId: string): Promise<{ role: TemplateComponent; sopTask: TemplateComponent }> {
+  const [roles, sopTasks] = await Promise.all([
+    api.listTemplateComponents(templateId, 'roles'),
+    api.listTemplateComponents(templateId, 'sop-tasks'),
+  ]);
+  const role = roles[0];
+  const sopTask = sopTasks[0];
+  if (!role || !sopTask) {
+    throw new Error('草稿模板缺少首个岗位或首项 SOP。');
+  }
+  return { role, sopTask };
+}
+
+function starterTemplateInput(template: TemplateVersion, starterComponents: { role: TemplateComponent; sopTask: TemplateComponent }, values: FormValues) {
+  const roleConfiguration = { ...starterComponents.role.configuration };
+  const sopTaskConfiguration = { ...starterComponents.sopTask.configuration, roleCode: values.roleCode };
+  return {
+    template: {
+      name: values.templateName,
+      effectiveFrom: values.effectiveFrom,
+      configuration: {
+        ...template.configuration,
+        roles: [{ code: values.roleCode, name: values.roleName }],
+        tasks: [{ code: values.taskCode, name: values.taskName }],
+      },
+      version: template.version,
+    },
+    role: { id: starterComponents.role.id, name: values.roleName, configuration: roleConfiguration, version: starterComponents.role.version },
+    sopTask: { id: starterComponents.sopTask.id, name: values.taskName, configuration: sopTaskConfiguration, version: starterComponents.sopTask.version },
+  };
 }
 
 function messageFor(error: unknown): string {

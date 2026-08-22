@@ -43,6 +43,7 @@ export interface TemplateVersion {
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   effectiveFrom: string;
   effectiveUntil: string | null;
+  configuration: Record<string, unknown>;
   version: number;
   updatedAt: string;
 }
@@ -123,6 +124,7 @@ export interface TemplateComponent {
   componentType: string;
   code: string;
   name: string;
+  configuration: Record<string, unknown>;
   version: number;
   updatedAt: string;
 }

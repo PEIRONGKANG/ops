@@ -74,6 +74,25 @@ describe('DashboardPage', () => {
     expect(within(rail).getByText('组织实训人员')).toBeVisible();
     expect(await screen.findByRole('textbox', { name: '周期代码' })).toBeVisible();
     expect(screen.queryByRole('button', { name: '返回工作台' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '创建实训周期' })).toHaveAttribute('form', 'startup-period-form');
+  });
+
+  it('lets P1 return to a completed step and keeps the action toolbar above the form', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    api.listTerms = vi.fn().mockResolvedValue([term]);
+    api.listStores = vi.fn().mockResolvedValue([store]);
+    api.listTeachingWeeks = vi.fn().mockResolvedValue([firstTeachingWeek]);
+    api.listTemplateVersions = vi.fn().mockResolvedValue([]);
+
+    renderDashboard(api);
+
+    expect(await screen.findByRole('textbox', { name: '模板代码' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: '建立实训周期' }));
+
+    expect(await screen.findByRole('textbox', { name: '周期名称' })).toHaveValue(term.name);
+    expect(screen.getByRole('button', { name: '保存修改' })).toHaveAttribute('form', 'startup-period-form');
+    expect(screen.queryByRole('button', { name: '返回上一步' })).not.toBeInTheDocument();
   });
 
   it('advances to template configuration in the same page after initialization succeeds', async () => {
@@ -82,6 +101,7 @@ describe('DashboardPage', () => {
     const api = createApi();
     api.listTerms = vi.fn().mockImplementation(async () => initialized ? [term] : []);
     api.listStores = vi.fn().mockImplementation(async () => initialized ? [store] : []);
+    api.listTeachingWeeks = vi.fn().mockImplementation(async () => initialized ? [firstTeachingWeek] : []);
     api.initialize = vi.fn().mockImplementation(async () => {
       initialized = true;
       return { term, store, firstTeachingWeek };
@@ -114,8 +134,9 @@ describe('DashboardPage', () => {
     const api = createApi();
     api.listTerms = vi.fn().mockResolvedValue([term]);
     api.listStores = vi.fn().mockResolvedValue([store]);
+    api.listTeachingWeeks = vi.fn().mockResolvedValue([firstTeachingWeek]);
     api.listTemplateVersions = vi.fn().mockResolvedValue([{
-      id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'PUBLISHED', effectiveFrom: '2026-09-01', effectiveUntil: null, version: 1, updatedAt: '2026-08-21T00:00:00Z',
+      id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'DRAFT', effectiveFrom: '2026-09-01', effectiveUntil: null, configuration: {}, version: 1, updatedAt: '2026-08-21T00:00:00Z',
     }]);
     api.listTeams = vi.fn().mockResolvedValue([{ id: 'team-id', termId: term.id, code: 'TEAM-A', name: 'A 组', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
     api.listMemberships = vi.fn().mockResolvedValue([{ id: 'membership-id', termId: term.id, accountId: 'disabled-account', teamId: 'team-id', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
@@ -127,6 +148,37 @@ describe('DashboardPage', () => {
     const rail = screen.getByRole('list', { name: '启动配置流程' });
     expect(within(rail).getByText('组织实训人员').closest('li')).toHaveAttribute('aria-current', 'step');
     expect(screen.queryByText('启动清单已完成')).not.toBeInTheDocument();
+  });
+
+  it('only publishes the draft period and template from the final people step', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    api.listTerms = vi.fn().mockResolvedValue([term]);
+    api.listStores = vi.fn().mockResolvedValue([store]);
+    api.listTeachingWeeks = vi.fn().mockResolvedValue([firstTeachingWeek]);
+    api.listTemplateVersions = vi.fn().mockResolvedValue([{
+      id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'DRAFT', effectiveFrom: '2026-09-01', effectiveUntil: null, configuration: {}, version: 4, updatedAt: '2026-08-21T00:00:00Z',
+    }]);
+    api.listTeams = vi.fn().mockResolvedValue([{ id: 'team-id', termId: term.id, code: 'TEAM-A', name: 'A 组', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listMemberships = vi.fn().mockResolvedValue([{ id: 'membership-id', termId: term.id, accountId: 'account-id', teamId: 'team-id', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listAccounts = vi.fn().mockResolvedValue([{ id: 'account-id', loginId: 'P3-001', displayName: '林同学', status: 'ACTIVE', roles: ['P3'] }]);
+    api.publishStartupConfiguration = vi.fn().mockResolvedValue({
+      term: { ...term, status: 'PUBLISHED', version: 2 },
+      template: { id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1, name: '日常运营模板', status: 'PUBLISHED', effectiveFrom: '2026-09-01', effectiveUntil: null, configuration: {}, version: 5, updatedAt: '2026-08-21T00:00:00Z' },
+    });
+
+    renderDashboard(api);
+
+    expect(await screen.findByRole('heading', { name: '组织实训人员' })).toBeVisible();
+    expect(screen.getByRole('button', { name: '发布实训配置' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: '发布模板' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '发布实训配置' }));
+
+    expect(api.publishStartupConfiguration).toHaveBeenCalledWith('term-id', {
+      templateVersionId: 'template-id', termVersion: 1, templateVersion: 4,
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('实训配置已发布，周期与运营模板现已生效。');
   });
 
   it('surfaces startup synchronization errors in a retriable toast', async () => {
