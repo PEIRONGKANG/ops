@@ -6,13 +6,21 @@ export interface AuthScaffoldProps extends PropsWithChildren {
   title: string;
 }
 
+export const authScaffoldLayout = {
+  gridTemplateColumns: {
+    xs: 'minmax(0, 1fr)',
+    md: 'minmax(320px, 0.8fr) minmax(0, 1.2fr)',
+  },
+  introductionDisplay: { xs: 'none', md: 'flex' },
+} as const;
+
 export function AuthScaffold({ children, description, title }: AuthScaffoldProps) {
   const titleId = useId();
 
   return (
     <Box
       display="grid"
-      gridTemplateColumns={{ xs: 'minmax(0, 1fr)', md: 'minmax(320px, 0.8fr) minmax(0, 1.2fr)' }}
+      gridTemplateColumns={authScaffoldLayout.gridTemplateColumns}
       marginInline="auto"
       minHeight="100dvh"
       width="100%"
@@ -23,7 +31,7 @@ export function AuthScaffold({ children, description, title }: AuthScaffoldProps
         sx={{
           alignItems: 'flex-end',
           bgcolor: 'var(--beverage-primary-container)',
-          display: { xs: 'none', md: 'flex' },
+          display: authScaffoldLayout.introductionDisplay,
           minHeight: '100%',
           p: { md: 5, lg: 7 },
         }}

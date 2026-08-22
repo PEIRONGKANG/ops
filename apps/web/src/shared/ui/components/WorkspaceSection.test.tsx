@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { WorkspaceSection } from './WorkspaceSection';
+import { WorkspaceSection, workspaceSectionLayout } from './WorkspaceSection';
 
 describe('WorkspaceSection', () => {
   it('associates the section landmark with its level-two heading', () => {
@@ -20,5 +20,13 @@ describe('WorkspaceSection', () => {
     expect(section).toHaveAttribute('aria-labelledby', heading.id);
     expect(within(section).getByText('设置周期代码和日期范围。')).toBeVisible();
     expect(within(section).getByLabelText('周期代码')).toBeVisible();
+  });
+
+  it('uses one compact column and no more than two columns from the medium layout', () => {
+    expect(workspaceSectionLayout.defaultColumns).toEqual({ compact: 1, medium: 2 });
+    expect(workspaceSectionLayout.gridTemplateColumns).toEqual({
+      xs: 'repeat(1, minmax(0, 1fr))',
+      sm: 'repeat(2, minmax(0, 1fr))',
+    });
   });
 });

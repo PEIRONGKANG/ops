@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { PageScaffold } from './PageScaffold';
+import { beverageTokens } from '../theme/tokens';
+import { PageScaffold, pageScaffoldLayout } from './PageScaffold';
 
 describe('PageScaffold', () => {
   it('labels the page heading and content region', () => {
@@ -23,5 +24,12 @@ describe('PageScaffold', () => {
 
     const content = screen.getByRole('region', { name: '实训周期内容' });
     expect(within(content).getByText('周期列表')).toBeVisible();
+  });
+
+  it('uses the shared 1200px content boundary and stacks its header only on compact screens', () => {
+    expect(beverageTokens.layout.contentMax).toBe(1200);
+    expect(pageScaffoldLayout.maxWidth).toBe('var(--beverage-layout-content-max)');
+    expect(pageScaffoldLayout.headerDirection).toEqual({ xs: 'column', sm: 'row' });
+    expect(pageScaffoldLayout.headerAlignment).toEqual({ xs: 'stretch', sm: 'flex-end' });
   });
 });

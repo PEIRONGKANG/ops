@@ -8,13 +8,19 @@ export interface PageScaffoldProps extends PropsWithChildren {
   title: string;
 }
 
+export const pageScaffoldLayout = {
+  headerAlignment: { xs: 'stretch', sm: 'flex-end' },
+  headerDirection: { xs: 'column', sm: 'row' },
+  maxWidth: 'var(--beverage-layout-content-max)',
+} as const;
+
 export function PageScaffold({ actions, children, description, eyebrow, title }: PageScaffoldProps) {
   return (
-    <Box marginInline="auto" maxWidth="var(--beverage-layout-content-max)" width="100%">
+    <Box marginInline="auto" maxWidth={pageScaffoldLayout.maxWidth} width="100%">
       <Stack
-        alignItems={{ sm: 'flex-end' }}
+        alignItems={pageScaffoldLayout.headerAlignment}
         component="header"
-        direction={{ xs: 'column', sm: 'row' }}
+        direction={pageScaffoldLayout.headerDirection}
         gap={{ xs: 2, sm: 3 }}
         justifyContent="space-between"
       >

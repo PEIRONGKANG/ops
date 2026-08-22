@@ -2,7 +2,7 @@ import { Box, Stack, Typography, type SxProps, type Theme } from '@mui/material'
 import { type PropsWithChildren } from 'react';
 
 export interface WorkspaceSectionProps extends PropsWithChildren {
-  columns?: 1 | 2 | 3;
+  columns?: 1 | 2;
   description?: string;
   id: string;
   sx?: SxProps<Theme>;
@@ -13,9 +13,20 @@ function columnTemplate(columnCount: number) {
   return `repeat(${columnCount}, minmax(0, 1fr))`;
 }
 
-export function WorkspaceSection({ children, columns = 2, description, id, sx, title }: WorkspaceSectionProps) {
+export const workspaceSectionLayout = {
+  defaultColumns: { compact: 1, medium: 2 },
+  gridTemplateColumns: {
+    xs: columnTemplate(1),
+    sm: columnTemplate(2),
+  },
+} as const;
+
+export function WorkspaceSection({ children, columns = workspaceSectionLayout.defaultColumns.medium, description, id, sx, title }: WorkspaceSectionProps) {
   const headingId = `${id}-title`;
   const customStyles = Array.isArray(sx) ? sx : sx ? [sx] : [];
+  const gridTemplateColumns = columns === 1
+    ? { xs: workspaceSectionLayout.gridTemplateColumns.xs, sm: workspaceSectionLayout.gridTemplateColumns.xs }
+    : workspaceSectionLayout.gridTemplateColumns;
 
   return (
     <Stack aria-labelledby={headingId} component="section" gap={2.5} id={id} sx={customStyles}>
@@ -32,11 +43,7 @@ export function WorkspaceSection({ children, columns = 2, description, id, sx, t
       <Box
         display="grid"
         gap={{ xs: 2, sm: 2.5 }}
-        gridTemplateColumns={{
-          xs: columnTemplate(1),
-          sm: columnTemplate(Math.min(columns, 2)),
-          lg: columnTemplate(columns),
-        }}
+        gridTemplateColumns={gridTemplateColumns}
       >
         {children}
       </Box>

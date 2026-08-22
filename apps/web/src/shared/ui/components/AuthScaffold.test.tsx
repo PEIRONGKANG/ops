@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { AuthScaffold } from './AuthScaffold';
+import { AuthScaffold, authScaffoldLayout } from './AuthScaffold';
 
 describe('AuthScaffold', () => {
   it('provides one named main area and keeps the responsive system introduction in the DOM', () => {
@@ -18,5 +18,13 @@ describe('AuthScaffold', () => {
     expect(within(main).getByRole('form', { name: '登录表单' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: '系统简介', hidden: true })).toBeInTheDocument();
     expect(screen.queryByText(/BEVERAGE OPS/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the introduction in a CSS-controlled expanded column', () => {
+    expect(authScaffoldLayout.gridTemplateColumns).toEqual({
+      xs: 'minmax(0, 1fr)',
+      md: 'minmax(320px, 0.8fr) minmax(0, 1.2fr)',
+    });
+    expect(authScaffoldLayout.introductionDisplay).toEqual({ xs: 'none', md: 'flex' });
   });
 });
