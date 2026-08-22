@@ -36,6 +36,22 @@ function renderTerm(api: GovernanceApi, embedded = false) {
 }
 
 describe('TermWorkspacePage', () => {
+  it('summarizes an empty submission once and focuses the first invalid field without inline required messages', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    renderTerm(api);
+
+    await screen.findByRole('heading', { name: '建立实训周期' });
+    await user.click(screen.getByRole('button', { name: '创建实训周期' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 9 个必填项。');
+    expect(screen.getByLabelText('周期代码')).toHaveFocus();
+    expect(screen.getByLabelText('周期代码')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('请填写此项。')).not.toBeInTheDocument();
+    expect(screen.queryByText('请选择日期。')).not.toBeInTheDocument();
+    expect(api.initialize).not.toHaveBeenCalled();
+  });
+
   it('keeps the embedded period form compact while retaining Material calendar controls', async () => {
     renderTerm(createApi(), true);
 

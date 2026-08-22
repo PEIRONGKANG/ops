@@ -7,7 +7,9 @@ import { ApiError } from '@/shared/api/ApiError';
 import { MaterialDateField } from '@/shared/ui/components/MaterialDateField';
 import { PageState } from '@/shared/ui/components/PageState';
 import { StatusChip } from '@/shared/ui/components/StatusChip';
+import { WorkspaceSection } from '@/shared/ui/components/WorkspaceSection';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
+import { type FormErrorField, useFormErrorToast } from '@/shared/ui/forms/useFormErrorToast';
 
 import type { GovernanceApi, Store, TemplateComponent, TemplateVersion, Term } from './governanceApi';
 
@@ -29,6 +31,16 @@ interface FormValues {
   taskName: string;
 }
 
+const requiredFields = [
+  { label: '模板代码', name: 'templateCode' },
+  { label: '模板名称', name: 'templateName' },
+  { label: '生效日期', name: 'effectiveFrom' },
+  { label: '岗位代码', name: 'roleCode' },
+  { label: '岗位名称', name: 'roleName' },
+  { label: 'SOP 代码', name: 'taskCode' },
+  { label: 'SOP 名称', name: 'taskName' },
+] as const satisfies readonly FormErrorField<FormValues>[];
+
 export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, onSaved }: TemplateWorkspacePageProps) {
   const [terms, setTerms] = useState<Term[] | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
@@ -38,9 +50,10 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
   const [latestTemplate, setLatestTemplate] = useState<TemplateVersion | null>(null);
   const [starterComponents, setStarterComponents] = useState<{ role: TemplateComponent; sopTask: TemplateComponent } | null>(null);
   const { showToast } = useToast();
-  const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<FormValues>({
+  const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset, setFocus } = useForm<FormValues>({
     defaultValues: { effectiveFrom: '', roleCode: '', roleName: '', taskCode: '', taskName: '', templateCode: '', templateName: '' },
   });
+  const handleInvalid = useFormErrorToast({ fields: requiredFields, setFocus });
 
   const loadContext = useCallback(async () => {
     setLoadError(null);
@@ -142,21 +155,21 @@ export function TemplateWorkspacePage({ api, embedded = false, formId, onBack, o
         {latestTemplate?.status === 'PUBLISHED' ? (
           <TemplateSummary template={latestTemplate} />
         ) : (
-          <Box component="form" id={formId} noValidate onSubmit={handleSubmit(save)}>
+          <Box component="form" id={formId} noValidate onSubmit={handleSubmit(save, handleInvalid)}>
             <Stack gap={embedded ? 3 : 4}>
-              <FormSection compact={embedded} description="模板草稿绑定当前周期、门店和生效日期。" id="template-version" title="模板版本">
+              <WorkspaceSection description={embedded ? undefined : '模板草稿绑定当前周期、门店和生效日期。'} id="template-version" title="模板版本">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="模板代码" name="templateCode" register={register} />
                 <Field errors={errors} label="模板名称" name="templateName" register={register} />
                 <Box sx={{ gridColumn: { sm: 'span 2' } }}><DateField control={control} errors={errors} label="生效日期" name="effectiveFrom" /></Box>
-              </FormSection>
-              <FormSection compact={embedded} description="这是首个班次配置的最小岗位定义；后续可继续补充。" id="starter-role" title="首个岗位">
+              </WorkspaceSection>
+              <WorkspaceSection description={embedded ? undefined : '这是首个班次配置的最小岗位定义；后续可继续补充。'} id="starter-role" title="首个岗位">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="岗位代码" name="roleCode" register={register} />
                 <Field errors={errors} label="岗位名称" name="roleName" register={register} />
-              </FormSection>
-              <FormSection compact={embedded} description="这是岗位执行时必须确认的第一项标准操作。" id="starter-sop" title="首项 SOP">
+              </WorkspaceSection>
+              <WorkspaceSection description={embedded ? undefined : '这是岗位执行时必须确认的第一项标准操作。'} id="starter-sop" title="首项 SOP">
                 <Field disabled={Boolean(latestTemplate)} errors={errors} label="SOP 代码" name="taskCode" register={register} />
                 <Field errors={errors} label="SOP 名称" name="taskName" register={register} />
-              </FormSection>
+              </WorkspaceSection>
               {!embedded ? <Box><Button disabled={isSubmitting} type="submit" variant="contained">{isSubmitting ? '正在保存…' : '保存模板草稿'}</Button></Box> : null}
             </Stack>
           </Box>
@@ -206,15 +219,6 @@ function ScopeSelect({ label, onChange, options, value }: { label: string; onCha
   );
 }
 
-function FormSection({ children, compact, description, id, title }: { children: ReactNode; compact: boolean; description: string; id: string; title: string }) {
-  return (
-    <Stack aria-labelledby={`${id}-title`} component="section" gap={compact ? 1.25 : 2}>
-      <Box><Typography component="h2" id={`${id}-title`} variant="h3">{title}</Typography>{!compact ? <Typography color="text.secondary" mt={0.5} variant="body2">{description}</Typography> : null}</Box>
-      <Box display="grid" gap={2} gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }}>{children}</Box>
-    </Stack>
-  );
-}
-
 function Field({ disabled, errors, label, name, register }: {
   disabled?: boolean;
   errors: Record<string, { message?: string } | undefined>;
@@ -222,7 +226,7 @@ function Field({ disabled, errors, label, name, register }: {
   name: keyof FormValues;
   register: ReturnType<typeof useForm<FormValues>>['register'];
 }) {
-  return <TextField disabled={disabled} error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} {...register(name, { required: '请填写此项。' })} />;
+  return <TextField disabled={disabled} error={Boolean(errors[name])} label={label} {...register(name, { required: true })} />;
 }
 
 function DateField({ control, errors, label, name }: {
@@ -235,8 +239,8 @@ function DateField({ control, errors, label, name }: {
     <Controller
       control={control}
       name={name}
-      rules={{ required: '请选择日期。' }}
-      render={({ field }) => <MaterialDateField error={Boolean(errors[name])} helperText={errors[name]?.message} label={label} onChange={field.onChange} required value={field.value} />}
+      rules={{ required: true }}
+      render={({ field }) => <MaterialDateField error={Boolean(errors[name])} inputRef={field.ref} label={label} name={field.name} onBlur={field.onBlur} onChange={field.onChange} required value={field.value} />}
     />
   );
 }

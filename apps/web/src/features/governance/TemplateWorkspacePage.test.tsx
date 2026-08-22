@@ -42,6 +42,22 @@ function renderTemplate(api: GovernanceApi, embedded = false) {
 }
 
 describe('TemplateWorkspacePage', () => {
+  it('summarizes an empty submission once and focuses the first invalid field without inline required messages', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    renderTemplate(api);
+
+    await screen.findByRole('heading', { name: '配置运营模板' });
+    await user.click(screen.getByRole('button', { name: '保存模板草稿' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请完成 7 个必填项。');
+    expect(screen.getByLabelText('模板代码')).toHaveFocus();
+    expect(screen.getByLabelText('模板代码')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('请填写此项。')).not.toBeInTheDocument();
+    expect(screen.queryByText('请选择日期。')).not.toBeInTheDocument();
+    expect(api.bootstrapTemplate).not.toHaveBeenCalled();
+  });
+
   it('uses a compact Material calendar field without repeating its page introduction when embedded', async () => {
     renderTemplate(createApi(), true);
 
