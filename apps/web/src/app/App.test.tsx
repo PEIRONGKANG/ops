@@ -17,6 +17,7 @@ describe('App', () => {
   });
 
   it('shows the login page when the browser has no refresh cookie', async () => {
+    const user = userEvent.setup();
     const api: AuthApi = {
       login: vi.fn(),
       changePassword: vi.fn(),
@@ -32,7 +33,17 @@ describe('App', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1, name: '登录到饮品实训运营系统' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: '账号' })).toBeVisible();
-    expect(screen.getByLabelText('密码')).toBeVisible();
+    const password = screen.getByLabelText('密码');
+    expect(password).toHaveAttribute('type', 'password');
+    await user.type(password, 'TemporaryPassword-2026');
+    await user.tab();
+    expect(screen.getByRole('button', { name: '显示密码' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(password).toHaveAttribute('type', 'text');
+    expect(password).toHaveValue('TemporaryPassword-2026');
+    await user.keyboard(' ');
+    expect(password).toHaveAttribute('type', 'password');
+    expect(api.login).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '登录' })).toBeVisible();
     expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
   });
@@ -59,6 +70,7 @@ describe('App', () => {
   });
 
   it('shows the required password change screen for a restricted first-login session', async () => {
+    const user = userEvent.setup();
     const api: AuthApi = {
       login: vi.fn(),
       changePassword: vi.fn(),
@@ -73,8 +85,27 @@ describe('App', () => {
     expect(screen.getByRole('region', { name: '系统简介' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1, name: '更新登录密码' })).toBeVisible();
-    expect(screen.getByLabelText('新密码')).toBeVisible();
-    expect(screen.getByLabelText('确认新密码')).toBeVisible();
+    const newPassword = screen.getByLabelText('新密码');
+    const confirmPassword = screen.getByLabelText('确认新密码');
+    await user.type(newPassword, 'ChangedPassword-2026');
+    await user.type(confirmPassword, 'ChangedPassword-2026');
+    expect(newPassword).toHaveAttribute('type', 'password');
+    expect(confirmPassword).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: '显示新密码' }));
+    expect(newPassword).toHaveAttribute('type', 'text');
+    expect(confirmPassword).toHaveAttribute('type', 'password');
+    expect(newPassword).toHaveValue('ChangedPassword-2026');
+
+    await user.click(screen.getByRole('button', { name: '显示确认新密码' }));
+    expect(newPassword).toHaveAttribute('type', 'text');
+    expect(confirmPassword).toHaveAttribute('type', 'text');
+    expect(confirmPassword).toHaveValue('ChangedPassword-2026');
+
+    await user.click(screen.getByRole('button', { name: '隐藏新密码' }));
+    expect(newPassword).toHaveAttribute('type', 'password');
+    expect(confirmPassword).toHaveAttribute('type', 'text');
+    expect(api.changePassword).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '更新密码并继续' })).toBeVisible();
     expect(screen.queryByText('BEVERAGE OPS')).not.toBeInTheDocument();
   });

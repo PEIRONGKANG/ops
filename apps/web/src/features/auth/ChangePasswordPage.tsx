@@ -1,10 +1,11 @@
 import KeyRoundedIcon from '@mui/icons-material/KeyRounded';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError } from '@/shared/api/ApiError';
 import { useAuth } from '@/shared/auth/useAuth';
 import { AuthScaffold } from '@/shared/ui/components/AuthScaffold';
+import { PasswordField } from '@/shared/ui/components/PasswordField';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 interface ChangePasswordValues {
@@ -67,7 +68,7 @@ export function ChangePasswordPage() {
                 minLength: { value: 12, message: '密码至少需要 12 个字符。' },
                 maxLength: { value: 128, message: '密码不能超过 128 个字符。' },
               }}
-              render={({ field }) => <TextField {...field} autoComplete="new-password" error={Boolean(errors.newPassword)} helperText={errors.newPassword?.message ?? '长度为 12–128 个字符，且不能与账号相同。'} label="新密码" type="password" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.newPassword)} helperText={errors.newPassword?.message ?? '长度为 12–128 个字符，且不能与账号相同。'} label="新密码" />}
             />
             <Controller
               control={control}
@@ -76,7 +77,7 @@ export function ChangePasswordPage() {
                 required: '请再次输入新密码。',
                 validate: (value) => value === newPassword || '两次输入的密码不一致。',
               }}
-              render={({ field }) => <TextField {...field} autoComplete="new-password" error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword?.message} label="确认新密码" type="password" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="new-password" error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword?.message} label="确认新密码" />}
             />
             <Button disabled={isSubmitting} size="large" type="submit" variant="contained">
               {isSubmitting ? '正在更新…' : '更新密码并继续'}

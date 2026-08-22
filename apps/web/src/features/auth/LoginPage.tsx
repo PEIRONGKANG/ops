@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { ApiError } from '@/shared/api/ApiError';
 import { useAuth } from '@/shared/auth/useAuth';
 import { AuthScaffold } from '@/shared/ui/components/AuthScaffold';
+import { PasswordField } from '@/shared/ui/components/PasswordField';
 import { useToast } from '@/shared/ui/feedback/ToastProvider';
 
 interface LoginValues {
@@ -68,7 +69,7 @@ export function LoginPage() {
               control={control}
               name="password"
               rules={{ required: '请输入密码。' }}
-              render={({ field }) => <TextField {...field} autoComplete="current-password" error={Boolean(errors.password)} helperText={errors.password?.message} label="密码" type="password" />}
+              render={({ field }) => <PasswordField {...field} autoComplete="current-password" error={Boolean(errors.password)} helperText={errors.password?.message} label="密码" />}
             />
             <Button disabled={isSubmitting} size="large" type="submit" variant="contained">
               {isSubmitting ? '正在登录…' : '登录'}
