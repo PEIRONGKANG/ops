@@ -219,6 +219,124 @@ class GovernanceControllerIntegrationTest extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void p1CanAtomicallySaveAStarterTemplateDraftAndItsFirstRoleAndSop() throws Exception {
+        var termId = createTerm("2026-TEMPLATE-DRAFT", "模板草稿学期");
+        var storeId = createStore("TEMPLATE-DRAFT-LAB", "模板草稿门店");
+        var template = mockMvc.perform(post("/api/v1/admin/template-versions/bootstrap")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "termId":"%s", "storeId":"%s", "templateCode":"DAILY-OPS", "name":"初始模板",
+                                  "effectiveFrom":"2026-09-01", "configuration":{"roles":[],"tasks":[]},
+                                  "role":{"code":"BARISTA","name":"初始岗位","configuration":{"required":true}},
+                                  "sopTask":{"code":"OPENING-CHECK","name":"初始 SOP",
+                                    "configuration":{"roleCode":"BARISTA","evidenceRequired":false,"requiresP2Acceptance":false}}
+                                }
+                                """.formatted(termId, storeId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var templateId = json(template).path("id").asText();
+        var roleId = jdbcTemplate.queryForObject("""
+                select id from gov_template_components where template_version_id = ? and component_type = 'ROLE'
+                """, UUID.class, UUID.fromString(templateId));
+        var sopTaskId = jdbcTemplate.queryForObject("""
+                select id from gov_template_components where template_version_id = ? and component_type = 'SOP_TASK'
+                """, UUID.class, UUID.fromString(templateId));
+
+        mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}/starter-configuration", templateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "template":{"name":"修订模板","effectiveFrom":"2026-09-08",
+                                    "configuration":{"roles":[{"code":"BARISTA","name":"修订岗位"}],"tasks":[{"code":"OPENING-CHECK","name":"修订 SOP"}]},"version":1},
+                                  "role":{"id":"%s","name":"修订岗位","configuration":{"required":true},"version":1},
+                                  "sopTask":{"id":"%s","name":"修订 SOP",
+                                    "configuration":{"roleCode":"BARISTA","evidenceRequired":false,"requiresP2Acceptance":false},"version":1}
+                                }
+                                """.formatted(roleId, sopTaskId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.template.name").value("修订模板"))
+                .andExpect(jsonPath("$.template.version").value(2))
+                .andExpect(jsonPath("$.role.name").value("修订岗位"))
+                .andExpect(jsonPath("$.role.version").value(2))
+                .andExpect(jsonPath("$.sopTask.name").value("修订 SOP"))
+                .andExpect(jsonPath("$.sopTask.version").value(2));
+
+        mockMvc.perform(patch("/api/v1/admin/template-versions/{templateId}/starter-configuration", templateId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "template":{"name":"不应保存","effectiveFrom":"2026-09-08","configuration":{},"version":1},
+                                  "role":{"id":"%s","name":"不应保存","configuration":{},"version":2},
+                                  "sopTask":{"id":"%s","name":"不应保存","configuration":{},"version":2}
+                                }
+                                """.formatted(roleId, sopTaskId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
+
+        assertThat(jdbcTemplate.queryForObject("select name from gov_template_versions where id = ?", String.class, UUID.fromString(templateId)))
+                .isEqualTo("修订模板");
+        assertThat(jdbcTemplate.queryForObject("select name from gov_template_components where id = ?", String.class, roleId))
+                .isEqualTo("修订岗位");
+        assertThat(jdbcTemplate.queryForObject("select name from gov_template_components where id = ?", String.class, sopTaskId))
+                .isEqualTo("修订 SOP");
+    }
+
+    @Test
+    void p1CanPublishTheCompleteStartupConfigurationOnlyAfterPeopleAreOrganized() throws Exception {
+        var initialization = mockMvc.perform(post("/api/v1/admin/initialization")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "term":{"code":"2026-PUBLISH","name":"发布实训","startDate":"2026-09-01","endDate":"2027-01-20"},
+                                  "store":{"code":"PUBLISH-LAB","name":"发布门店"},
+                                  "firstTeachingWeek":{"name":"导入期","startDate":"2026-09-01","endDate":"2026-09-07","phaseCode":"PREPARATION"}
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var initialized = json(initialization);
+        var termId = initialized.path("term").path("id").asText();
+        var storeId = initialized.path("store").path("id").asText();
+        var template = createTemplate(termId, storeId, "PUBLISH-OPS", "发布模板");
+        var templateId = json(template).path("id").asText();
+
+        mockMvc.perform(post("/api/v1/admin/startup-configurations/{termId}/publish", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateVersionId\":\"%s\",\"termVersion\":1,\"templateVersion\":1}".formatted(templateId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STATE_CONFLICT"));
+
+        var team = mockMvc.perform(post("/api/v1/admin/teams")
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"termId\":\"%s\",\"code\":\"TEAM-A\",\"name\":\"A 组\"}".formatted(termId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var teamId = json(team).path("id").asText();
+        mockMvc.perform(post("/api/v1/admin/terms/{termId}/memberships", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accountId\":\"%s\",\"teamId\":\"%s\"}".formatted(P2_ID, teamId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/admin/startup-configurations/{termId}/publish", termId)
+                        .with(user(P1_ID.toString()).roles("P1"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateVersionId\":\"%s\",\"termVersion\":1,\"templateVersion\":1}".formatted(templateId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.term.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.term.version").value(2))
+                .andExpect(jsonPath("$.template.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.template.version").value(2));
+    }
+
+    @Test
     void starterTemplateCreationRollsBackWhenItsExecutableSopIsInvalid() throws Exception {
         var termId = createTerm("2026-TEMPLATE-ROLLBACK", "模板回滚学期");
         var storeId = createStore("TEMPLATE-ROLLBACK-LAB", "模板回滚门店");

@@ -198,6 +198,19 @@ class JdbcGovernanceRepository implements GovernanceRepository {
     }
 
     @Override
+    public boolean hasActiveTeamMembership(UUID termId) {
+        Boolean found = jdbcTemplate.queryForObject("""
+                        select exists (
+                            select 1
+                            from gov_term_memberships membership
+                            join gov_teams team on team.id = membership.team_id
+                            where membership.term_id = ? and membership.status = 'ACTIVE' and team.status = 'ACTIVE'
+                        )
+                        """, Boolean.class, termId);
+        return Boolean.TRUE.equals(found);
+    }
+
+    @Override
     public Optional<Membership> findMembership(UUID membershipId) {
         return jdbcTemplate.query("""
                         select id, term_id, account_id, team_id, status, version, updated_at
@@ -316,6 +329,27 @@ class JdbcGovernanceRepository implements GovernanceRepository {
                         select id, template_version_id, component_type, code, name, configuration::text, version, updated_at
                         from gov_template_components where template_version_id = ? and component_type = ? order by code
                         """, (resultSet, rowNumber) -> templateComponent(resultSet), templateVersionId, componentType);
+    }
+
+    @Override
+    public Optional<TemplateComponent> findTemplateComponent(UUID templateComponentId) {
+        return jdbcTemplate.query("""
+                        select id, template_version_id, component_type, code, name, configuration::text, version, updated_at
+                        from gov_template_components where id = ?
+                        """, resultSet -> resultSet.next() ? Optional.of(templateComponent(resultSet)) : Optional.empty(),
+                templateComponentId);
+    }
+
+    @Override
+    public TemplateComponent updateTemplateComponent(UUID templateComponentId, String name, String configurationJson,
+                                                     long expectedVersion) {
+        return jdbcTemplate.queryForObject("""
+                        update gov_template_components
+                        set name = ?, configuration = cast(? as jsonb), version = version + 1, updated_at = current_timestamp
+                        where id = ? and version = ?
+                        returning id, template_version_id, component_type, code, name, configuration::text, version, updated_at
+                        """, (resultSet, rowNumber) -> templateComponent(resultSet), name, configurationJson,
+                templateComponentId, expectedVersion);
     }
 
     @Override

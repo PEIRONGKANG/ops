@@ -207,6 +207,29 @@ class GovernanceController {
         return template(governance.publishTemplateVersion(templateVersionId, request.version(), actorId(authentication)));
     }
 
+    @PatchMapping("/template-versions/{templateVersionId}/starter-configuration")
+    StarterTemplateConfigurationResponse saveStarterTemplateConfiguration(@PathVariable UUID templateVersionId,
+                                                                          @RequestBody SaveStarterTemplateConfigurationRequest request,
+                                                                          Authentication authentication) {
+        var result = governance.saveStarterTemplateConfiguration(templateVersionId,
+                new GovernanceUseCase.SaveStarterTemplateConfigurationCommand(request.template().name(),
+                        request.template().effectiveFrom(), request.template().configuration().toString(), request.template().version(),
+                        request.role().id(), request.role().name(), request.role().configuration().toString(), request.role().version(),
+                        request.sopTask().id(), request.sopTask().name(), request.sopTask().configuration().toString(),
+                        request.sopTask().version(), actorId(authentication)));
+        return new StarterTemplateConfigurationResponse(template(result.template()), templateComponent(result.role()),
+                templateComponent(result.sopTask()));
+    }
+
+    @PostMapping("/startup-configurations/{termId}/publish")
+    StartupPublicationResponse publishStartupConfiguration(@PathVariable UUID termId,
+                                                           @RequestBody PublishStartupConfigurationRequest request,
+                                                           Authentication authentication) {
+        var result = governance.publishStartupConfiguration(termId, new GovernanceUseCase.PublishStartupConfigurationCommand(
+                request.templateVersionId(), request.termVersion(), request.templateVersion(), actorId(authentication)));
+        return new StartupPublicationResponse(term(result.term()), template(result.template()));
+    }
+
     @PatchMapping("/template-versions/{templateVersionId}")
     TemplateVersionResponse updateTemplateVersion(@PathVariable UUID templateVersionId,
                                                   @RequestBody UpdateTemplateVersionRequest request,
@@ -378,6 +401,20 @@ class GovernanceController {
                                         long version) {
     }
 
+    record SaveStarterTemplateConfigurationRequest(UpdateStarterTemplateRequest template,
+                                                   UpdateStarterTemplateComponentRequest role,
+                                                   UpdateStarterTemplateComponentRequest sopTask) {
+    }
+
+    record UpdateStarterTemplateRequest(String name, LocalDate effectiveFrom, JsonNode configuration, long version) {
+    }
+
+    record UpdateStarterTemplateComponentRequest(UUID id, String name, JsonNode configuration, long version) {
+    }
+
+    record PublishStartupConfigurationRequest(UUID templateVersionId, long termVersion, long templateVersion) {
+    }
+
     record CreateTemplateComponentRequest(String code, String name, JsonNode configuration) {
     }
 
@@ -394,6 +431,13 @@ class GovernanceController {
     record TemplateVersionResponse(UUID id, UUID termId, UUID storeId, String templateCode, int templateRevision,
                                    String name, String status, LocalDate effectiveFrom, LocalDate effectiveUntil, long version,
                                    OffsetDateTime updatedAt) {
+    }
+
+    record StarterTemplateConfigurationResponse(TemplateVersionResponse template, TemplateComponentResponse role,
+                                                TemplateComponentResponse sopTask) {
+    }
+
+    record StartupPublicationResponse(TermResponse term, TemplateVersionResponse template) {
     }
 
     record TeamResponse(UUID id, UUID termId, String code, String name, String status, long version,

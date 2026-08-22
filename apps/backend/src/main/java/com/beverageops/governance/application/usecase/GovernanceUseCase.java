@@ -365,6 +365,73 @@ public class GovernanceUseCase {
     }
 
     @Transactional
+    public StarterTemplateConfigurationResult saveStarterTemplateConfiguration(UUID templateVersionId,
+                                                                                SaveStarterTemplateConfigurationCommand command) {
+        var template = governance.lockTemplateVersion(templateVersionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Template version not found."));
+        if (template.status() != TemplateStatus.DRAFT) {
+            throw new IllegalStateException("Only a draft template version can be configured.");
+        }
+        requireVersion(template.version(), command.templateVersion());
+        if (command.templateEffectiveFrom() == null) {
+            throw new IllegalArgumentException("Template effective from date is required.");
+        }
+
+        var role = starterComponent(command.roleId(), templateVersionId, "ROLE", command.roleVersion());
+        var sopTask = starterComponent(command.sopTaskId(), templateVersionId, "SOP_TASK", command.sopTaskVersion());
+        var configuration = requiredJson(command.templateConfigurationJson());
+        var roleConfiguration = requiredJson(command.roleConfigurationJson());
+        var sopTaskConfiguration = requiredJson(command.sopTaskConfigurationJson());
+
+        var updatedTemplate = governance.updateTemplateVersion(templateVersionId,
+                requiredText(command.templateName(), "Template name", 128), command.templateEffectiveFrom(), null,
+                configuration, command.templateVersion());
+        var updatedRole = governance.updateTemplateComponent(role.id(), requiredText(command.roleName(), "Role name", 128),
+                roleConfiguration, command.roleVersion());
+        var updatedSopTask = governance.updateTemplateComponent(sopTask.id(),
+                requiredText(command.sopTaskName(), "SOP task name", 128), sopTaskConfiguration, command.sopTaskVersion());
+        audit("TEMPLATE_VERSION_UPDATED", "TEMPLATE_VERSION", templateVersionId, command.actorId(), template.version(),
+                updatedTemplate.version(), null);
+        audit("TEMPLATE_COMPONENT_UPDATED", "TEMPLATE_COMPONENT", role.id(), command.actorId(), role.version(),
+                updatedRole.version(), null);
+        audit("TEMPLATE_COMPONENT_UPDATED", "TEMPLATE_COMPONENT", sopTask.id(), command.actorId(), sopTask.version(),
+                updatedSopTask.version(), null);
+        return new StarterTemplateConfigurationResult(updatedTemplate, updatedRole, updatedSopTask);
+    }
+
+    @Transactional
+    public StartupPublicationResult publishStartupConfiguration(UUID termId, PublishStartupConfigurationCommand command) {
+        var term = term(termId);
+        requireVersion(term.version(), command.termVersion());
+        if (!"DRAFT".equals(term.status())) {
+            throw new IllegalStateException("Only a draft term can be published.");
+        }
+        if (command.templateVersionId() == null) {
+            throw new IllegalArgumentException("Template version is required.");
+        }
+        var template = governance.lockTemplateVersion(command.templateVersionId())
+                .orElseThrow(() -> new ResourceNotFoundException("Template version not found."));
+        if (!template.termId().equals(termId)) {
+            throw new IllegalArgumentException("The template must belong to the term.");
+        }
+        requireVersion(template.version(), command.templateVersion());
+        if (template.status() != TemplateStatus.DRAFT) {
+            throw new IllegalStateException("Only a draft template version can be published.");
+        }
+        if (!governance.hasActiveTeamMembership(termId)) {
+            throw new IllegalStateException("At least one active member must belong to an active team before publishing.");
+        }
+
+        var publishedTerm = governance.publishTerm(termId, command.termVersion());
+        var publishedTemplate = governance.publishTemplateVersion(command.templateVersionId(), command.templateVersion(),
+                command.actorId());
+        audit("TERM_PUBLISHED", "TERM", termId, command.actorId(), term.version(), publishedTerm.version(), null);
+        audit("TEMPLATE_VERSION_PUBLISHED", "TEMPLATE_VERSION", template.id(), command.actorId(), template.version(),
+                publishedTemplate.version(), null);
+        return new StartupPublicationResult(publishedTerm, publishedTemplate);
+    }
+
+    @Transactional
     public GovernanceRepository.TemplateComponent createTemplateComponent(UUID templateVersionId,
                                                                            CreateTemplateComponentCommand command) {
         var template = governance.lockTemplateVersion(templateVersionId)
@@ -406,6 +473,20 @@ public class GovernanceUseCase {
             throw new IllegalArgumentException(field + " may contain only A-Z, 0-9, underscores and hyphens.");
         }
         return code;
+    }
+
+    private GovernanceRepository.TemplateComponent starterComponent(UUID componentId, UUID templateVersionId,
+                                                                     String expectedType, long expectedVersion) {
+        if (componentId == null) {
+            throw new IllegalArgumentException("Starter template component is required.");
+        }
+        var component = governance.findTemplateComponent(componentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Template component not found."));
+        if (!component.templateVersionId().equals(templateVersionId) || !expectedType.equals(component.componentType())) {
+            throw new IllegalArgumentException("Starter template component does not belong to the template.");
+        }
+        requireVersion(component.version(), expectedVersion);
+        return component;
     }
 
     private String optionalCode(String value, String field) {
@@ -509,6 +590,27 @@ public class GovernanceUseCase {
 
     public record UpdateTemplateVersionCommand(String name, LocalDate effectiveFrom, LocalDate effectiveUntil,
                                                String configurationJson, long version, UUID actorId) {
+    }
+
+    public record SaveStarterTemplateConfigurationCommand(String templateName, LocalDate templateEffectiveFrom,
+                                                          String templateConfigurationJson, long templateVersion,
+                                                          UUID roleId, String roleName, String roleConfigurationJson,
+                                                          long roleVersion, UUID sopTaskId, String sopTaskName,
+                                                          String sopTaskConfigurationJson, long sopTaskVersion,
+                                                          UUID actorId) {
+    }
+
+    public record StarterTemplateConfigurationResult(GovernanceRepository.TemplateVersion template,
+                                                      GovernanceRepository.TemplateComponent role,
+                                                      GovernanceRepository.TemplateComponent sopTask) {
+    }
+
+    public record PublishStartupConfigurationCommand(UUID templateVersionId, long termVersion, long templateVersion,
+                                                      UUID actorId) {
+    }
+
+    public record StartupPublicationResult(GovernanceRepository.Term term,
+                                           GovernanceRepository.TemplateVersion template) {
     }
 
     public record CreateTemplateComponentCommand(String componentType, String code, String name, String configurationJson,

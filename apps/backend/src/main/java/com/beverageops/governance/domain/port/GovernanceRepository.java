@@ -54,6 +54,8 @@ public interface GovernanceRepository {
 
     List<Membership> findMemberships(UUID termId);
 
+    boolean hasActiveTeamMembership(UUID termId);
+
     Membership deactivateMembership(UUID membershipId, long expectedVersion, UUID actorId);
 
     TemplateVersion createTemplateVersion(UUID id, UUID termId, UUID storeId, String templateCode,
@@ -77,6 +79,11 @@ public interface GovernanceRepository {
                                               String name, String configurationJson, UUID actorId);
 
     List<TemplateComponent> findTemplateComponents(UUID templateVersionId, String componentType);
+
+    Optional<TemplateComponent> findTemplateComponent(UUID templateComponentId);
+
+    TemplateComponent updateTemplateComponent(UUID templateComponentId, String name, String configurationJson,
+                                              long expectedVersion);
 
     List<AuditEventView> findAuditEvents(String resourceType, UUID resourceId, OffsetDateTime from, OffsetDateTime to);
 
