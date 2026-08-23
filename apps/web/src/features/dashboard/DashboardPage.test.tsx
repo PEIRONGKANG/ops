@@ -202,6 +202,38 @@ describe('DashboardPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('实训配置已发布，周期与运营模板现已生效。');
   });
 
+  it('shows the published training information with a summary and editable actions', async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    const publishedTerm = { ...term, status: 'PUBLISHED' as const };
+    const publishedTemplate = {
+      id: 'template-id', termId: term.id, storeId: store.id, templateCode: 'DAILY-OPS', templateRevision: 1,
+      name: '日常运营模板', status: 'PUBLISHED' as const, effectiveFrom: '2026-09-01', effectiveUntil: null,
+      configuration: {}, version: 5, updatedAt: '2026-08-21T00:00:00Z',
+    };
+    api.listTerms = vi.fn().mockResolvedValue([publishedTerm]);
+    api.listStores = vi.fn().mockResolvedValue([store]);
+    api.listTeachingWeeks = vi.fn().mockResolvedValue([firstTeachingWeek]);
+    api.listTemplateVersions = vi.fn().mockResolvedValue([publishedTemplate]);
+    api.listTeams = vi.fn().mockResolvedValue([{ id: 'team-id', termId: term.id, code: 'TEAM-A', name: 'A 组', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listMemberships = vi.fn().mockResolvedValue([{ id: 'membership-id', termId: term.id, accountId: 'account-id', teamId: 'team-id', status: 'ACTIVE', version: 1, updatedAt: '2026-08-21T00:00:00Z' }]);
+    api.listAccounts = vi.fn().mockResolvedValue([{ id: 'account-id', loginId: 'P3-001', displayName: '林同学', status: 'ACTIVE', roles: ['P3'] }]);
+
+    renderDashboard(api);
+
+    expect(await screen.findByRole('heading', { name: '实训信息' })).toBeVisible();
+    expect(screen.getByText('2026 秋季实训')).toBeVisible();
+    expect(screen.getAllByText('饮品实训门店')[0]).toBeVisible();
+    expect(screen.getAllByText('导入与准备')[0]).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Summary' })).toBeVisible();
+    expect(screen.getByText('已发布')).toBeVisible();
+    expect(screen.getByRole('button', { name: '返回编辑' })).toBeVisible();
+    expect(screen.getByRole('button', { name: '继续' })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: '返回编辑' }));
+    expect(await screen.findByRole('textbox', { name: '周期名称' })).toHaveValue('2026 秋季实训');
+  });
+
   it('blocks startup actions when a dependent state request fails and restores the server step after retry', async () => {
     const user = userEvent.setup();
     const api = createApi();

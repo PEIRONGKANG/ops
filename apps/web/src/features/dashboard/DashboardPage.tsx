@@ -1,11 +1,12 @@
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { Box, Button, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { PeopleWorkspacePage } from '@/features/governance/PeopleWorkspacePage';
 import { TemplateWorkspacePage } from '@/features/governance/TemplateWorkspacePage';
 import { TermWorkspacePage } from '@/features/governance/TermWorkspacePage';
-import type { GovernanceApi, Store, Term } from '@/features/governance/governanceApi';
+import type { AccountSummary, GovernanceApi, Store, TeachingWeek, Team, TemplateVersion, Term } from '@/features/governance/governanceApi';
 import type { AccountProfile } from '@/shared/api/authApi';
 import { AppShell } from '@/shared/ui/components/AppShell';
 import { PageScaffold } from '@/shared/ui/components/PageScaffold';
@@ -27,6 +28,15 @@ interface StartupProgress {
   template: boolean;
 }
 
+interface StartupSnapshot {
+  term: Term | null;
+  store: Store | null;
+  firstTeachingWeek: TeachingWeek | null;
+  template: TemplateVersion | null;
+  teams: Team[];
+  activeAccounts: AccountSummary[];
+}
+
 const roleLabels: Record<AccountProfile['roles'][number], string> = {
   P1: '运营治理',
   P2: '现场负责人',
@@ -43,6 +53,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
   const [loadError, setLoadError] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
   const [publication, setPublication] = useState<{ term: Term; templateId: string; templateVersion: number } | null>(null);
+  const [snapshot, setSnapshot] = useState<StartupSnapshot>({ term: null, store: null, firstTeachingWeek: null, template: null, teams: [], activeAccounts: [] });
   const { showToast } = useToast();
   const configurationRef = useRef<HTMLElement>(null);
 
@@ -57,6 +68,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
       if (!term || !store) {
         setProgress({ period, template: false, people: false, published: false });
         setPublication(null);
+        setSnapshot({ term: null, store: null, firstTeachingWeek: null, template: null, teams: [], activeAccounts: [] });
         return;
       }
 
@@ -72,6 +84,8 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
       const template = templates.find((item) => item.status === 'DRAFT') ?? templates.find((item) => item.status === 'PUBLISHED');
       const templateConfigured = Boolean(template);
       const published = term.status === 'PUBLISHED' && template?.status === 'PUBLISHED';
+      const firstTeachingWeek = weeks.find((week) => week.weekNumber === 1) ?? null;
+      setSnapshot({ term, store, firstTeachingWeek, template: template ?? null, teams, activeAccounts: accounts });
       setProgress({
         period: period && weeks.some((week) => week.weekNumber === 1),
         template: templateConfigured,
@@ -94,7 +108,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
     progress.published ? 'complete' : progress.template ? 'current' : 'blocked',
   ], [progress.period, progress.published, progress.template]);
   const currentStepIndex = statuses.findIndex((status) => status === 'current');
-  const visibleStepIndex = currentStepIndex === -1 ? -1 : selectedStepIndex !== null && statuses[selectedStepIndex] !== 'blocked'
+  const visibleStepIndex = selectedStepIndex !== null && statuses[selectedStepIndex] !== 'blocked'
     ? selectedStepIndex
     : currentStepIndex;
   const current = loadError
@@ -178,7 +192,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
                   />
                 </Box>
               ) : null}
-              {currentStepIndex === -1 ? <StartupComplete /> : null}
+              {visibleStepIndex === -1 ? <StartupComplete onContinue={() => showToast({ message: '实训配置已完成，当前信息已保存为只读摘要。', severity: 'success' })} onEdit={() => setSelectedStepIndex(0)} snapshot={snapshot} /> : null}
             </Box>
           </Stack>
         ) : null}
@@ -242,13 +256,133 @@ function StartupActionPane({ canPublish, formId, initialPeriod, mainLabel, onPub
   );
 }
 
-function StartupComplete() {
+function StartupComplete({ onContinue, onEdit, snapshot }: {
+  onContinue: () => void;
+  onEdit: () => void;
+  snapshot: StartupSnapshot;
+}) {
+  const { term, store, firstTeachingWeek, template, teams, activeAccounts } = snapshot;
+  const activeTeams = teams.filter((team) => team.status === 'ACTIVE');
+  const activeMembers = activeAccounts.filter((account) => account.status === 'ACTIVE');
+
   return (
-    <Stack gap={1.25} maxWidth={680}>
-      <Typography component="h2" variant="h2">启动清单已完成</Typography>
-      <Typography color="text.secondary">周期、模板和人员组织已经由服务端确认。现在可以进入日常门店运营与课程工作。</Typography>
-    </Stack>
+    <Box
+      bgcolor="background.paper"
+      border={1}
+      borderColor="divider"
+      borderRadius="var(--beverage-shape-large)"
+      overflow="hidden"
+    >
+      <Box
+        display="grid"
+        gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 1fr) 320px' }}
+        minWidth={0}
+      >
+        <Box minWidth={0} p={{ xs: 2.5, sm: 4, lg: 5 }}>
+          <Stack gap={1} mb={{ xs: 3, sm: 4 }}>
+            <Typography color="primary" fontWeight={800} variant="overline">实训周期</Typography>
+            <Typography component="h2" variant="h2">实训信息</Typography>
+            <Typography color="text.secondary" maxWidth={680} variant="body1">
+              基础配置已经发布。以下信息将作为本期饮品生产性实训的统一运营上下文。
+            </Typography>
+          </Stack>
+
+          <Stack divider={<Box borderTop={1} borderColor="divider" />}>
+            <StartupInfoGroup title="周期与门店">
+              <StartupInfoRow label="周期名称" value={term?.name ?? '未设置'} />
+              <StartupInfoRow label="周期代码" value={term?.code ?? '未设置'} />
+              <StartupInfoRow label="周期时间" value={formatDateRange(term?.startDate, term?.endDate)} />
+              <StartupInfoRow label="运营门店" value={store?.name ?? '未设置'} detail={store?.code} />
+            </StartupInfoGroup>
+            <StartupInfoGroup title="教学安排">
+              <StartupInfoRow label="首个教学周" value={firstTeachingWeek?.name ?? '未设置'} detail={formatDateRange(firstTeachingWeek?.startDate, firstTeachingWeek?.endDate)} />
+              <StartupInfoRow label="教学阶段" value={firstTeachingWeek?.phaseCode ?? '未设置'} />
+            </StartupInfoGroup>
+            <StartupInfoGroup title="运营模板与团队">
+              <StartupInfoRow label="运营模板" value={template?.name ?? '未设置'} detail={template ? `${template.templateCode} · v${template.version}` : undefined} />
+              <StartupInfoRow label="团队" value={`${activeTeams.length} 个活动团队`} detail={activeTeams.map((team) => team.name).join('、') || '尚未建立团队'} />
+              <StartupInfoRow label="成员" value={`${activeMembers.length} 人`} detail="已激活账号" />
+            </StartupInfoGroup>
+          </Stack>
+        </Box>
+
+        <Box
+          bgcolor="var(--beverage-surface-container)"
+          borderColor="divider"
+          borderLeft={{ lg: 1 }}
+          borderTop={{ xs: 1, lg: 0 }}
+          p={{ xs: 2.5, sm: 4 }}
+        >
+          <Stack gap={2.5}>
+            <Typography color="text.secondary" fontWeight={700} variant="subtitle2">Summary</Typography>
+            <Typography component="h3" variant="h3">已发布实训</Typography>
+            <Stack divider={<Box borderTop={1} borderColor="divider" />}>
+              <StartupSummaryRow label="状态"><Chip color="success" label="已发布" size="small" /></StartupSummaryRow>
+              <StartupSummaryRow label="周期" value={term?.code ?? '—'} />
+              <StartupSummaryRow label="门店" value={store?.name ?? '—'} />
+              <StartupSummaryRow label="首周" value={firstTeachingWeek?.name ?? '—'} />
+              <StartupSummaryRow label="成员" value={`${activeMembers.length} 人`} />
+            </Stack>
+            <Typography color="text.secondary" variant="body2">
+              可返回任一步骤查看配置；已发布内容将以当前周期信息为准。
+            </Typography>
+          </Stack>
+        </Box>
+      </Box>
+
+      <Stack
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        borderTop={1}
+        borderColor="divider"
+        direction={{ xs: 'column-reverse', sm: 'row' }}
+        gap={1.5}
+        justifyContent="space-between"
+        p={{ xs: 2, sm: 2.5 }}
+      >
+        <Button color="primary" onClick={onEdit} startIcon={<ArrowBackRoundedIcon />} variant="text">
+          返回编辑
+        </Button>
+        <Button endIcon={<ArrowForwardRoundedIcon />} onClick={onContinue} variant="contained">
+          继续
+        </Button>
+      </Stack>
+    </Box>
   );
+}
+
+function StartupInfoGroup({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <Box py={{ xs: 2.5, sm: 3 }}>
+      <Typography component="h3" mb={1.5} variant="h3">{title}</Typography>
+      <Stack gap={1.25}>{children}</Stack>
+    </Box>
+  );
+}
+
+function StartupInfoRow({ detail, label, value }: { detail?: string; label: string; value: string }) {
+  return (
+    <Box alignItems={{ xs: 'flex-start', sm: 'center' }} display="flex" gap={2} justifyContent="space-between">
+      <Typography color="text.secondary" variant="body2">{label}</Typography>
+      <Stack alignItems="flex-end" gap={0.25} minWidth={0} textAlign="right">
+        <Typography fontWeight={700} variant="body1">{value}</Typography>
+        {detail ? <Typography color="text.secondary" noWrap maxWidth="100%" variant="caption">{detail}</Typography> : null}
+      </Stack>
+    </Box>
+  );
+}
+
+function StartupSummaryRow({ children, label, value }: { children?: ReactNode; label: string; value?: string }) {
+  return (
+    <Box alignItems="center" display="flex" gap={1.5} justifyContent="space-between" py={1.5}>
+      <Typography color="text.secondary" variant="body2">{label}</Typography>
+      {children ?? <Typography fontWeight={700} textAlign="right" variant="body2">{value ?? '—'}</Typography>}
+    </Box>
+  );
+}
+
+function formatDateRange(startDate?: string, endDate?: string): string {
+  if (!startDate || !endDate) return '未设置';
+  return `${startDate} — ${endDate}`;
 }
 
 function preferredTerm(terms: Term[]): Term | undefined {
