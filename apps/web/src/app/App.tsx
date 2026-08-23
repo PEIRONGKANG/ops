@@ -21,7 +21,7 @@ function AppContent() {
   if (status === 'guest') return <LoginPage />;
   if (status === 'password_change') return <ChangePasswordPage />;
   if (!profile) return <main aria-label="正在加载工作台" />;
-  if (profile.roles.includes('P2') || profile.roles.includes('P3')) return <OperationsWorkspacePage api={operationsApi} profile={profile} />;
+  if (!profile.roles.includes('P1') && (profile.roles.includes('P2') || profile.roles.includes('P3'))) return <OperationsWorkspacePage api={operationsApi} profile={profile} />;
   return <DashboardPage api={governanceApi} profile={profile} />;
 }
 
