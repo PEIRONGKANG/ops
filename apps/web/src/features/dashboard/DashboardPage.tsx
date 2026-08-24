@@ -176,7 +176,7 @@ export function DashboardPage({ api, profile }: DashboardPageProps) {
 
             <Box component="section" ref={configurationRef} aria-label="当前步骤配置">
               {visibleStepIndex !== -1 ? (
-                <Box display="grid" gap={{ xs: 3, lg: 4 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 2fr) minmax(240px, 1fr)' }}>
+                <Box alignItems="start" display="grid" gap={{ xs: 3, lg: 5 }} gridTemplateColumns={{ xs: '1fr', lg: 'minmax(0, 1fr) 292px' }}>
                   <Box minWidth={0}>
                     {visibleStepIndex === 0 ? <TermWorkspacePage api={api} embedded formId="startup-period-form" onInitialized={() => { setSelectedStepIndex(1); void load(); }} /> : null}
                     {visibleStepIndex === 1 ? <TemplateWorkspacePage api={api} embedded formId="startup-template-form" onSaved={() => { setSelectedStepIndex(2); void load(); }} /> : null}
@@ -212,10 +212,10 @@ function StartupForwardAction({ formId }: { formId: string }) {
           sx={{
             backgroundColor: 'var(--beverage-primary-container)',
             color: 'primary.main',
-            height: 56,
-            opacity: 0.72,
+            height: 52,
+            opacity: 0.8,
             transition: 'opacity 180ms ease, transform 180ms ease',
-            width: 56,
+            width: 52,
             '&:hover': { backgroundColor: 'var(--beverage-primary-container)', opacity: 1, transform: 'translateX(3px)' },
           }}
           type="submit"
@@ -251,7 +251,7 @@ function StartupActionPane({ canPublish, formId, initialPeriod, mainLabel, onPub
 
   return (
     <SupportingActionPane action={action} title={titles[stepIndex]}>
-      <Typography color="text.secondary" variant="body2">{descriptions[stepIndex]}</Typography>
+      <Typography color="text.secondary" lineHeight={1.65} variant="body2">{descriptions[stepIndex]}</Typography>
     </SupportingActionPane>
   );
 }

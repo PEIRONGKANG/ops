@@ -11,14 +11,23 @@ const steps: StartupSteps = [
 ];
 
 describe('StartupStepper', () => {
-  it('exposes the current step, completed state and blocked explanation', () => {
+  it('exposes the current step and keeps blocked explanations available to assistive technology without adding visual noise', () => {
     render(<StartupStepper onSelect={vi.fn()} selected={1} steps={steps} />);
 
     const list = screen.getByRole('list', { name: '启动配置流程' });
     expect(within(list).getByText('配置运营模板').closest('li')).toHaveAttribute('aria-current', 'step');
     expect(within(list).getByLabelText('建立实训周期，已完成')).toBeVisible();
     expect(within(list).getByRole('button', { name: '组织实训人员' })).toBeDisabled();
-    expect(within(list).getByText('等待上一步')).toBeVisible();
+    const blockedDescription = within(list).getByText('等待上一步');
+    expect(blockedDescription).toHaveStyle({
+      borderWidth: '0px',
+      height: '1px',
+      margin: '-1px',
+      overflow: 'hidden',
+      padding: '0px',
+      position: 'absolute',
+      width: '1px',
+    });
     expect(within(list).queryByText('当前步骤')).not.toBeInTheDocument();
   });
 

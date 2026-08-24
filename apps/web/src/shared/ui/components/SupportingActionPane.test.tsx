@@ -20,7 +20,7 @@ describe('SupportingActionPane', () => {
   it('uses a tonal full-row pane before becoming a fixed-width expanded-side pane', () => {
     expect(supportingActionPaneLayout.backgroundColor).toBe('var(--beverage-surface-container)');
     expect(supportingActionPaneLayout.gridColumn).toEqual({ xs: '1 / -1', lg: 'auto' });
-    expect(supportingActionPaneLayout.width).toEqual({ xs: '100%', lg: 320 });
+    expect(supportingActionPaneLayout.width).toEqual({ xs: '100%', lg: 292 });
     expect(supportingActionPaneLayout.justifySelf).toEqual({ xs: 'stretch', lg: 'end' });
   });
 });

@@ -142,14 +142,14 @@ export function TermWorkspacePage({ api, embedded = false, formId, onBack, onIni
 
   return (
     <WorkspaceFrame embedded={embedded} onBack={onBack} title="建立实训周期">
-      <Box maxWidth={embedded ? 960 : 760}>
+      <Box maxWidth={embedded ? 920 : 760}>
         {!embedded ? <Stack gap={1} mb={4}>
           <Typography component="h1" variant="h2">建立实训周期</Typography>
           <Typography color="text.secondary">一次确认本期实训范围：系统将同时创建周期、实际运营门店和首个教学周，避免留下未完成的基础配置。</Typography>
         </Stack> : null}
 
         <Box component="form" id={formId} noValidate onSubmit={handleSubmit(create, handleInvalid)}>
-          <Stack gap={embedded ? 3 : 4}>
+          <Stack gap={embedded ? 4 : 4}>
             <WorkspaceSection description={embedded ? undefined : '定义本期的教学与运营时间范围。'} id="period-timing" title="周期与时间">
               <Field disabled={Boolean(activeTerm)} name="termCode" register={register} errors={errors} required />
               <Field name="termName" register={register} errors={errors} required />

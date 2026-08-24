@@ -10,14 +10,14 @@ export interface SupportingActionPaneLayoutContract {
   readonly backgroundColor: string;
   readonly gridColumn: Readonly<{ xs: '1 / -1'; lg: 'auto' }>;
   readonly justifySelf: Readonly<{ xs: 'stretch'; lg: 'end' }>;
-  readonly width: Readonly<{ xs: '100%'; lg: 320 }>;
+  readonly width: Readonly<{ xs: '100%'; lg: 292 }>;
 }
 
 export const supportingActionPaneLayout = {
   backgroundColor: 'var(--beverage-surface-container)',
   gridColumn: { xs: '1 / -1', lg: 'auto' },
   justifySelf: { xs: 'stretch', lg: 'end' },
-  width: { xs: '100%', lg: 320 },
+  width: { xs: '100%', lg: 292 },
 } as const satisfies SupportingActionPaneLayoutContract;
 
 export function SupportingActionPane({ action, children, title }: SupportingActionPaneProps) {
@@ -31,6 +31,8 @@ export function SupportingActionPane({ action, children, title }: SupportingActi
       sx={{
         alignSelf: 'start',
         bgcolor: supportingActionPaneLayout.backgroundColor,
+        border: 1,
+        borderColor: 'divider',
         gridColumn: supportingActionPaneLayout.gridColumn,
         justifySelf: supportingActionPaneLayout.justifySelf,
         p: { xs: 2.5, sm: 3 },
@@ -39,12 +41,12 @@ export function SupportingActionPane({ action, children, title }: SupportingActi
         width: supportingActionPaneLayout.width,
       }}
     >
-      <Stack gap={2.5}>
-        <Typography component="h2" id={titleId} variant="h3">
+      <Stack gap={2.25}>
+        <Typography component="h2" fontWeight={750} id={titleId} variant="h3">
           {title}
         </Typography>
         <Stack gap={1.5}>{children}</Stack>
-        {action ? <Stack alignItems="flex-start">{action}</Stack> : null}
+        {action ? <Stack alignItems="flex-start" pt={0.25}>{action}</Stack> : null}
       </Stack>
     </Paper>
   );

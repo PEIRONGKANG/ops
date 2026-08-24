@@ -29,13 +29,13 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
     <Box
       bgcolor="var(--beverage-surface-container)"
       borderRadius="var(--beverage-shape-large)"
-      p={{ xs: 1, sm: 1.5 }}
+      p={{ xs: 1, sm: 1.25 }}
     >
       <Box
         aria-label="启动配置流程"
         component="ol"
         display="grid"
-        gap={{ xs: 0.5, sm: 1 }}
+        gap={{ xs: 0.25, sm: 0.75 }}
         gridTemplateColumns={`repeat(${steps.length}, minmax(0, 1fr))`}
         m={0}
         p={0}
@@ -48,7 +48,7 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
             height: 2,
             left: '16.667%',
             position: 'absolute',
-            top: 26,
+            top: 22,
             transition: 'width 180ms ease',
             width: `calc(66.666% * ${progress / 100})`,
           },
@@ -59,7 +59,7 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
             left: '16.667%',
             position: 'absolute',
             right: '16.667%',
-            top: 26,
+            top: 22,
           },
         }}
       >
@@ -89,14 +89,14 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                 sx={{
                   alignItems: 'center',
                   bgcolor: selectedStep ? 'var(--beverage-primary-container)' : 'transparent',
-                  borderRadius: 'var(--beverage-shape-medium)',
+                  borderRadius: 'var(--beverage-shape-small)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 0.75,
+                  gap: 0.5,
                   justifyContent: 'center',
                   minHeight: 0,
                   minWidth: 0,
-                  p: { xs: 0.75, sm: 1 },
+                  p: { xs: 0.75, sm: 0.875 },
                   '&.Mui-disabled': { color: 'text.secondary' },
                   '&:hover': { bgcolor: selectedStep ? 'var(--beverage-primary-container)' : 'var(--beverage-surface-container-high)' },
                 }}
@@ -111,13 +111,13 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                   color={complete || current ? 'primary.contrastText' : 'text.secondary'}
                   display="flex"
                   fontWeight={800}
-                  height={32}
+                  height={28}
                   justifyContent="center"
-                  width={32}
+                  width={28}
                 >
                   {complete ? <Box aria-label={`${step.title}，已完成`} component="span" display="flex" role="img"><CheckRoundedIcon aria-hidden fontSize="small" /></Box> : index + 1}
                 </Box>
-                <Typography color={blocked ? 'text.secondary' : 'text.primary'} fontWeight={selectedStep ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, lineHeight: 1.35 }} variant="subtitle1">
+                <Typography color={blocked ? 'text.secondary' : 'text.primary'} fontWeight={selectedStep ? 800 : 700} noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, lineHeight: 1.35 }} variant="subtitle1">
                   {step.title}
                 </Typography>
               </Button>
@@ -125,8 +125,7 @@ export function StartupStepper({ onSelect, selected, steps }: StartupStepperProp
                 color="text.secondary"
                 fontWeight={700}
                 id={statusId}
-                mt={blocked ? 0.5 : undefined}
-                sx={blocked ? undefined : visuallyHidden}
+                sx={visuallyHidden}
                 variant="caption"
               >
                 {statusText}

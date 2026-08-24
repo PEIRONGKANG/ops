@@ -78,22 +78,23 @@ export function createBeverageTheme() {
         defaultProps: { disableUnderline: true },
         styleOverrides: {
           root: {
-            backgroundColor: 'var(--beverage-surface-container-high)',
-            border: '1px solid transparent',
+            backgroundColor: 'var(--mui-palette-background-paper)',
+            border: '1px solid var(--mui-palette-divider)',
             borderRadius: beverageTokens.shape.small,
             minHeight: 56,
             overflow: 'hidden',
             transition: 'background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
             '&:hover': {
-              backgroundColor: 'color-mix(in srgb, var(--mui-palette-text-primary) var(--beverage-state-hover), var(--beverage-surface-container-high))',
+              backgroundColor: 'var(--beverage-surface-container)',
+              borderColor: 'var(--mui-palette-text-secondary)',
             },
             '&.Mui-focused': {
-              backgroundColor: 'var(--beverage-surface-container-high)',
+              backgroundColor: 'var(--mui-palette-background-paper)',
               borderColor: 'var(--mui-palette-primary-main)',
               boxShadow: primaryFocusRing,
             },
             '&.Mui-error': { borderColor: 'var(--mui-palette-error-main)' },
-            '&.Mui-disabled': { backgroundColor: 'var(--beverage-surface-container)', opacity: 0.64 },
+            '&.Mui-disabled': { backgroundColor: 'var(--beverage-surface-container)', borderColor: 'transparent', opacity: 0.72 },
           },
           input: { paddingInline: 16 },
         },

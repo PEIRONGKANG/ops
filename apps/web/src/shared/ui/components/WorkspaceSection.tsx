@@ -34,9 +34,9 @@ export function WorkspaceSection({ children, columns = workspaceSectionLayout.de
     : workspaceSectionLayout.gridTemplateColumns;
 
   return (
-    <Stack aria-labelledby={headingId} component="section" gap={2.5} id={id} sx={customStyles}>
-      <Stack gap={0.5}>
-        <Typography component="h2" id={headingId} variant="h3">
+    <Stack aria-labelledby={headingId} component="section" gap={{ xs: 1.5, sm: 2 }} id={id} sx={customStyles}>
+      <Stack gap={0.25}>
+        <Typography component="h2" fontWeight={750} id={headingId} variant="h3">
           {title}
         </Typography>
         {description ? (
@@ -47,7 +47,7 @@ export function WorkspaceSection({ children, columns = workspaceSectionLayout.de
       </Stack>
       <Box
         display="grid"
-        gap={{ xs: 2, sm: 2.5 }}
+        gap={{ xs: 1.5, sm: 2 }}
         gridTemplateColumns={gridTemplateColumns}
       >
         {children}
